@@ -54,3 +54,5 @@ RUN /bin/bash /root/configure.sh
 RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 
 ENV PATH=${PATH}:/home/${USERNAME}/.local/bin:/workdir
+
+USER $USERNAME

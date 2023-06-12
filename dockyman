@@ -81,10 +81,10 @@ push()
 
 clean()
 {
-    echo "\n DOCKYMAN -> Removing BASE image ..."
-    docker image rm $image_name
-    echo "\n DOCKYMAN -> Removing LOCAL image ..."
-    docker image rm $image_name.local
+    echo "DOCKYMAN -> Removing BASE image ..."
+    docker image rmi -f $image_name
+    echo "DOCKYMAN -> Removing LOCAL image ..."
+    docker image rmi -f $image_name.local
 }
 
 init()

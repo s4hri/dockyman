@@ -59,8 +59,6 @@ USER $USERNAME
 RUN mkdir -p ~/nvm
 ENV NVM_DIR /home/$USERNAME/nvm
 
-#SHELL ["/bin/bash", "--login", "-c"]
-
 RUN curl -o- curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
 
 RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $NODE_VERSION && nvm use --delete-prefix $NODE_VERSION"
