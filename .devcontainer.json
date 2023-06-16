@@ -1,7 +1,0 @@
-{
-    "name": "Dockyman",
-    "dockerComposeFile": ["compose.dev.yaml", "compose.yaml"],
-    "service": "dockyman",
-    "workspaceFolder": "/dockyman",
-    "shutdownAction": "stopCompose"
-}

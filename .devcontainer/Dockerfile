@@ -54,6 +54,16 @@ RUN usermod -aG docker $USERNAME
 RUN mkdir -p /shared
 VOLUME /shared
 
+ARG DOCKYMAN_VER
+
+ENV DOCKYMAN_VER $DOCKYMAN_VER
+
+
+ADD target /workdir/target
+ADD template /workdir/template
+RUN ln -s /workdir/target/dockyman /usr/local/bin/dockyman
+#COPY target/dockyman /usr/local/bin
+
 USER $USERNAME
 
 RUN mkdir -p ~/nvm
@@ -68,12 +78,7 @@ ENV PATH $NODE_PATH:$PATH
 
 RUN npm install -g @devcontainers/cli
 
-ADD local /workdir/local
-ADD dockyman /workdir/dockyman
-
-COPY dockyman /usr/local/bin
-
 WORKDIR /workdir
-ARG DOCKYMAN_VER
 
-ENV DOCKYMAN_VER $DOCKYMAN_VER
+ENTRYPOINT ["/bin/bash", "-c", "dockyman \"$@\"", "--"]
+CMD ["--action", "choice"]

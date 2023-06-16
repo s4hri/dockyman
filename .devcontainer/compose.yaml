@@ -27,13 +27,20 @@ services:
   dockyman:
     image: iitschri/dockyman:${DOCKYMAN_VER}
 
+    build:
+      dockerfile: .devcontainer/Dockerfile
+      context: ..
+      args:
+        DOCKYMAN_VER: ${DOCKYMAN_VER}
+
     privileged: true
     stdin_open: true
     tty: true
 
-    command: /bin/bash -c dockyman
-
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/group:/etc/group:ro
-      
+      - ../:/workdir
+
+    #entrypoint: /bin/bash -c dockyman
+
