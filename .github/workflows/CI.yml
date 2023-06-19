@@ -14,10 +14,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository and submodules
+      - name: Checkout repository
         uses: actions/checkout@v2
-        with:
-          submodules: recursive
+
+      - name: Set up SSH key for submodule access
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GIT_TOKEN }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+      - name: Clone submodule
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
 
       - name: Extract version from .env file
         id: extract-version
@@ -25,7 +35,13 @@ jobs:
           DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
           echo "::set-output name=version::$DOCKYMAN_VER"
 
-      - name: Update and push submodule changes
+      - name: Check submodule status
+        run: |
+          cd template
+          git status
+          cd ..
+
+      - name: Commit and push submodule changes
         run: |
           cd template
           git config user.name "GitHub Actions"
