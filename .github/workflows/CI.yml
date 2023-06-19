@@ -20,12 +20,14 @@ jobs:
       - name: Set up SSH key for submodule access
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.GIT_TOKEN }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
       - name: Clone submodule
         run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
 
@@ -44,8 +46,6 @@ jobs:
       - name: Commit and push submodule changes
         run: |
           cd template
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
           git add .
           git commit -m "Update submodule"
           git push origin HEAD:master
