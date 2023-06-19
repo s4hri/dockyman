@@ -27,8 +27,8 @@ jobs:
           PROJECT_VERSION: ${{ steps.extract-version.outputs.version }}
         run: |
           echo "Building Docker image..."
-          docker build -t your_dockerhub_username/your_project_name:latest -t your_dockerhub_username/your_project_name:${{ steps.extract-version.outputs.version }} .
+          docker build -t $DOCKER_USERNAME/dockyman:latest -t $DOCKER_USERNAME/dockyman:${{ steps.extract-version.outputs.version }} .devcontainer/
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           echo "Pushing Docker image..."
-          docker push your_dockerhub_username/your_project_name:latest
-          docker push your_dockerhub_username/your_project_name:${{ steps.extract-version.outputs.version }}
+          docker push $DOCKER_USERNAME/dockyman:latest
+          docker push $DOCKER_USERNAME/dockyman:${{ steps.extract-version.outputs.version }}
