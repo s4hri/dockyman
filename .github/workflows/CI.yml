@@ -7,7 +7,7 @@ on:
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-  TEMPLATE_TOKEN: ${{ secrets.TEMPLATE_TOKEN }}
+  GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
 jobs:
   build-and-push:
@@ -28,7 +28,7 @@ jobs:
       - name: Authenticate to template submodule
         run: |
           cd template
-          git config http.https://github.com/s4hri/dockyman-template.extraheader "Authorization: Bearer $TEMPLATE_TOKEN"
+          git config http.https://github.com/s4hri/dockyman-template.extraheader "Authorization: Bearer $GIT_TOKEN"
           cd ..
 
       - name: Check submodule status
