@@ -62,7 +62,6 @@ ENV DOCKYMAN_VER $DOCKYMAN_VER
 ADD target /workdir/target
 ADD template /workdir/template
 RUN ln -s /workdir/target/dockyman /usr/local/bin/dockyman
-#COPY target/dockyman /usr/local/bin
 
 USER $USERNAME
 

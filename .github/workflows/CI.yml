@@ -1,0 +1,34 @@
+name: Build and Push Docker Image
+on:
+  release:
+    types:
+      - created
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Extract version from .env file
+        id: extract-version
+        run: |
+          DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
+          echo "::set-output name=version::$DOCKYMAN_VER"
+
+      - name: Build and push Docker image
+        env:
+          PROJECT_VERSION: ${{ steps.extract-version.outputs.version }}
+        run: |
+          echo "Building Docker image..."
+          docker build -t your_dockerhub_username/your_project_name:latest -t your_dockerhub_username/your_project_name:${{ steps.extract-version.outputs.version }} .
+          echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+          echo "Pushing Docker image..."
+          docker push your_dockerhub_username/your_project_name:latest
+          docker push your_dockerhub_username/your_project_name:${{ steps.extract-version.outputs.version }}
