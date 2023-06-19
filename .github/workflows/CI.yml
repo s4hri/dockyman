@@ -14,45 +14,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Clone submodule
+      - name: Checkout repository and submodules
         uses: actions/checkout@v2
         with:
-          repository: https://github.com/s4hri/dockyman-template
-          path: template
-          ref: v2
-          ssh-key: ${{ secrets.GIT_TOKEN }}
-          persist-credentials: false
-  
+          submodules: recursive
+
       - name: Extract version from .env file
         id: extract-version
         run: |
           DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
           echo "::set-output name=version::$DOCKYMAN_VER"
 
-      - name: Check submodule status
+      - name: Update and push submodule changes
         run: |
           cd template
-          git status
-          cd ..
-
-      - name: Commit and push submodule changes
-        run: |
-          cd template
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add .
           git commit -m "Update submodule"
-          git push
+          git push origin HEAD:master
           cd ..
 
       - name: Build and push Docker image
         env:
           PROJECT_VERSION: ${{ steps.extract-version.outputs.version }}
+          DOCKER_IMAGE_TAG: ${{ secrets.DOCKER_USERNAME }}/dockyman
         run: |
           echo "Building Docker image..."
-          docker build -t $DOCKER_USERNAME/dockyman:latest -t $DOCKER_USERNAME/dockyman:${{ steps.extract-version.outputs.version }} .devcontainer/
+          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} .devcontainer/
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           echo "Pushing Docker image..."
-          docker push $DOCKER_USERNAME/dockyman:latest
-          docker push $DOCKER_USERNAME/dockyman:${{ steps.extract-version.outputs.version }}
+          docker push $DOCKER_IMAGE_TAG:latest
+          docker push $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }}
