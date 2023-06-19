@@ -20,7 +20,7 @@ jobs:
       - name: Clone submodule
         uses: actions/checkout@v2
         with:
-          repository: s4hri/dockyman-template
+          repository: https://github.com/s4hri/dockyman-template
           path: template
           ref: v2
           ssh-key: ${{ secrets.GIT_TOKEN }}
