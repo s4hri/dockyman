@@ -59,9 +59,9 @@ ARG DOCKYMAN_VER
 ENV DOCKYMAN_VER $DOCKYMAN_VER
 
 
-ADD target /workdir/target
+ADD local /workdir/local
 ADD template /workdir/template
-RUN ln -s /workdir/target/dockyman /usr/local/bin/dockyman
+RUN ln -s /workdir/local/dockyman /usr/local/bin/dockyman
 
 USER $USERNAME
 

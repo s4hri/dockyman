@@ -35,7 +35,7 @@ jobs:
           DOCKER_IMAGE_TAG: ${{ secrets.DOCKER_USERNAME }}/dockyman
         run: |
           echo "Building Docker image..."
-          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} --file .devcontainer/ ../
+          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} -f .devcontainer/Dockerfile .
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           echo "Pushing Docker image..."
           docker push $DOCKER_IMAGE_TAG:latest

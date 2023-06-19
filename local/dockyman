@@ -1,0 +1,166 @@
+#!/bin/bash
+cat << "EOF" 
+##############################################################
+
+#####    ####    ####   #    #   #   #  #    #    ##    #    #
+#    #  #    #  #    #  #   #     # #   ##  ##   #  #   ##   #
+#    #  #    #  #       ####       #    # ## #  #    #  # #  #
+#    #  #    #  #       #  #       #    #    #  ######  #  # #
+#    #  #    #  #    #  #   #      #    #    #  #    #  #   ##
+#####    ####    ####   #    #     #    #    #  #    #  #    #
+
+##############################################################
+
+Author: Davide De Tommaso
+Code: https://github.com/s4hri/dockyman
+
+EOF
+
+CURRENT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+set -e
+
+build_base()
+{
+    echo "DOCKYMAN -> Building BASE image ..."
+    if [ -z ${push+x} ]; then push=false; else push=true; fi
+    if [ -z ${image_name+x} ]; then echo "Param: image_name is unset"; exit 1; else echo "Param: image_name: '$image_name'"; fi
+    if [ -z ${workspace_folder+x} ]; then echo "Param: workspace_folder is unset"; exit 1; else echo "Param: workspace_folder: '$workspace_folder'"; fi
+    if [ -z ${push+x} ]; then echo "Param: push is unset"; exit 1; else echo "Param: push: '$push'"; fi
+    devcontainer build --image-name $image_name --workspace-folder /shared/$workspace_folder
+}
+
+
+build_local()
+{
+    echo "DOCKYMAN -> Building LOCAL image ..."
+    if [ -z ${image_name+x} ]; then echo "Param: image_name is unset"; exit 1; else echo "Param: image_name: '$image_name'"; fi
+    if [ -z ${groups+x} ]; then echo "Param: groups is unset"; exit 1; else echo "Param: groups: '$groups'"; fi
+    if [ -z ${username+x} ]; then echo "Param: username is unset"; exit 1; else echo "Param: username: '$username'"; fi
+    if [ -z ${uid+x} ]; then echo "Param: uid is unset"; exit 1; else echo "Param: uid: '$uid'"; fi
+    if [ -z ${gid+x} ]; then echo "Param: gid is unset"; exit 1; else echo "Param: gid: '$gid'"; fi
+
+    GROUP_IDS=""
+    while IFS=',' read -ra ADDR; do
+    for i in "${ADDR[@]}"; do
+        group_id=$(getent group $i | cut -d: -f3)
+        if [ ! -z "$group_id" ]
+        then
+            GROUP_IDS="${GROUP_IDS}${group_id},"
+        fi
+    done
+    done <<< "$groups"
+
+    GROUP_IDS=${GROUP_IDS::-1}
+
+    docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
+                                      --build-arg USERNAME=$username \
+                                      --build-arg USER_UID=$uid \
+                                      --build-arg USER_GID=$gid \
+                                      --build-arg USER_GROUPS=$groups \
+                                      --build-arg GROUP_IDS=$GROUP_IDS \
+                                      /workdir/local
+}
+
+pull()
+{
+    echo "DOCKYMAN -> Pulling BASE image from Docker registry..."
+
+    if docker pull $image_name; then
+        echo "DOCKYMAN -> Pulling BASE image succeed!"
+    else
+        build_base $image_name $workspace_folder
+    fi
+}
+
+push()
+{
+    echo "DOCKYMAN -> Pushing BASE image ..."
+    docker push $image_name
+}
+
+clean()
+{
+    echo "DOCKYMAN -> Removing BASE image ..."
+    docker image rmi -f $image_name
+    echo "DOCKYMAN -> Removing LOCAL image ..."
+    docker image rmi -f $image_name.local
+}
+
+init()
+{
+    echo "DOCKYMAN -> Initializing template ..."
+    cp -r /workdir/template/.dockyman /shared
+    cp -r /workdir/template/workdir /shared
+    cp /workdir/template/.devcontainer.json /shared
+    cp /workdir/template/LICENSE /shared
+    cp /workdir/template/README.md /shared
+    echo "Initialization finished!"
+}
+
+choice()
+{
+    if [ $# -eq 0 ]; then
+        PS3='Please enter your choice: '
+        options=("Build BASE image" "Build LOCAL image" "Push BASE image" "Initialize dockyman" "Exit on a shell" "Quit")
+        select opt in "${options[@]}"
+        do
+            case $opt in
+                "Build BASE image")
+                    build_base
+                    ;;
+                "Build LOCAL image")
+                    build_local
+                    ;;
+                "Push BASE image")
+                    push
+                    ;;
+                "Initialize dockyman")
+                    init
+                    ;;
+                "Exit on a shell")
+                    /bin/bash
+                    break
+                    ;;
+                "Quit")
+                    break
+                    ;;
+                *) echo "invalid option $REPLY";;
+        esac
+    done
+
+        exit 1
+    fi
+}
+
+while [ $# -gt 0 ]; do
+   if [[ $1 == *"--"* ]]; then
+        v="${1/--/}"
+        declare $v="$2"
+   fi
+  shift
+done
+
+if [ $action = "build_base" ]; then
+    build_base $image_name $workspace_folder
+fi
+
+if [ $action = "build_local" ]; then
+    build_local $image_name $username $uid $gid $groups
+fi
+
+if [ $action = "push" ]; then
+    push $image_name
+fi
+
+if [ $action = "clean" ]; then
+    clean $image_name
+fi
+
+if [ $action = "init" ]; then
+    init
+fi
+
+if [ $action = "choice" ]; then
+    choice
+fi
