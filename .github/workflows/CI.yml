@@ -27,8 +27,7 @@ jobs:
       - name: Extract version from .env file
         id: extract-version
         run: |
-          DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
-          echo "::set-output name=version::$DOCKYMAN_VER"
+          echo "VERSION=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         env:
@@ -36,7 +35,7 @@ jobs:
           DOCKER_IMAGE_TAG: ${{ secrets.DOCKER_USERNAME }}/dockyman
         run: |
           echo "Building Docker image..."
-          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} .devcontainer/
+          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} --file .devcontainer/ ../
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           echo "Pushing Docker image..."
           docker push $DOCKER_IMAGE_TAG:latest
