@@ -7,6 +7,7 @@ on:
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  TEMPLATE_TOKEN: ${{ secrets.TEMPLATE_TOKEN }}
 
 jobs:
   build-and-push:
@@ -23,6 +24,26 @@ jobs:
         run: |
           DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
           echo "::set-output name=version::$DOCKYMAN_VER"
+
+      - name: Authenticate to template submodule
+        run: |
+          cd template
+          git config http.https://github.com/s4hri/dockyman-template.extraheader "Authorization: Bearer $TEMPLATE_TOKEN"
+          cd ..
+
+      - name: Check submodule status
+        run: |
+          cd template
+          git status
+          cd ..
+
+      - name: Commit and push submodule changes
+        run: |
+          cd template
+          git add .
+          git commit -m "Update submodule"
+          git push
+          cd ..
 
       - name: Build and push Docker image
         env:
