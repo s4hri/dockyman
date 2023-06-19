@@ -14,51 +14,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: main
 
-      - name: Set up SSH key for submodule access
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-
-      - name: Clone submodule
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
-
-      - name: Extract version from .env file
-        id: extract-version
-        run: |
-          DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
-          echo "::set-output name=version::$DOCKYMAN_VER"
-
-      - name: Check submodule status
-        run: |
-          cd template
-          git status
-          cd ..
-
-      - name: Commit and push submodule changes
-        run: |
-          cd template
-          git add .
-          git commit -m "Update submodule"
-          git push origin HEAD:master
-          cd ..
-
-      - name: Build and push Docker image
-        env:
-          PROJECT_VERSION: ${{ steps.extract-version.outputs.version }}
-          DOCKER_IMAGE_TAG: ${{ secrets.DOCKER_USERNAME }}/dockyman
-        run: |
-          echo "Building Docker image..."
-          docker build -t $DOCKER_IMAGE_TAG:latest -t $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }} .devcontainer/
-          echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
-          echo "Pushing Docker image..."
-          docker push $DOCKER_IMAGE_TAG:latest
-          docker push $DOCKER_IMAGE_TAG:${{ steps.extract-version.outputs.version }}
+      - name: Checkout private repo
+        uses: actions/checkout@v3
+        with:
+          repository: s4hri/dockyman-template
+          token: ${{ secrets.GIT_TOKEN }}
+          path: template
