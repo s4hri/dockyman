@@ -16,20 +16,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-        with:
-                submodules: recursive
 
+      - name: Clone submodule
+        uses: actions/checkout@v2
+        with:
+          repository: s4hri/dockyman-template
+          path: template
+          ref: v2
+          ssh-key: ${{ secrets.GIT_TOKEN }}
+          persist-credentials: false
+  
       - name: Extract version from .env file
         id: extract-version
         run: |
           DOCKYMAN_VER=$(grep -oP '^DOCKYMAN_VER=\K.*' .devcontainer/.env)
           echo "::set-output name=version::$DOCKYMAN_VER"
-
-      - name: Authenticate to template submodule
-        run: |
-          cd template
-          git config http.https://github.com/s4hri/dockyman-template.extraheader "Authorization: Bearer $GIT_TOKEN"
-          cd ..
 
       - name: Check submodule status
         run: |
