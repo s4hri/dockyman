@@ -1,0 +1,11 @@
+{
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "."
+	}
+
+	//"features": {
+	//	"ghcr.io/devcontainers/features/go:1": {}
+	//}
+	  
+}
