@@ -25,26 +25,27 @@ default: init build
 check-nvidia:
 	@if lspci | grep -i nvidia >/dev/null 2>&1; then \
 		echo "NVIDIA GPU was detected."; \
-		$(eval GPU_PROFILE=nvidia-gpu) \
+		GPU_PROFILE=nvidia-gpu; \
 		if dpkg -s nvidia-docker2 >/dev/null 2>&1; then \
 			echo "nvidia-docker2 is already installed."; \
 		else \
 			echo "nvidia-docker2 is not installed."; \
 			read -p "Do you want to install the NVIDIA Container Toolkit? [Y/N]: " response; \
-				if [ $$response = "Y" ]; then \
-					LINUX_DISTRO=$(LINUX_DISTRO) LINUX_VERSION=$(LINUX_VERSION) \
-					URL=$$(case $$LINUX_DISTRO in ubuntu) echo "https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION.04/nvidia-docker.list" ;; debian) echo "https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION/nvidia-docker.list" ;; *) echo "" ;; esac); \
+				if [ "$$response" = "Y" ]; then \
+					LINUX_DISTRO=$(LINUX_DISTRO) LINUX_VERSION=$(LINUX_VERSION); \
+					URL="$$(case $$LINUX_DISTRO in ubuntu) echo 'https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION.04/nvidia-docker.list' ;; debian) echo 'https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION/nvidia-docker.list' ;; *) echo '' ;; esac)"; \
 					[ -n "$$URL" ] && \
-					{ curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -; \
-					curl -s -L "$$URL" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list; \
-					sudo apt-get update; \
-					sudo apt-get install -y nvidia-docker2; \
-					sudo systemctl restart docker; \
+					{ \
+						curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -; \
+						curl -s -L "$$URL" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list; \
+						sudo apt-get update; \
+						sudo apt-get install -y nvidia-docker2; \
+						sudo systemctl restart docker; \
 					}; \
 				else \
 					echo "Skipping package installation."; \
-				fi \
-		fi \
+				fi; \
+		fi; \
 	fi
 
 install-docker:

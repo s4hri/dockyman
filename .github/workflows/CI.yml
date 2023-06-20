@@ -19,10 +19,6 @@ jobs:
 
       - name: Checkout private repo
         uses: actions/checkout@v3
-        with:
-          repository: s4hri/dockyman-template
-          token: ${{ secrets.GIT_TOKEN }}
-          path: template
 
       - name: Extract version from .env file
         id: extract-version
