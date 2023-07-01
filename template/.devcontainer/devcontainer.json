@@ -1,0 +1,8 @@
+{
+  "dockerComposeFile": ["compose.yaml"],
+  "service": "main",
+  "overrideCommand": false,
+  "workspaceFolder": "/workdir",
+  "initializeCommand": "make -C .devcontainer",
+  "shutdownAction": "stopCompose"
+}

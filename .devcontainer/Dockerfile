@@ -1,8 +1,8 @@
 # MIT License
 #
-# Copyright (c) 2023 Social Cognition in Human-Robot Interaction
+# Copyright (c) 2023 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
-#                    Project: Dockyman
+#                    Project: Dockyman Template
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -51,17 +51,17 @@ RUN apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plug
 
 RUN usermod -aG docker $USERNAME
 
-RUN mkdir -p /shared
-VOLUME /shared
-
 ARG DOCKYMAN_VER
 
 ENV DOCKYMAN_VER $DOCKYMAN_VER
 
-
 ADD local /workdir/local
 ADD template /workdir/template
 RUN ln -s /workdir/local/dockyman /usr/local/bin/dockyman
+
+RUN mkdir -p /shared
+RUN chown -R $USERNAME:$USERNAME /shared
+VOLUME /shared
 
 USER $USERNAME
 
@@ -80,4 +80,3 @@ RUN npm install -g @devcontainers/cli
 WORKDIR /workdir
 
 ENTRYPOINT ["/bin/bash", "-c", "dockyman \"$@\"", "--"]
-CMD ["--action", "choice"]

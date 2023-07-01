@@ -8,6 +8,7 @@ __pycache__/
 
 # Dockyman logfile 
 lastrun.log
+.version
 
 # Distribution / packaging
 .Python

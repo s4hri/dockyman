@@ -1,3 +1,27 @@
+# MIT License
+#
+# Copyright (c) 2023 Istituto Italiano di Tecnologia (IIT)
+#                    Author: Davide De Tommaso (davide.detommaso@iit.it)
+#                    Project: Dockyman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 USER_UID := $(shell id -u)
 LINUX_DISTRO := $(shell awk -F= '/^ID=/{print $$2}' /etc/os-release)
 LINUX_VERSION := $(shell awk -F= '/^VERSION_ID=/{print $$2}' /etc/os-release)
@@ -8,19 +32,23 @@ export USER_UID
 
 .DEFAULT_GOAL := default
 
-DOCKER_COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker-compose")
-DOCKER_COMPOSE_CLI := $(shell command -v docker 2>/dev/null && docker compose --version 2>/dev/null || echo "docker compose")
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi) 2>/dev/null
 
 COMPOSE_DEV := -f compose.dev.yaml
 COMPOSE_PROD := -f compose.yaml
 
 GPU_PROFILE := no-gpu
 
-DOCKYMAN_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKER_COMPOSE} ${COMPOSE_DEV} config --services)
+DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKER_COMPOSE} ${COMPOSE_DEV} config --services)
 
-.PHONY: init install-docker check-nvidia build-base build-local push clean init-host stop log dockyman-run
+.PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
 
-default: init build
+default:
+	@if [ ! -f .version ]; then \
+		$(MAKE) init; \
+		$(MAKE) build; \
+		echo ${PROJECT_VERSION} > .version; \
+	fi
 
 check-nvidia:
 	@if lspci | grep -i nvidia >/dev/null 2>&1; then \
@@ -48,6 +76,7 @@ check-nvidia:
 		fi; \
 	fi
 
+
 install-docker:
 	@if ! command -v docker >/dev/null 2>&1; then \
 		echo "Docker is not installed in your system."; \
@@ -64,32 +93,41 @@ install-docker:
 		echo "Docker is already installed."; \
 	fi
 
-init: install-docker check-nvidia
+install-docker-compose:
+	@$(DOCKER_COMPOSE) version >/dev/null 2>&1 || { \
+		echo "Docker Compose not found. Installing..."; \
+		curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m) -o /usr/local/bin/docker-compose; \
+		chmod +x /usr/local/bin/docker-compose; \
+		echo "Docker Compose installed successfully!"; \
+	}
+
+init: install-docker install-docker-compose check-nvidia
 
 build-base: stop
-	@for service in $(DOCKYMAN_SERVICES); do \
-		echo "Building base image from service $$service ..."; \
+	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+		echo "Building base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=build_base ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
 	done
 
 build-local: stop
-	@for service in $(DOCKYMAN_SERVICES); do \
-		echo "Building local image from service $$service ..."; \
+	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+		echo "Building local image from service '$$service' ..."; \
 		set -e; \
 		ACTION=build_local ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
 	done
 
 push: stop
-	@for service in $(DOCKYMAN_SERVICES); do \
-		echo "Pushing image from service $$service ..."; \
+	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+		echo "Pushing image from service '$$service' ..."; \
 		set -e; \
 		ACTION=push ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
 	done
 
 clean: stop
-	@for service in $(DOCKYMAN_SERVICES); do \
-		echo "Cleaning base image from service $$service ..."; \
+	rm -f .version
+	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+		echo "Cleaning base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=clean ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
 	done
@@ -109,7 +147,7 @@ dockyman-run:
 
 build: build-base build-local
 
-run: build-local init log init-host dockyman-run stop
+run: default log init-host dockyman-run stop
 
 clean-docker:
 	@docker container prune -f

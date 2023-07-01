@@ -1,5 +1,30 @@
+# MIT License
+#
+# Copyright (c) 2023 Istituto Italiano di Tecnologia (IIT)
+#                    Author: Davide De Tommaso (davide.detommaso@iit.it)
+#                    Project: Dockyman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 #!/bin/bash
-cat << "EOF" 
+cat << "EOF"
+
 ##############################################################
 
 #####    ####    ####   #    #   #   #  #    #    ##    #    #
@@ -9,16 +34,81 @@ cat << "EOF"
 #    #  #    #  #    #  #   #      #    #    #  #    #  #   ##
 #####    ####    ####   #    #     #    #    #  #    #  #    #
 
-##############################################################
+Simple, safe and efficient docker local images management
+---
 
-Author: Davide De Tommaso
+Author: Davide De Tommaso, Istituto Italiano di Tecnologia (IIT)
 Code: https://github.com/s4hri/dockyman
 
+##############################################################
 EOF
 
 CURRENT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 set -e
+
+display_usage() {
+cat << EOF
+
+> QUICK RUN
+
+    1. Download the dockyman template:
+
+        \$ cd myrepo
+        \$ docker run -it -v \${PWD}:/shared iitschri/dockyman --action init
+
+    2a. Build & run (Visual Studio Code)
+
+        \$ cd myrepo
+        \$ code .
+        (...)
+
+    2b. Build & run
+
+        \$ cd myrepo
+        \$ make -C .devcontainer
+        (...)
+
+
+> COMMAND-LINE INTERFACE
+    
+        Usage: dockyman --action <action> [args]
+    
+        Actions:
+            'bash': Launches a bash console inside the docker container.
+            'init': Initializes the dockyman environment.
+            'build_base': Builds a base Docker image.
+            'build_local': Builds a local Docker image.
+            'push': Push the base image.
+            'clean': Clean both the base and the local image.
+
+        - BASH
+                    Usage: dockyman --action bash
+
+                    Description: This action will open a bash console inside the container 
+                                 to start working with the command line tools.
+        - INIT 
+                    Usage: dockyman --action init
+
+                    Description: The dockyman template will be copied into the target folder.
+    
+        - BUILD BASE: 
+                    
+                    Usage: dockyman --action build_base
+                                    --image_name <image_name>
+                                    --workspace_folder <workspace_folder>
+
+                    Description: The program will build a docker image with name <image_name> from
+                                 the devcontainer.json placed in /shared/<workspace_folder> inside
+                                 the dockyman docker container.
+
+                    Example: dockyman --action build_base
+                                      --image_name iitschri/ubuntu
+                                      --workspace_folder /
+
+
+EOF
+}
 
 build_base()
 {
@@ -90,48 +180,15 @@ clean()
 init()
 {
     echo "DOCKYMAN -> Initializing template ..."
-    cp -r /workdir/template/.dockyman /shared
-    cp -r /workdir/template/workdir /shared
-    cp /workdir/template/.devcontainer.json /shared
-    cp /workdir/template/LICENSE /shared
-    cp /workdir/template/README.md /shared
+    cp -r -i -v /workdir/template/.devcontainer /shared
+    cp -r -i -v /workdir/template/workdir /shared
     echo "Initialization finished!"
 }
 
-choice()
-{
-    if [ $# -eq 0 ]; then
-        PS3='Please enter your choice: '
-        options=("Build BASE image" "Build LOCAL image" "Push BASE image" "Initialize dockyman" "Exit on a shell" "Quit")
-        select opt in "${options[@]}"
-        do
-            case $opt in
-                "Build BASE image")
-                    build_base
-                    ;;
-                "Build LOCAL image")
-                    build_local
-                    ;;
-                "Push BASE image")
-                    push
-                    ;;
-                "Initialize dockyman")
-                    init
-                    ;;
-                "Exit on a shell")
-                    /bin/bash
-                    break
-                    ;;
-                "Quit")
-                    break
-                    ;;
-                *) echo "invalid option $REPLY";;
-        esac
-    done
-
-        exit 1
-    fi
-}
+if [[ "$1" == "--help" || "$1" == "help" ]]; then
+    display_usage
+    exit 0
+fi
 
 while [ $# -gt 0 ]; do
    if [[ $1 == *"--"* ]]; then
@@ -141,26 +198,19 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [ $action = "build_base" ]; then
-    build_base $image_name $workspace_folder
-fi
-
-if [ $action = "build_local" ]; then
-    build_local $image_name $username $uid $gid $groups
-fi
-
-if [ $action = "push" ]; then
-    push $image_name
-fi
-
-if [ $action = "clean" ]; then
-    clean $image_name
-fi
-
-if [ $action = "init" ]; then
+if [ -z "$action" ]; then
+    display_usage
+    exit 0
+elif [ "$action" = "bash" ]; then
+    bash
+elif [ "$action" = "init" ]; then
     init
-fi
-
-if [ $action = "choice" ]; then
-    choice
+elif [ "$action" = "build_base" ]; then
+    build_base $image_name $workspace_folder
+elif [ "$action" = "build_local" ]; then
+    build_local $image_name $username $uid $gid $groups
+elif [ "$action" = "push" ]; then
+    push $image_name
+elif [ "$action" = "clean" ]; then
+    clean $image_name
 fi

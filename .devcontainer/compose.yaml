@@ -1,8 +1,8 @@
 # MIT License
 #
-# Copyright (c) 2023 Social Cognition in Human-Robot Interaction
+# Copyright (c) 2023 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
-#                    Project: Dockyman
+#                    Project: Dockyman Template
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 
 services:
 
@@ -42,5 +43,8 @@ services:
       - /etc/group:/etc/group:ro
       - ../:/workdir
 
-    #entrypoint: /bin/bash -c dockyman
+    entrypoint: /bin/bash -c bash
 
+  dockyman-latest:
+    extends: dockyman
+    image: iitschri/dockyman:latest

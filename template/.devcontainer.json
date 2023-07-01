@@ -1,8 +1,0 @@
-{
-  "dockerComposeFile": [".dockyman/compose.yaml"],
-  "service": "main",
-  "workspaceFolder": "/workdir",
-  "overrideCommand": false,
-  "initializeCommand": "make -C .dockyman",
-  "shutdownAction": "stopCompose"
-}

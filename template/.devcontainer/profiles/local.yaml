@@ -1,8 +1,8 @@
 # MIT License
 #
-# Copyright (c) 2023 Social Cognition in Human-Robot Interaction
+# Copyright (c) 2023 Istituto Italiano di Tecnologia (IIT)
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
-#                    Project: Dockyman Template
+#                    Project: Dockyman
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,45 @@
 
 services:
 
-  dockyman:
-    image: iitschri/dockyman:${DOCKYMAN_VER:?err}
+  local:
+    environment:
+        - DISPLAY=${DISPLAY:?err}
+        - QT_X11_NO_MITSHM=1
+        - PULSE_SERVER=unix:${XDG_RUNTIME_DIR:?err}/pulse/native
+        - PULSE_COOKIE=/run/pulse/cookie
+        - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:?err}
+        - XDG_DATA_DIRS=${XDG_DATA_DIRS:?err}
+
+    extends:
+      file: gpus.yaml
+      service: ${GPU_PROFILE:-no-gpu}
+
+    working_dir: /workdir
+
+    privileged: true
+    stdin_open: true
+    tty: true
+    network_mode: host
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/group:/etc/group:ro
-      - ../:/shared
+      - type: bind
+        source: /tmp/.X11-unix
+        target: /tmp/.X11-unix
 
-    entrypoint: dockyman --action ${ACTION:-noaction} --username ${USERNAME:?err} --uid ${USER_UID:?err} --gid ${USER_UID:?err} --groups ${USER_GROUPS:?err}
+      - type: bind
+        source: ${HOME}/.config/pulse/cookie
+        target: /run/pulse/cookie
+
+      - type: bind
+        source: ${XDG_RUNTIME_DIR:?err}/pulse
+        target: ${XDG_RUNTIME_DIR:?err}/pulse
+
+      - type: bind
+        source: ${XDG_RUNTIME_DIR:?err}/dconf
+        target: ${XDG_RUNTIME_DIR:?err}/dconf
+
+      - type: bind
+        source: ../scripts/initContainer.sh
+        target: /var/dockyman/initContainer.sh
+
+    command: bash --rcfile /var/dockyman/initContainer.sh
