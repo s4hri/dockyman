@@ -32,7 +32,7 @@ export USER_UID
 
 .DEFAULT_GOAL := default
 
-DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi) 2>/dev/null
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 COMPOSE_DEV := -f compose.dev.yaml
 COMPOSE_PROD := -f compose.yaml
@@ -44,10 +44,8 @@ DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKER_COMPOSE} ${COMPOS
 .PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
 
 default:
-	@if [ ! -f .version ]; then \
-		$(MAKE) init; \
-		$(MAKE) build; \
-		echo ${PROJECT_VERSION} > .version; \
+	@if [ ! -f .build_completed ]; then \
+		$(MAKE) init && $(MAKE) build && touch .build_completed; \
 	fi
 
 check-nvidia:

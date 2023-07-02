@@ -30,3 +30,8 @@ services:
       service: dockyman
     
     command: --image_name ${IMAGE_NAME:?err} --workspace_folder ./base/image
+
+    volumes:
+      - type: bind
+        source: ./
+        target: /shared
