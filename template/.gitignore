@@ -8,7 +8,7 @@ __pycache__/
 
 # Dockyman logfile 
 lastrun.log
-.build_completed
+local.env
 
 # Distribution / packaging
 .Python

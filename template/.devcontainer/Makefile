@@ -26,7 +26,7 @@ USER_UID := $(shell id -u)
 LINUX_DISTRO := $(shell awk -F= '/^ID=/{print $$2}' /etc/os-release)
 LINUX_VERSION := $(shell awk -F= '/^VERSION_ID=/{print $$2}' /etc/os-release)
 
-include .env
+include base.env
 
 export USER_UID
 
@@ -36,22 +36,32 @@ DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then ech
 
 COMPOSE_DEV := -f compose.dev.yaml
 COMPOSE_PROD := -f compose.yaml
+ENV_DEV := --env-file base.env
+ENV_PROD := --env-file local.env
 
-GPU_PROFILE := no-gpu
+#GPU_PROFILE := no-gpu
 
-DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKER_COMPOSE} ${COMPOSE_DEV} config --services)
+DOCKYMAN_DEV_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_DEV} ${ENV_DEV}
+DOCKYMAN_PROD_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_PROD} ${ENV_PROD}
+DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKYMAN_DEV_COMMAND} config --services)
 
 .PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
 
 default:
-	@if [ ! -f .build_completed ]; then \
-		$(MAKE) init && $(MAKE) build && touch .build_completed; \
+	@if [ ! -f local.env ]; then \
+		echo "LOCAL_IMAGE_NAME=${IMAGE_NAME}.local" > local.env; \
+		if lspci | grep -i nvidia >/dev/null 2>&1; then \
+			echo "NVIDIA GPU was detected."; \
+			echo "GPU_PROFILE=nvidia-gpu" >> local.env; \
+		else \
+			echo "GPU_PROFILE=no-gpu" >> local.env; \
+		fi; \
+		$(MAKE) init; \
+		$(MAKE) build; \
 	fi
 
 check-nvidia:
 	@if lspci | grep -i nvidia >/dev/null 2>&1; then \
-		echo "NVIDIA GPU was detected."; \
-		GPU_PROFILE=nvidia-gpu; \
 		if dpkg -s nvidia-docker2 >/dev/null 2>&1; then \
 			echo "nvidia-docker2 is already installed."; \
 		else \
@@ -105,43 +115,42 @@ build-base: stop
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \
 		echo "Building base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=build_base ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
+		ACTION=build_base ${DOCKYMAN_DEV_COMMAND} run $$service; \
 	done
 
 build-local: stop
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \
 		echo "Building local image from service '$$service' ..."; \
 		set -e; \
-		ACTION=build_local ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
+		ACTION=build_local ${DOCKYMAN_DEV_COMMAND} run $$service; \
 	done
 
 push: stop
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \
 		echo "Pushing image from service '$$service' ..."; \
 		set -e; \
-		ACTION=push ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
+		ACTION=push ${DOCKYMAN_DEV_COMMAND} run $$service; \
 	done
 
 clean: stop
-	rm -f .version
+	rm -f local.env
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \
 		echo "Cleaning base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=clean ${DOCKER_COMPOSE} ${COMPOSE_DEV} run $$service; \
+		ACTION=clean ${DOCKYMAN_DEV_COMMAND} run $$service; \
 	done
 
 init-host:
 	bash scripts/initHost.sh
 
 stop:
-	${DOCKER_COMPOSE} ${COMPOSE_DEV} down --remove-orphans
-	${DOCKER_COMPOSE} --log-level ERROR down --remove-orphans
+	${DOCKYMAN_DEV_COMMAND} down --remove-orphans
 
 log:
 	bash scripts/logLocalInfo.sh > ../lastrun.log
 
 dockyman-run:
-	GPU_PROFILE=${GPU_PROFILE} ${DOCKER_COMPOSE} ${COMPOSE_PROD} up --remove-orphans
+	${DOCKYMAN_PROD_COMMAND} up --remove-orphans
 
 build: build-base build-local
 

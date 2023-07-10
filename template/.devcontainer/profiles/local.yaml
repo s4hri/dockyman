@@ -35,7 +35,7 @@ services:
 
     extends:
       file: gpus.yaml
-      service: ${GPU_PROFILE:-no-gpu}
+      service: ${GPU_PROFILE:?err}
 
     working_dir: /workdir
 

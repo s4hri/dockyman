@@ -28,7 +28,7 @@ services:
 
   nvidia-gpu:
     environment:
-      - GPU_PROFILE=${GPU_PROFILE}
+      - GPU_PROFILE=${GPU_PROFILE:?err}
 
     deploy:
       resources:
@@ -40,4 +40,4 @@ services:
 
   no-gpu:
     environment:
-      - GPU_PROFILE=${GPU_PROFILE}
+      - GPU_PROFILE=${GPU_PROFILE:?err}
