@@ -3,6 +3,5 @@
 echo "DOCKYMAN -> Running inizialization script (docker container)"
 source ~/.bashrc
 
-#/bin/sh
-glxgears
+/bin/sh
 exit 0

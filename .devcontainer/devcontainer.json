@@ -4,5 +4,5 @@
     "service": "dockyman",
     "workspaceFolder": "/workdir",
     "shutdownAction": "stopCompose",
-    "postStartCommand": "sed -i \"s/^DOCKYMAN_VER=.*/DOCKYMAN_VER=${containerEnv:DOCKYMAN_VER}/\" /workdir/template/.devcontainer/.env"
+    "postStartCommand": "sed -i \"s/^DOCKYMAN_VER=.*/DOCKYMAN_VER=${containerEnv:DOCKYMAN_VER}/\" /workdir/template/.devcontainer/base.env"
 }

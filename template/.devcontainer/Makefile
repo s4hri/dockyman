@@ -34,27 +34,26 @@ export USER_UID
 
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
+
+ENV_FILE_PROD := .env
 COMPOSE_DEV := -f compose.dev.yaml
 COMPOSE_PROD := -f compose.yaml
 ENV_DEV := --env-file base.env
-ENV_PROD := --env-file local.env
-
-#GPU_PROFILE := no-gpu
 
 DOCKYMAN_DEV_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_DEV} ${ENV_DEV}
-DOCKYMAN_PROD_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_PROD} ${ENV_PROD}
+DOCKYMAN_PROD_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_PROD}
 DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKYMAN_DEV_COMMAND} config --services)
 
 .PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
 
 default:
-	@if [ ! -f local.env ]; then \
-		echo "LOCAL_IMAGE_NAME=${IMAGE_NAME}.local" > local.env; \
+	@if [ ! -f ${ENV_FILE_PROD} ]; then \
+		echo "LOCAL_IMAGE_NAME=${IMAGE_NAME}.local" > ${ENV_FILE_PROD}; \
 		if lspci | grep -i nvidia >/dev/null 2>&1; then \
 			echo "NVIDIA GPU was detected."; \
-			echo "GPU_PROFILE=nvidia-gpu" >> local.env; \
+			echo "GPU_PROFILE=nvidia-gpu" >> ${ENV_FILE_PROD}; \
 		else \
-			echo "GPU_PROFILE=no-gpu" >> local.env; \
+			echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_PROD}; \
 		fi; \
 		$(MAKE) init; \
 		$(MAKE) build; \
@@ -133,7 +132,7 @@ push: stop
 	done
 
 clean: stop
-	rm -f local.env
+	rm -f ${ENV_FILE_PROD}
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \
 		echo "Cleaning base image from service '$$service' ..."; \
 		set -e; \
