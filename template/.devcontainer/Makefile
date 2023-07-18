@@ -23,12 +23,14 @@
 # SOFTWARE.
 
 USER_UID := $(shell id -u)
+USER_GID := $(shell id -g)
 LINUX_DISTRO := $(shell awk -F= '/^ID=/{print $$2}' /etc/os-release)
 LINUX_VERSION := $(shell awk -F= '/^VERSION_ID=/{print $$2}' /etc/os-release)
 
 include base.env
 
 export USER_UID
+export USER_GID
 
 .DEFAULT_GOAL := default
 
@@ -36,27 +38,41 @@ DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then ech
 
 
 ENV_FILE_PROD := .env
+ENV_FILE_DEV := base.env
 COMPOSE_DEV := -f compose.dev.yaml
 COMPOSE_PROD := -f compose.yaml
 ENV_DEV := --env-file base.env
 
 DOCKYMAN_DEV_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_DEV} ${ENV_DEV}
 DOCKYMAN_PROD_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_PROD}
-DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} ${DOCKYMAN_DEV_COMMAND} config --services)
+DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_DEV_COMMAND} config --services)
 
 .PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
 
 default:
 	@if [ ! -f ${ENV_FILE_PROD} ]; then \
-		echo "LOCAL_IMAGE_NAME=${IMAGE_NAME}.local" > ${ENV_FILE_PROD}; \
+		$(MAKE) init && $(MAKE) build && \
+		cat ${ENV_FILE_DEV} >> ${ENV_FILE_PROD}; \
 		if lspci | grep -i nvidia >/dev/null 2>&1; then \
 			echo "NVIDIA GPU was detected."; \
 			echo "GPU_PROFILE=nvidia-gpu" >> ${ENV_FILE_PROD}; \
 		else \
 			echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_PROD}; \
 		fi; \
-		$(MAKE) init; \
-		$(MAKE) build; \
+	else \
+		echo "The building process is completed!"; \
+		echo "To rebuild please make sure you have previously run 'make clean'"; \
+	fi
+
+check_docker_sock_permission:
+	@if [ -S /var/run/docker.sock ]; then \
+		if test -w /var/run/docker.sock; then \
+			echo "Current user has write permission on /var/run/docker.sock"; \
+		else \
+			echo "Current user does not have write permission on /var/run/docker.sock"; \
+		fi; \
+	else \
+		echo "Docker socket not found: /var/run/docker.sock"; \
 	fi
 
 check-nvidia:
@@ -108,7 +124,7 @@ install-docker-compose:
 		echo "Docker Compose installed successfully!"; \
 	}
 
-init: install-docker install-docker-compose check-nvidia
+init: install-docker install-docker-compose check_docker_sock_permission check-nvidia
 
 build-base: stop
 	@for service in $(DOCKYMAN_DEV_SERVICES); do \

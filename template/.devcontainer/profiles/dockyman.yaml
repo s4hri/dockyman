@@ -31,4 +31,4 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/group:/etc/group:ro
       
-    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --username ${USERNAME:?err} --uid ${USER_UID:?err} --gid ${USER_UID:?err} --groups ${USER_GROUPS:?err}
+    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --username ${USERNAME:?err} --uid ${USER_UID:?err} --gid ${USER_GID:?err} --groups ${USER_GROUPS:?err}

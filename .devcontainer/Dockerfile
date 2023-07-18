@@ -22,34 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-ARG VARIANT=20.04
-FROM ubuntu:${VARIANT}
-
-ARG USERNAME=docky
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+FROM node:20.4.0-alpine
 
 ENV TZ=Europe/Rome
 ENV DEBIAN_FRONTEND noninteractive
 
-
-RUN apt-get update && apt-get install -y apt-utils nano build-essential cmake git \
-                       dialog bash-completion sudo bsdmainutils tzdata \
-                       iproute2 procps lsb-release figlet bash curl;
-
-RUN useradd -ms /bin/bash ${USERNAME} && passwd -d ${USERNAME} && usermod -u ${USER_UID} ${USERNAME} && groupmod -g ${USER_GID} ${USERNAME};
-RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME  && chmod 0440 /etc/sudoers.d/$USERNAME
-
-ARG NODE_VERSION=v14.21.2
-
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-RUN echo \
-  "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-RUN apt-get update
-RUN apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-RUN usermod -aG docker $USERNAME
+RUN apk add docker python3 make g++ bash openssh
 
 ARG DOCKYMAN_VER
 
@@ -60,20 +38,7 @@ ADD template /workdir/template
 RUN ln -s /workdir/local/dockyman /usr/local/bin/dockyman
 
 RUN mkdir -p /shared
-RUN chown -R $USERNAME:$USERNAME /shared
 VOLUME /shared
-
-USER $USERNAME
-
-RUN mkdir -p ~/nvm
-ENV NVM_DIR /home/$USERNAME/nvm
-
-RUN curl -o- curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
-
-RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $NODE_VERSION && nvm use --delete-prefix $NODE_VERSION"
-
-ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
-ENV PATH $NODE_PATH:$PATH
 
 RUN npm install -g @devcontainers/cli
 

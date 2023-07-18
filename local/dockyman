@@ -34,16 +34,18 @@ cat << "EOF"
 #    #  #    #  #    #  #   #      #    #    #  #    #  #   ##
 #####    ####    ####   #    #     #    #    #  #    #  #    #
 
-Simple, safe and efficient docker local images management
 ---
-
 Author: Davide De Tommaso, Istituto Italiano di Tecnologia (IIT)
 Code: https://github.com/s4hri/dockyman
 
 ##############################################################
 EOF
 
-CURRENT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# Check the Bash version
+echo "Bash version: $BASH_VERSION"
+
+# Check if 'declare' is available
+type declare
 
 set -e
 
@@ -55,7 +57,7 @@ cat << EOF
     1. Download the dockyman template:
 
         \$ cd myrepo
-        \$ docker run -it -v \${PWD}:/shared iitschri/dockyman --action init
+        \$ docker run -it iitschri/dockyman --action init --target ${PWD} --user ${USERNAME} --host ${HOSTNAME}
 
     2a. Build & run (Visual Studio Code)
 
@@ -63,7 +65,7 @@ cat << EOF
         \$ code .
         (...)
 
-    2b. Build & run
+    2b. Build & run (make)
 
         \$ cd myrepo
         \$ make -C .devcontainer
@@ -132,16 +134,18 @@ build_local()
 
     GROUP_IDS=""
     while IFS=',' read -ra ADDR; do
-    for i in "${ADDR[@]}"; do
-        group_id=$(getent group $i | cut -d: -f3)
-        if [ ! -z "$group_id" ]
-        then
-            GROUP_IDS="${GROUP_IDS}${group_id},"
-        fi
-    done
+        for i in "${ADDR[@]}"; do
+            group_id=$(getent group "$i" | cut -d: -f3)
+            if [ ! -z "$group_id" ]; then
+                GROUP_IDS="${GROUP_IDS}${group_id},"
+            fi
+        done
     done <<< "$groups"
 
+    # Remove the trailing comma
     GROUP_IDS=${GROUP_IDS::-1}
+
+    echo "$GROUP_IDS"
 
     docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
                                       --build-arg USERNAME=$username \
@@ -180,8 +184,7 @@ clean()
 init()
 {
     echo "DOCKYMAN -> Initializing template ..."
-    cp -r -i -v /workdir/template/.devcontainer /shared
-    cp -r -i -v /workdir/template/workdir /shared
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r /workdir/template/.devcontainer /workdir/template/workdir $user@$host:$target
     echo "Initialization finished!"
 }
 
@@ -191,11 +194,17 @@ if [[ "$1" == "--help" || "$1" == "help" ]]; then
 fi
 
 while [ $# -gt 0 ]; do
-   if [[ $1 == *"--"* ]]; then
+    if [[ $1 == *"--"* ]]; then
         v="${1/--/}"
-        declare $v="$2"
-   fi
-  shift
+        if [ -n "$2" ] && [[ ! $2 == "--"* ]]; then
+            declare "$v=$2"
+            shift
+        else
+            # If the next argument is empty or starts with '--', assign an empty value
+            declare "$v="
+        fi
+    fi
+    shift
 done
 
 if [ -z "$action" ]; then
@@ -204,7 +213,7 @@ if [ -z "$action" ]; then
 elif [ "$action" = "bash" ]; then
     bash
 elif [ "$action" = "init" ]; then
-    init
+    init $target $user $host
 elif [ "$action" = "build_base" ]; then
     build_base $image_name $workspace_folder
 elif [ "$action" = "build_local" ]; then

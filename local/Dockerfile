@@ -47,9 +47,57 @@ ENV USERNAME $USERNAME
 ENV USER_GROUPS $USER_GROUPS
 ENV GROUP_IDS $GROUP_IDS
 
-COPY configure.sh /root
+# Use bash as the shell for RUN commands
+SHELL ["/bin/bash", "-c"]
 
-RUN /bin/bash /root/configure.sh
+# Step 1: Read and split the user groups and IDs into arrays
+RUN read -ra groups_array <<< "$USER_GROUPS" && \
+    read -ra ids_array <<< "$GROUP_IDS"
+
+# Step 2: Loop through the arrays to create or modify groups
+RUN for i in "${!groups_array[@]}"; do \
+        printf "%s\t%s\t%s\n" "$i" "${groups_array[$i]}" "${ids_array[$i]}"; \
+        if getent group "${groups_array[$i]}" >/dev/null; then \
+            groupmod -o "${groups_array[$i]}" --gid "${ids_array[$i]}"; \
+        else \
+            groupadd "${groups_array[$i]}" --gid "${ids_array[$i]}"; \
+        fi; \
+    done
+
+# Step 3: Check and create/modify the user
+RUN if ! getent passwd "$USER_UID" >/dev/null; then \
+        if getent passwd "$USERNAME" >/dev/null; then \
+            echo "User exists"; \
+            usermod -u "$USER_UID" "$USERNAME"; \
+            groupmod -g "$USER_GID" "$USERNAME"; \
+            passwd -d "$USERNAME"; \
+        else \
+            echo "User not found"; \
+            useradd --no-log-init -m -d "/home/$USERNAME" "$USERNAME"; \
+            passwd -d "$USERNAME"; \
+            usermod -u "$USER_UID" "$USERNAME"; \
+            groupmod -g "$USER_GID" "$USERNAME"; \
+        fi; \
+    else \
+        echo "UID exists"; \
+        old_uname=$(getent passwd "$USER_UID" | cut -d: -f1); \
+        usermod -l "$USERNAME" "$old_uname"; \
+        groupmod -n "$USERNAME" "$old_uname"; \
+    fi
+
+# Step 4: Set user shell and home directory ownership
+RUN usermod -ms /bin/bash -d "/home/$USERNAME" "$USERNAME" && \
+    chown -R "$USER_UID:$USER_GID" "/home/$USERNAME"
+
+# Step 5: Check if "sudo" group is in the list and modify sudoers if necessary
+RUN if [[ " ${groups_array[*]} " =~ " sudo " ]]; then \
+        echo "$USERNAME ALL=(root) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME"; \
+        chmod 0440 "/etc/sudoers.d/$USERNAME"; \
+        usermod -a -G root "$(getent passwd "$USER_UID" | cut -d: -f1)"; \
+    fi
+
+# Step 6: Add the user to additional groups specified by GROUP_IDS
+RUN usermod -a -G "$GROUP_IDS" "$(getent passwd "$USER_UID" | cut -d: -f1)"
 
 RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 

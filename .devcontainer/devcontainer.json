@@ -4,5 +4,18 @@
     "service": "dockyman",
     "workspaceFolder": "/workdir",
     "shutdownAction": "stopCompose",
-    "postStartCommand": "sed -i \"s/^DOCKYMAN_VER=.*/DOCKYMAN_VER=${containerEnv:DOCKYMAN_VER}/\" /workdir/template/.devcontainer/base.env"
+    "postStartCommand": "sed -i \"s/^DOCKYMAN_VER=.*/DOCKYMAN_VER=${containerEnv:DOCKYMAN_VER}/\" /workdir/template/.devcontainer/base.env",
+    "customizations": {
+		"vscode": {
+            "settings": 
+            {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            },
+			"extensions": [
+				"ms-vscode-remote.remote-ssh",
+				"ms-vscode-remote.remote-containers",
+				"ms-vscode.makefile-tools"
+			]
+	    }
+    }
 }
