@@ -57,7 +57,7 @@ cat << EOF
     1. Download the dockyman template:
 
         \$ cd myrepo
-        \$ docker run -it iitschri/dockyman --action init --target ${PWD} --user ${USERNAME} --host ${HOSTNAME}
+        \$ docker run -it --network=host iitschri/dockyman --action init --target \${PWD} --username \${USERNAME} --hostname \${HOSTNAME}
 
     2a. Build & run (Visual Studio Code)
 
@@ -184,7 +184,7 @@ clean()
 init()
 {
     echo "DOCKYMAN -> Initializing template ..."
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r /workdir/template/.devcontainer /workdir/template/workdir $user@$host:$target
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r /workdir/template/.devcontainer /workdir/template/workdir $username@$hostname:$target
     echo "Initialization finished!"
 }
 
@@ -213,7 +213,7 @@ if [ -z "$action" ]; then
 elif [ "$action" = "bash" ]; then
     bash
 elif [ "$action" = "init" ]; then
-    init $target $user $host
+    init $target $username $hostname
 elif [ "$action" = "build_base" ]; then
     build_base $image_name $workspace_folder
 elif [ "$action" = "build_local" ]; then
