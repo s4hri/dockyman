@@ -24,16 +24,11 @@
 
 
 services:
-
-  dev:
+  
+  main.local:
 
     extends:
-      file: profiles/dockyman.yaml
+      file: .devcontainer/services/dockyman.yaml
       service: dockyman
-    
-    command: --image_name ${IMAGE_NAME:?err} --workspace_folder ./base/image
 
-    volumes:
-      - type: bind
-        source: ./
-        target: /shared
+    command: --image_name ${BASE_NAME:?err} --username docky --groups "sudo,audio,video,input,dialout"

@@ -1,4 +1,5 @@
-FROM iitschri/ubuntu:20.04
+ARG DOCKER_SRC
+FROM ${DOCKER_SRC}
 
 ENV TZ=Europe/Rome
 ENV DEBIAN_FRONTEND noninteractive

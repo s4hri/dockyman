@@ -57,7 +57,7 @@ cat << EOF
     1. Download the dockyman template:
 
         \$ cd myrepo
-        \$ docker run -it --network=host iitschri/dockyman --action init --target \${PWD} --username \${USERNAME} --hostname \${HOSTNAME}
+        \$ docker run -it --network=host iitschri/dockyman --action init --target \${PWD} --username \${USER} --hostname \${HOSTNAME}
 
     2a. Build & run (Visual Studio Code)
 
@@ -142,8 +142,8 @@ build_local()
         done
     done <<< "$groups"
 
-    # Remove the trailing comma
     GROUP_IDS=${GROUP_IDS::-1}
+
 
     echo "$GROUP_IDS"
 
@@ -169,7 +169,7 @@ pull()
 
 push()
 {
-    echo "DOCKYMAN -> Pushing BASE image ..."
+    echo "DOCKYMAN -> Pushing $image_name image ..."
     docker push $image_name
 }
 
@@ -184,7 +184,7 @@ clean()
 init()
 {
     echo "DOCKYMAN -> Initializing template ..."
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r /workdir/template/.devcontainer /workdir/template/workdir $username@$hostname:$target
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r /workdir/template/* /workdir/template/.* $username@$hostname:$target
     echo "Initialization finished!"
 }
 

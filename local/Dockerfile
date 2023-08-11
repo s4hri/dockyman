@@ -33,7 +33,20 @@ USER root
 
 WORKDIR /workdir
 
-RUN apt-get update && apt-get install -y sudo
+# Set the package manager based on the detected distribution
+RUN if [ -f /etc/alpine-release ]; then \
+        apk update; \
+        apk add sudo bash shadow; \
+    elif [ -f /etc/debian_version ]; then \
+        apt-get update; \
+        apt-get install -y sudo bash; \
+    elif [ -f /etc/redhat-release ]; then \
+        yum update; \
+        yum install -y sudo bash shadow; \
+    else \
+        echo "Unknown distribution"; \
+        exit 1; \
+    fi
 
 ARG USER_UID
 ARG USER_GID
@@ -50,17 +63,17 @@ ENV GROUP_IDS $GROUP_IDS
 # Use bash as the shell for RUN commands
 SHELL ["/bin/bash", "-c"]
 
-# Step 1: Read and split the user groups and IDs into arrays
-RUN read -ra groups_array <<< "$USER_GROUPS" && \
-    read -ra ids_array <<< "$GROUP_IDS"
-
 # Step 2: Loop through the arrays to create or modify groups
-RUN for i in "${!groups_array[@]}"; do \
-        printf "%s\t%s\t%s\n" "$i" "${groups_array[$i]}" "${ids_array[$i]}"; \
-        if getent group "${groups_array[$i]}" >/dev/null; then \
-            groupmod -o "${groups_array[$i]}" --gid "${ids_array[$i]}"; \
+RUN IFS=',' read -ra groups_array <<< "$USER_GROUPS" && \
+    IFS=',' read -ra ids_array <<< "$GROUP_IDS"; \
+    for index in "${!groups_array[@]}"; do \
+        group="${groups_array[index]}"; \
+        gid="${ids_array[index]}"; \
+        printf "Group: %s, GID: %s\n" "$group" "$gid"; \
+        if getent group "$group" >/dev/null; then \
+            groupmod -o "$group" --gid "$gid"; \
         else \
-            groupadd "${groups_array[$i]}" --gid "${ids_array[$i]}"; \
+            groupadd "$group" --gid "$gid"; \
         fi; \
     done
 
@@ -90,14 +103,19 @@ RUN usermod -ms /bin/bash -d "/home/$USERNAME" "$USERNAME" && \
     chown -R "$USER_UID:$USER_GID" "/home/$USERNAME"
 
 # Step 5: Check if "sudo" group is in the list and modify sudoers if necessary
-RUN if [[ " ${groups_array[*]} " =~ " sudo " ]]; then \
+RUN IFS=',' read -ra groups_array <<< "$USER_GROUPS" && \
+    if [[ " ${groups_array[*]} " =~ " sudo " ]]; then \
         echo "$USERNAME ALL=(root) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME"; \
         chmod 0440 "/etc/sudoers.d/$USERNAME"; \
-        usermod -a -G root "$(getent passwd "$USER_UID" | cut -d: -f1)"; \
     fi
 
 # Step 6: Add the user to additional groups specified by GROUP_IDS
-RUN usermod -a -G "$GROUP_IDS" "$(getent passwd "$USER_UID" | cut -d: -f1)"
+RUN IFS=',' read -ra group_names <<< "$GROUP_IDS" && \
+    for group_name in "${group_names[@]}"; do \
+        if getent group "$group_name" >/dev/null; then \
+            usermod -a -G "$group_name" "$(getent passwd "$USER_UID" | cut -d: -f1)"; \
+        fi; \
+    done
 
 RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 

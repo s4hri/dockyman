@@ -1,0 +1,15 @@
+services:
+
+  main:
+    image: ${BASE_NAME:?err}.local
+
+    extends:
+      file: .devcontainer/profiles/local.yaml
+      service: local
+  
+    command: ["/bin/bash", "-c", "bash /var/dockyman/initContainer.sh"]
+
+    volumes:
+      - type: bind
+        source: ./workdir
+        target: /workdir

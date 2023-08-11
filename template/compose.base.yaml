@@ -24,17 +24,19 @@
 
 
 services:
-
-  main:
-    image: ${IMAGE_NAME}.local
+  
+  main.base:
 
     extends:
-      file: profiles/local.yaml
-      service: local
+      file: .devcontainer/services/dockyman.yaml
+      service: dockyman
 
-    command: ["/bin/bash", "-c", "bash /var/dockyman/initContainer.sh"]
+    environment:
+      - DOCKER_SRC=${BASE_DOCKER_SRC}
+    
+    command: --image_name ${BASE_NAME:?err} --workspace_folder ./base/image
 
     volumes:
       - type: bind
-        source: ../workdir
-        target: /workdir
+        source: ./
+        target: /shared

@@ -27,8 +27,6 @@ USER_GID := $(shell id -g)
 LINUX_DISTRO := $(shell awk -F= '/^ID=/{print $$2}' /etc/os-release)
 LINUX_VERSION := $(shell awk -F= '/^VERSION_ID=/{print $$2}' /etc/os-release)
 
-include base.env
-
 export USER_UID
 export USER_GID
 
@@ -37,31 +35,43 @@ export USER_GID
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 
-ENV_FILE_PROD := .env
-ENV_FILE_DEV := base.env
-COMPOSE_DEV := -f compose.dev.yaml
-COMPOSE_PROD := -f compose.yaml
-ENV_DEV := --env-file base.env
+ENV_FILE_RUN := ../.env
+ENV_FILE_BUILD := ../build.env
+COMPOSE_BASE := -f ../compose.base.yaml
+COMPOSE_LOCAL := -f ../compose.local.yaml
+COMPOSE_RUN := -f ../compose.yaml
+ENV_BUILD := --env-file ${ENV_FILE_BUILD}
 
-DOCKYMAN_DEV_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_DEV} ${ENV_DEV}
-DOCKYMAN_PROD_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_PROD}
-DOCKYMAN_DEV_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_DEV_COMMAND} config --services)
+DOCKYMAN_BASE_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_BASE} ${ENV_BUILD}
+DOCKYMAN_LOCAL_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_LOCAL} ${ENV_BUILD}
 
-.PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local push clean init-host stop log dockyman-run
+DOCKYMAN_BUILD_BASE_COMMAND := ${DOCKYMAN_BASE_COMMAND} up --remove-orphans
+DOCKYMAN_BUILD_LOCAL_COMMAND := ${DOCKYMAN_LOCAL_COMMAND} up --remove-orphans
+
+DOCKYMAN_RUN_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} up --remove-orphans
+
+DOCKYMAN_BASE_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_BASE_COMMAND} config --services)
+DOCKYMAN_LOCAL_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_LOCAL_COMMAND} config --services)
+
+.PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local dev release push clean init-host stop log dockyman-run
 
 default:
-	@if [ ! -f ${ENV_FILE_PROD} ]; then \
-		$(MAKE) init && $(MAKE) build && \
-		cat ${ENV_FILE_DEV} >> ${ENV_FILE_PROD}; \
-		if lspci | grep -i nvidia >/dev/null 2>&1; then \
-			echo "NVIDIA GPU was detected."; \
-			echo "GPU_PROFILE=nvidia-gpu" >> ${ENV_FILE_PROD}; \
-		else \
-			echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_PROD}; \
-		fi; \
+	@if grep -q '^PROFILE=dev' ${ENV_FILE_BUILD}; then \
+        $(MAKE) init && $(MAKE) build && $(MAKE) create_env; \
 	else \
 		echo "The building process is completed!"; \
-		echo "To rebuild please make sure you have previously run 'make clean'"; \
+		echo "To rebuild please make sure you are in development profile running 'make dev'"; \
+	fi
+
+create_env:
+	@rm -f ${ENV_FILE_RUN};
+	@cat ${ENV_FILE_BUILD} >> ${ENV_FILE_RUN};
+	@echo "" >> ${ENV_FILE_RUN};
+	@if lspci | grep -i nvidia >/dev/null 2>&1; then \
+		echo "NVIDIA GPU was detected."; \
+		echo "GPU_PROFILE=nvidia-gpu" >> ${ENV_FILE_RUN}; \
+	else \
+		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
 
 check_docker_sock_permission:
@@ -127,47 +137,78 @@ install-docker-compose:
 init: install-docker install-docker-compose check_docker_sock_permission check-nvidia
 
 build-base: stop
-	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Building base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=build_base ${DOCKYMAN_DEV_COMMAND} run $$service; \
+		ACTION=build_base ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
 build-local: stop
-	@for service in $(DOCKYMAN_DEV_SERVICES); do \
+	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
 		echo "Building local image from service '$$service' ..."; \
 		set -e; \
-		ACTION=build_local ${DOCKYMAN_DEV_COMMAND} run $$service; \
+		ACTION=build_local ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
 	done
 
 push: stop
-	@for service in $(DOCKYMAN_DEV_SERVICES); do \
-		echo "Pushing image from service '$$service' ..."; \
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		echo "Pushing base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=push ${DOCKYMAN_DEV_COMMAND} run $$service; \
+		ACTION=push ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
 clean: stop
-	rm -f ${ENV_FILE_PROD}
-	@for service in $(DOCKYMAN_DEV_SERVICES); do \
-		echo "Cleaning base image from service '$$service' ..."; \
+	@rm -f ${ENV_FILE_RUN};
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		echo "Cleaning image from service '$$service' ..."; \
 		set -e; \
-		ACTION=clean ${DOCKYMAN_DEV_COMMAND} run $$service; \
+		ACTION=clean ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
+
+dev:
+	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
+        sed -i 's/^PROFILE=.*/PROFILE=dev/' ${ENV_FILE_BUILD}; \
+    else \
+        echo "PROFILE=dev" >> ${ENV_FILE_BUILD}; \
+    fi; \
+	$(MAKE) create_env;
+	@echo "Development profile added or updated in ${ENV_FILE_BUILD}"
+
+release:
+	@echo "Creating release..."
+	@if [ "${VERSION}" ]; then \
+		if grep -q '^VERSION=' ${ENV_FILE_BUILD}; then \
+			sed -i 's/^VERSION=.*/VERSION=${VERSION}/' ${ENV_FILE_BUILD}; \
+		else \
+			echo "VERSION=${VERSION}" >> ${ENV_FILE_BUILD}; \
+		fi; \
+		echo "Version ${VERSION} added or updated in ${ENV_FILE_BUILD}"; \
+		if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
+			sed -i 's/^PROFILE=.*/PROFILE=prod/' ${ENV_FILE_BUILD}; \
+		else \
+			echo "PROFILE=prod" >> ${ENV_FILE_BUILD}; \
+		fi; \
+		echo "Development profile added or updated in ${ENV_FILE_BUILD}"; \
+		$(MAKE) create_env; \
+	else \
+		echo "Please provide a version using 'make release VERSION=<version>'"; \
+	fi
+    
 
 init-host:
 	bash scripts/initHost.sh
 
+build: build-base build-local
+
 stop:
-	${DOCKYMAN_DEV_COMMAND} down --remove-orphans
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
 
 log:
 	bash scripts/logLocalInfo.sh > ../lastrun.log
 
 dockyman-run:
-	${DOCKYMAN_PROD_COMMAND} up --remove-orphans
-
-build: build-base build-local
+	${DOCKYMAN_RUN_COMMAND}
 
 run: default log init-host dockyman-run stop
 

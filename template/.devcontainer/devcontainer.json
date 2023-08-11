@@ -1,5 +1,5 @@
 {
-  "dockerComposeFile": ["compose.yaml"],
+  "dockerComposeFile": ["../compose.yaml"],
   "service": "main",
   "overrideCommand": false,
   "workspaceFolder": "/workdir",

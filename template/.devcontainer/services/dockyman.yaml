@@ -30,5 +30,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/group:/etc/group:ro
-      
-    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --username ${USERNAME:?err} --uid ${USER_UID:?err} --gid ${USER_GID:?err} --groups ${USER_GROUPS:?err}
+
+    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --uid ${USER_UID} --gid ${USER_GID}
+
+  devcontainer:
+    extends: dockyman
+
+    entrypoint: devcontainer
