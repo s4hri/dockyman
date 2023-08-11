@@ -80,6 +80,13 @@ check_docker_sock_permission:
 			echo "Current user has write permission on /var/run/docker.sock"; \
 		else \
 			echo "Current user does not have write permission on /var/run/docker.sock"; \
+			@read -p "Do you want to add the current user to the 'docker' group? This will require a logout or reboot to take effect. (y/n): " choice; \
+			if [ "$$choice" == "y" ]; then \
+				sudo usermod -aG docker "$$USER"; \
+				echo "User '$$USER' added to the 'docker' group. Remember to log out and log back in for changes to take effect."; \
+			else \
+				echo "Aborted."; \
+			fi; \
 		fi; \
 	else \
 		echo "Docker socket not found: /var/run/docker.sock"; \
@@ -111,20 +118,20 @@ check-nvidia:
 
 
 install-docker:
-	@if ! command -v docker >/dev/null 2>&1; then \
-		echo "Docker is not installed in your system."; \
-		read -p "Do you want to install Docker from the official repository? [Y/N]: " response; \
-			if [ $$response = "Y" ]; then \
-				echo "Installing package..."; \
-				curl -fsSL https://get.docker.com -o get-docker.sh; \
-				sudo sh get-docker.sh; \
-				rm get-docker.sh; \
-			else \
-				echo "Skipping package installation."; \
-			fi \
-	else \
-		echo "Docker is already installed."; \
-	fi
+	@which docker > /dev/null || (read -p "Docker is not installed. Do you want to install it? (y/n): " choice; \
+        if [ "$$choice" == "y" ]; then \
+            if which apt-get > /dev/null; then \
+                sudo apt-get update && sudo apt-get install -y docker.io; \
+            elif which yum > /dev/null; then \
+                sudo yum install -y docker; \
+            else \
+                echo "Please install 'docker' manually."; \
+                exit 1; \
+            fi; \
+        else \
+            echo "Aborted."; \
+            exit 0; \
+        fi)
 
 install-docker-compose:
 	@$(DOCKER_COMPOSE) version >/dev/null 2>&1 || { \
