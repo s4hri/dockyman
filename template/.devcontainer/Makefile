@@ -32,15 +32,53 @@ export USER_GID
 
 .DEFAULT_GOAL := default
 
-DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
-
-
 ENV_FILE_RUN := ../.env
 ENV_FILE_BUILD := ../build.env
 COMPOSE_BASE := -f ../compose.base.yaml
 COMPOSE_LOCAL := -f ../compose.local.yaml
 COMPOSE_RUN := -f ../compose.yaml
 ENV_BUILD := --env-file ${ENV_FILE_BUILD}
+
+UNAME := $(shell uname)
+DOCKER_INSTALLED := $(shell command -v docker 2> /dev/null)
+DOCKER_COMPOSE_INSTALLED := $(shell command -v docker-compose 2> /dev/null)
+NVIDIA_DOCKER_INSTALLED := $(shell command -v nvidia-docker 2> /dev/null)
+HAS_NVIDIA_GPU := $(shell lspci | grep -i nvidia)
+HAS_DOCKER_GROUP := $(shell groups $(USER) | grep -o '\bdocker\b')
+
+ifeq ($(UNAME), Linux)
+    ifeq ($(shell lsb_release -is), Ubuntu)
+        PACKAGE_MANAGER := apt-get
+        DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        NVIDIA_DOCKER_INSTALL_CMD := distribution=$(. /etc/os-release;echo $ID$VERSION_ID) && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - && curl -s -L https://nvidia.github.io/nvidia-docker/$$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list && sudo apt-get update && sudo apt-get install -y nvidia-docker2 && sudo systemctl restart docker
+    else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), centos)
+        PACKAGE_MANAGER := yum
+        DOCKER_INSTALL_CMD := sudo yum install -y docker-ce
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        NVIDIA_DOCKER_INSTALL_CMD := sudo yum install -y nvidia-docker2
+    else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), arch)
+        PACKAGE_MANAGER := pacman
+        DOCKER_INSTALL_CMD := sudo pacman -S --noconfirm docker
+        DOCKER_COMPOSE_INSTALL_CMD := sudo pacman -S --noconfirm docker-compose
+        NVIDIA_DOCKER_INSTALL_CMD := sudo pacman -S --noconfirm nvidia-docker
+    else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), alpine)
+        PACKAGE_MANAGER := apk
+        DOCKER_INSTALL_CMD := apk add --no-cache docker
+        DOCKER_COMPOSE_INSTALL_CMD := apk add --no-cache docker-compose
+        NVIDIA_DOCKER_INSTALL_CMD := echo "Alpine Linux does not support NVIDIA Docker by default." ; \
+                                     echo "Please refer to the NVIDIA Docker documentation for Alpine-based images: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#alpine"
+    else
+        $(error Unsupported Linux distribution)
+    endif
+else
+    $(error This Makefile is intended for Linux only)
+endif
+
+ifeq ($(DOCKER_INSTALLED),)
+all: install-all
+else
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 DOCKYMAN_BASE_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_BASE} ${ENV_BUILD}
 DOCKYMAN_LOCAL_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_LOCAL} ${ENV_BUILD}
@@ -52,12 +90,136 @@ DOCKYMAN_RUN_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} up --remove-orphans
 
 DOCKYMAN_BASE_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_BASE_COMMAND} config --services)
 DOCKYMAN_LOCAL_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_LOCAL_COMMAND} config --services)
+endif
 
-.PHONY: init install-docker install-docker-compose check-nvidia build build-base build-local dev release push clean init-host stop log dockyman-run
+
+.PHONY: install-docker
+install-docker:
+	@if [ -z "$(DOCKER_INSTALLED)" ]; then \
+        read -p "Docker is not installed. Do you want to install it? (y/N) " choice; \
+        case "$$choice" in \
+            y|Y) $(DOCKER_INSTALL_CMD) ;; \
+            *) echo "Aborting Docker installation." ;; \
+        esac \
+    else \
+        echo "Docker is already installed." ; \
+    fi
+
+.PHONY: install-docker-compose
+install-docker-compose:
+	@if [ -z "$(DOCKER_COMPOSE_INSTALLED)" ]; then \
+        read -p "Docker Compose is not installed. Do you want to install it? (y/N) " choice; \
+        case "$$choice" in \
+            y|Y) $(DOCKER_COMPOSE_INSTALL_CMD) ;; \
+            *) echo "Aborting Docker Compose installation." ;; \
+        esac \
+    else \
+        echo "Docker Compose is already installed." ; \
+    fi
+
+.PHONY: install-nvidia-docker
+install-nvidia-docker:
+	@if [ -z "$(NVIDIA_DOCKER_INSTALLED)" ] && [ -n "$(HAS_NVIDIA_GPU)" ]; then \
+        read -p "NVIDIA Docker is not installed. Do you want to install it? (y/N) " choice; \
+        case "$$choice" in \
+            y|Y) $(NVIDIA_DOCKER_INSTALL_CMD) ;; \
+            *) echo "Aborting NVIDIA Docker installation." ;; \
+        esac \
+    elif [ -z "$(HAS_NVIDIA_GPU)" ]; then \
+        echo "No NVIDIA GPU detected. Skipping NVIDIA Docker installation." ; \
+    else \
+        echo "NVIDIA Docker is already installed." ; \
+    fi
+
+.PHONY: add-docker-group
+add-docker-group:
+	@if [ -z "$(HAS_DOCKER_GROUP)" ]; then \
+        read -p "Your user is not in the 'docker' group. Do you want to add it? (y/N) " choice; \
+        case "$$choice" in \
+            y|Y) sudo usermod -aG docker $(USER); $(MAKE) reboot ;; \
+            *) echo "Not adding your user to the 'docker' group." ;; \
+        esac \
+    else \
+        echo "Your user is already in the 'docker' group." ; \
+    fi
+
+
+.PHONY: reboot
+reboot:
+	@read -p "Do you want to reboot the machine now? (y/N) " choice; \
+    case "$$choice" in \
+        y|Y) sudo reboot ;; \
+        *) echo "Skipping system reboot." ;; \
+    esac
+
+.PHONY: install-all
+install-all: install-docker install-docker-compose install-nvidia-docker add-docker-group
+	@echo "Installation and configuration completed."
+
+
+.PHONY: uninstall-docker
+uninstall-docker:
+	@read -p "This will uninstall Docker, its configuration, and remove Docker images and containers. Do you want to proceed? (y/N) " choice; \
+	case "$$choice" in \
+		y|Y) \
+			echo "Stopping Docker services..." ; \
+			sudo systemctl stop docker; \
+			\
+			echo "Uninstalling Docker packages..." ; \
+			if [ -f /etc/os-release ]; then \
+				if [ "$$(grep -oP '(?<=^ID=).+' /etc/os-release)" = "ubuntu" ] || [ "$$(grep -oP '(?<=^ID=).+' /etc/os-release)" = "debian" ]; then \
+					sudo apt-get purge docker-ce docker-ce-cli containerd.io; \
+				elif [ "$$(grep -oP '(?<=^ID=).+' /etc/os-release)" = "centos" ]; then \
+					sudo yum remove docker-ce docker-ce-cli containerd.io; \
+				elif [ "$$(grep -oP '(?<=^ID=).+' /etc/os-release)" = "arch" ]; then \
+					sudo pacman -Rns docker; \
+				else \
+					echo "Unsupported Linux distribution."; \
+					exit 1; \
+				fi \
+			else \
+				echo "Unable to determine the Linux distribution."; \
+				exit 1; \
+			fi; \
+			\
+			echo "Removing Docker configuration and data..." ; \
+			sudo rm -rf /etc/docker; \
+			sudo rm -rf /var/lib/docker; \
+			\
+			echo "Removing Docker Compose (if installed)..." ; \
+			if [ -x /usr/local/bin/docker-compose ]; then \
+				sudo rm /usr/local/bin/docker-compose; \
+			fi; \
+			\
+			echo "Removing Docker user and group (if present)..." ; \
+			if getent group docker >/dev/null; then \
+				sudo deluser $(USER) docker; \
+				sudo delgroup docker; \
+			fi; \
+			echo "Uninstall complete." ; \
+			;; \
+		*) \
+			echo "Aborting uninstallation." ; \
+			;; \
+	esac
+
+
+.PHONY: help
+help:
+	@echo "Available targets:"
+	@echo "  install-docker             Install Docker"
+	@echo "  install-docker-compose     Install Docker Compose"
+	@echo "  install-nvidia-docker      Install NVIDIA Docker"
+	@echo "  add-docker-group           Add current user to the 'docker' group"
+	@echo "  reboot                     Reboot the machine"
+	@echo "  install-all                Install Docker, Docker Compose, NVIDIA Docker, add user to 'docker' group, and reboot"
+	@echo "  uninstall-docker           Uninstall Docker, Docker Compose and NVIDIA Docker"
+	@echo "  help                       Display this help message"
+
 
 default:
 	@if grep -q '^PROFILE=dev' ${ENV_FILE_BUILD}; then \
-        $(MAKE) init && $(MAKE) build && $(MAKE) create_env; \
+        $(MAKE) install-all && $(MAKE) build && $(MAKE) create_env; \
 	else \
 		echo "The building process is completed!"; \
 		echo "To rebuild please make sure you are in development profile running 'make dev'"; \
@@ -73,75 +235,6 @@ create_env:
 	else \
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
-
-check_docker_sock_permission:
-	@if [ -S /var/run/docker.sock ]; then \
-		if test -w /var/run/docker.sock; then \
-			echo "Current user has write permission on /var/run/docker.sock"; \
-		else \
-			echo "Current user does not have write permission on /var/run/docker.sock"; \
-			@read -p "Do you want to add the current user to the 'docker' group? This will require a logout or reboot to take effect. (y/n): " choice; \
-			if [ "$$choice" == "y" ]; then \
-				sudo usermod -aG docker "$$USER"; \
-				echo "User '$$USER' added to the 'docker' group. Remember to log out and log back in for changes to take effect."; \
-			else \
-				echo "Aborted."; \
-			fi; \
-		fi; \
-	else \
-		echo "Docker socket not found: /var/run/docker.sock"; \
-	fi
-
-check-nvidia:
-	@if lspci | grep -i nvidia >/dev/null 2>&1; then \
-		if dpkg -s nvidia-docker2 >/dev/null 2>&1; then \
-			echo "nvidia-docker2 is already installed."; \
-		else \
-			echo "nvidia-docker2 is not installed."; \
-			read -p "Do you want to install the NVIDIA Container Toolkit? [Y/N]: " response; \
-				if [ "$$response" = "Y" ]; then \
-					LINUX_DISTRO=$(LINUX_DISTRO) LINUX_VERSION=$(LINUX_VERSION); \
-					URL="$$(case $$LINUX_DISTRO in ubuntu) echo 'https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION.04/nvidia-docker.list' ;; debian) echo 'https://nvidia.github.io/nvidia-docker/$$LINUX_DISTRO$$LINUX_VERSION/nvidia-docker.list' ;; *) echo '' ;; esac)"; \
-					[ -n "$$URL" ] && \
-					{ \
-						curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -; \
-						curl -s -L "$$URL" | sudo tee /etc/apt/sources.list.d/nvidia-docker.list; \
-						sudo apt-get update; \
-						sudo apt-get install -y nvidia-docker2; \
-						sudo systemctl restart docker; \
-					}; \
-				else \
-					echo "Skipping package installation."; \
-				fi; \
-		fi; \
-	fi
-
-
-install-docker:
-	@which docker > /dev/null || (read -p "Docker is not installed. Do you want to install it? (y/n): " choice; \
-        if [ "$$choice" == "y" ]; then \
-            if which apt-get > /dev/null; then \
-                sudo apt-get update && sudo apt-get install -y docker.io; \
-            elif which yum > /dev/null; then \
-                sudo yum install -y docker; \
-            else \
-                echo "Please install 'docker' manually."; \
-                exit 1; \
-            fi; \
-        else \
-            echo "Aborted."; \
-            exit 0; \
-        fi)
-
-install-docker-compose:
-	@$(DOCKER_COMPOSE) version >/dev/null 2>&1 || { \
-		echo "Docker Compose not found. Installing..."; \
-		curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m) -o /usr/local/bin/docker-compose; \
-		chmod +x /usr/local/bin/docker-compose; \
-		echo "Docker Compose installed successfully!"; \
-	}
-
-init: install-docker install-docker-compose check_docker_sock_permission check-nvidia
 
 build-base: stop
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \

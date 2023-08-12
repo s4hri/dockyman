@@ -1,0 +1,27 @@
+name: Test Docker Installation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-docker:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, centos-latest, arch-latest, alpine-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Install Docker and Docker Compose
+      run: |
+        make -c template/.devcontainer install-all
+
+    - name: Test Docker
+      run: |
+        docker --version
+        docker-compose --version
