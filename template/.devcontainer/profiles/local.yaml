@@ -61,8 +61,3 @@ services:
         source: ${XDG_RUNTIME_DIR:?err}/dconf
         target: ${XDG_RUNTIME_DIR:?err}/dconf
 
-      - type: bind
-        source: ../scripts/initContainer.sh
-        target: /var/dockyman/initContainer.sh
-
-    command: bash --rcfile /var/dockyman/initContainer.sh

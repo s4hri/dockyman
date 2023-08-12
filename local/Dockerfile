@@ -33,7 +33,6 @@ USER root
 
 WORKDIR /workdir
 
-# Set the package manager based on the detected distribution
 RUN if [ -f /etc/alpine-release ]; then \
         apk update; \
         apk add sudo bash shadow; \
@@ -43,6 +42,9 @@ RUN if [ -f /etc/alpine-release ]; then \
     elif [ -f /etc/redhat-release ]; then \
         yum update; \
         yum install -y sudo bash shadow; \
+    elif [ -f /etc/arch-release ]; then \
+        pacman -Syy; \
+        pacman -S --noconfirm sudo bash shadow; \
     else \
         echo "Unknown distribution"; \
         exit 1; \

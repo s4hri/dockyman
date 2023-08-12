@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "DOCKYMAN -> Running inizialization script (docker container)"
-source ~/.bashrc
-
-/bin/sh
-exit 0
+set -a
+source /var/dockyman/scripts/env_vars
+set +a
+exec "$@"

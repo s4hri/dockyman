@@ -4,19 +4,5 @@
   "overrideCommand": false,
   "workspaceFolder": "/workdir",
   "initializeCommand": "make -C .devcontainer",
-  "shutdownAction": "stopCompose",
-  "customizations": {
-		"vscode": {
-            "settings": 
-            {
-                "terminal.integrated.defaultProfile.linux": "bash"
-            },
-			"extensions": [
-				"ms-vscode-remote.remote-ssh",
-				"ms-vscode-remote.remote-containers",
-				"ms-vscode.makefile-tools"
-			]
-	    }
-    }
-
+  "shutdownAction": "stopCompose"
 }

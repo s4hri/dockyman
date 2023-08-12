@@ -38,6 +38,7 @@ COMPOSE_BASE := -f ../compose.base.yaml
 COMPOSE_LOCAL := -f ../compose.local.yaml
 COMPOSE_RUN := -f ../compose.yaml
 ENV_BUILD := --env-file ${ENV_FILE_BUILD}
+SCRIPTS := ../scripts
 
 UNAME := $(shell uname)
 DOCKER_INSTALLED := $(shell command -v docker 2> /dev/null)
@@ -296,7 +297,7 @@ release:
     
 
 init-host:
-	bash scripts/initHost.sh
+	bash ${SCRIPTS}/initHost.sh
 
 build: build-base build-local
 
@@ -305,7 +306,7 @@ stop:
 	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
 
 log:
-	bash scripts/logLocalInfo.sh > ../lastrun.log
+	bash ${SCRIPTS}/logLocalInfo.sh > ../lastrun.log
 
 dockyman-run:
 	${DOCKYMAN_RUN_COMMAND}

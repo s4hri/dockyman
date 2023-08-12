@@ -7,9 +7,15 @@ services:
       file: .devcontainer/profiles/local.yaml
       service: local
   
-    command: ["/bin/bash", "-c", "bash /var/dockyman/initContainer.sh"]
+    entrypoint: /var/dockyman/scripts/initContainer.sh
+    
+    command: bash
 
     volumes:
       - type: bind
         source: ./workdir
         target: /workdir
+
+      - type: bind
+        source: ./scripts
+        target: /var/dockyman/scripts

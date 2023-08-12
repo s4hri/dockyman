@@ -19,7 +19,8 @@ jobs:
 
     - name: Install Docker and Docker Compose
       run: |
-        make -c template/.devcontainer install-all
+        echo "y" | make -C template/.devcontainer install-docker
+        echo "y" | make -C template/.devcontainer install-docker-compose
 
     - name: Test Docker
       run: |
