@@ -1,9 +1,9 @@
 name: Test Docker Installation
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types:
+      - created
 
 jobs:
   test-docker:
