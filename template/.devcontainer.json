@@ -1,8 +1,8 @@
 {
-  "dockerComposeFile": ["../compose.yaml"],
+  "dockerComposeFile": ["compose.yaml"],
   "service": "main",
   "overrideCommand": false,
   "workspaceFolder": "/workdir",
-  "initializeCommand": "make -C .devcontainer",
+  "initializeCommand": "make -C .dockyman",
   "shutdownAction": "stopCompose"
 }

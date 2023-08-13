@@ -24,6 +24,6 @@ jobs:
          
       - name: Build and push Docker image
         run: |
-          make -C .devcontainer release VERSION=${{ github.event.release.tag_name }}
-          make -C .devcontainer build
-          make -C .devcontainer push
+          make -C .dockyman release VERSION=${{ github.event.release.tag_name }}
+          make -C .dockyman build
+          make -C .dockyman push

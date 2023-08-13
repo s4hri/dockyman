@@ -4,9 +4,12 @@ services:
     image: ${BASE_NAME:?err}.local
 
     extends:
-      file: .devcontainer/profiles/local.yaml
+      file: .dockyman/profiles/local.yaml
       service: local
   
+    env_file:
+      - .env
+
     entrypoint: /var/dockyman/scripts/initContainer.sh
     
     command: bash

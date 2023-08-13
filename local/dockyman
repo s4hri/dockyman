@@ -68,7 +68,7 @@ cat << EOF
     2b. Build & run (make)
 
         \$ cd myrepo
-        \$ make -C .devcontainer
+        \$ make -C .dockyman
         (...)
 
 

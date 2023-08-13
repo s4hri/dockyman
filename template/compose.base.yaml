@@ -28,7 +28,7 @@ services:
   main.base:
 
     extends:
-      file: .devcontainer/services/dockyman.yaml
+      file: .dockyman/services/dockyman.yaml
       service: dockyman
 
     environment:
