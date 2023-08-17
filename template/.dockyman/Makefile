@@ -32,7 +32,13 @@ export USER_GID
 
 .DEFAULT_GOAL := default
 
-PROJECT_DIR := ..
+ifeq ($(origin PROJECT_DIR), undefined)
+    # If ENV_VARIABLE is not defined, use a default value
+    PROJECT_DIR := ..
+else
+    PROJECT_DIR := $(PROJECT_DIR)
+endif
+
 SCRIPTS := ${PROJECT_DIR}/scripts
 ENV_FILE_RUN := ${PROJECT_DIR}/.env
 ENV_FILE_BUILD := ${PROJECT_DIR}/build.env
