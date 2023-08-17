@@ -32,13 +32,15 @@ export USER_GID
 
 .DEFAULT_GOAL := default
 
-ENV_FILE_RUN := ../.env
-ENV_FILE_BUILD := ../build.env
-COMPOSE_BASE := -f ../compose.base.yaml
-COMPOSE_LOCAL := -f ../compose.local.yaml
-COMPOSE_RUN := -f ../compose.yaml
+PROJECT_DIR := ..
+SCRIPTS := ${PROJECT_DIR}/scripts
+ENV_FILE_RUN := ${PROJECT_DIR}/.env
+ENV_FILE_BUILD := ${PROJECT_DIR}/build.env
+COMPOSE_BASE := -f ${PROJECT_DIR}/compose.base.yaml
+COMPOSE_LOCAL := -f ${PROJECT_DIR}/compose.local.yaml
+COMPOSE_RUN := -f ${PROJECT_DIR}/compose.yaml
 ENV_BUILD := --env-file ${ENV_FILE_BUILD}
-SCRIPTS := ../scripts
+
 
 UNAME := $(shell uname)
 DOCKER_INSTALLED := $(shell command -v docker 2> /dev/null)

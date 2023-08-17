@@ -25,7 +25,7 @@
 #!/bin/bash
 cat << "EOF"
 
-##############################################################
+###############################################################
 
 #####    ####    ####   #    #   #   #  #    #    ##    #    #
 #    #  #    #  #    #  #   #     # #   ##  ##   #  #   ##   #
@@ -35,16 +35,15 @@ cat << "EOF"
 #####    ####    ####   #    #     #    #    #  #    #  #    #
 
 ---
-Author: Davide De Tommaso, Istituto Italiano di Tecnologia (IIT)
-Code: https://github.com/s4hri/dockyman
+A toolbox for managing docker containers running on local hosts
 
-##############################################################
+github.com/s4hri/dockyman
+
+###############################################################
 EOF
 
-# Check the Bash version
 echo "Bash version: $BASH_VERSION"
 
-# Check if 'declare' is available
 type declare
 
 set -e
@@ -54,7 +53,7 @@ cat << EOF
 
 > QUICK RUN
 
-    1. Download the dockyman template:
+    1. Download the template:
 
         \$ cd myrepo
         \$ docker run -it --network=host iitschri/dockyman --action init --target \${PWD} --username \${USER} --hostname \${HOSTNAME}
@@ -71,14 +70,19 @@ cat << EOF
         \$ make -C .dockyman
         (...)
 
+    3. Update the core:
+
+            \$ cd myrepo
+            \$ docker run -it --network=host iitschri/dockyman --action update --target \${PWD} --username \${USER} --hostname \${HOSTNAME}
 
 > COMMAND-LINE INTERFACE
     
         Usage: dockyman --action <action> [args]
     
         Actions:
-            'bash': Launches a bash console inside the docker container.
+            'bash': Launches a bash console inside the dockyman container.
             'init': Initializes the dockyman environment.
+            'update': Update the dockyman core (.dockyman folder)
             'build_base': Builds a base Docker image.
             'build_local': Builds a local Docker image.
             'push': Push the base image.
@@ -91,23 +95,62 @@ cat << EOF
                                  to start working with the command line tools.
         - INIT 
                     Usage: dockyman --action init
+                                    --target <local_folder>
+                                    --username <local_user>
+                                    --hostname <local_hostname>
 
-                    Description: The dockyman template will be copied into the target folder.
-    
+                    Description: The dockyman template will be copied from the dockyman container 
+                                 into the specified target folder of the local machine.
+
+        - UPDATE 
+                    Usage: dockyman --action update
+                                    --target <local_folder>
+                                    --username <local_user>
+                                    --hostname <local_hostname>
+
+                    Description: The dockyman core (.dockyman folder) will be updated (overwrite)
+                                 into the specified target folder of the local machine.
+
         - BUILD BASE: 
                     
                     Usage: dockyman --action build_base
                                     --image_name <image_name>
                                     --workspace_folder <workspace_folder>
 
-                    Description: The program will build a docker image with name <image_name> from
-                                 the devcontainer.json placed in /shared/<workspace_folder> inside
-                                 the dockyman docker container.
+                    Description: It will built a docker image named <image_name> based on
+                                 the devcontainer.json located in /shared/<workspace_folder> of the 
+                                 dockyman container.
 
-                    Example: dockyman --action build_base
-                                      --image_name iitschri/ubuntu
-                                      --workspace_folder /
+        - BUILD LOCAL: 
+                    
+                    Usage: dockyman --action build_local
+                                    --image_name <image_name>
+                                    --username <container_username>
+                                    --uid <container_uid>
+                                    --gid <container_gid>
+                                    --groups <container_groups>
 
+                    Description: It will built a docker named <image_name>.local starting from
+                                 the image <image_name>. The local image will be configured with
+                                 the local settings provided (username, gid, uid, groups). Specifically,
+                                 the groups (a coma separated list i.e.: 'sudo,audio,video') are inherited
+                                 from the local machine, namely there will be an id correspondance between
+                                 the local machine and the container.
+
+        - PUSH: 
+                    
+                    Usage: dockyman --action push
+                                    --image_name <image_name>
+
+                    Description: It will push the base docker image named <image_name>.
+
+        - CLEAN: 
+                    
+                    Usage: dockyman --action clean
+                                    --image_name <image_name>
+
+                    Description: It will remove the base docker image named <image_name> and its local 
+                                 image <image_name>.local from the local docker repository.
 
 EOF
 }

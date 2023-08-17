@@ -7,11 +7,7 @@ on:
 
 jobs:
   test-docker:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, centos-latest, arch-latest, alpine-latest]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
