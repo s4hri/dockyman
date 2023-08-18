@@ -236,6 +236,7 @@ update()
 {
     echo "DOCKYMAN -> Updating template ..."
     cp -ir /workdir/template/.dockyman /shared/
+    cp -ir /workdir/template/.github /shared/
     chown -R $own /shared
     echo "Update finished!"
 }
