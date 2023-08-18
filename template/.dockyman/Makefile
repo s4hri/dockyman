@@ -262,7 +262,7 @@ push: stop
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Pushing base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=push DOCKERHUBUSERNAME=iitschri ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		ACTION=push ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
 clean: stop
