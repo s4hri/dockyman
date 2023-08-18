@@ -40,9 +40,10 @@ Get Started
 A simple way to start working with Dockyman is to start with a template example and customize it as you prefer inside the VS Code IDE. The following steps will allow you to download the files necessary to start.
 
 ::
+
     $ cd <myrepo>
     
-    $ docker run -it --network=host iitschri/dockyman --action init --target ${PWD} --username ${USER} --hostname ${HOSTNAME}
+    $ docker run -it -v ${PWD}:/shared iitschri/dockyman --action init --own $(id -u):$(id -g)
 
     $ code .
 
