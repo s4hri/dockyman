@@ -18,9 +18,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Checkout private repo
-        uses: actions/checkout@v3
-
       - name: Extract version from .env file
         id: extract-version
         run: |

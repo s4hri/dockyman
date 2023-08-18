@@ -31,7 +31,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/group:/etc/group:ro
 
-    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --uid ${USER_UID} --gid ${USER_GID}
+    entrypoint: /bin/bash dockyman --action ${ACTION:-noaction} --uid ${USER_UID} --gid ${USER_GID} --dockerhubusername ${DOCKERHUBUSERNAME:-nousr} --dockerhubpassword ${DOCKERHUBPASSWORD:-nopsw}
 
   devcontainer:
     extends: dockyman

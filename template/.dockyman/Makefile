@@ -33,7 +33,6 @@ export USER_GID
 .DEFAULT_GOAL := default
 
 ifeq ($(origin PROJECT_DIR), undefined)
-    # If ENV_VARIABLE is not defined, use a default value
     PROJECT_DIR := ..
 else
     PROJECT_DIR := $(PROJECT_DIR)
@@ -263,7 +262,7 @@ push: stop
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Pushing base image from service '$$service' ..."; \
 		set -e; \
-		ACTION=push ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		ACTION=push DOCKERHUBUSERNAME=iitschri ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
 clean: stop

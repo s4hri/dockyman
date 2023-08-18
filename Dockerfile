@@ -27,7 +27,7 @@ FROM node:20.4.0-alpine
 ENV TZ=Europe/Rome
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apk add docker docker-compose python3 make g++ bash openssh
+RUN apk add docker docker-compose python3 make g++ bash openssh rsync
 
 ARG DOCKYMAN_VER
 
