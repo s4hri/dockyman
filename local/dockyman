@@ -160,7 +160,7 @@ build_base()
     if [ -z ${image_name+x} ]; then echo "Param: image_name is unset"; exit 1; else echo "Param: image_name: '$image_name'"; fi
     if [ -z ${workspace_folder+x} ]; then echo "Param: workspace_folder is unset"; exit 1; else echo "Param: workspace_folder: '$workspace_folder'"; fi
     if [ -z ${push+x} ]; then echo "Param: push is unset"; exit 1; else echo "Param: push: '$push'"; fi
-    devcontainer build --image-name $image_name --workspace-folder /shared/$workspace_folder
+    devcontainer build --image-name $image_name --workspace-folder /shared/$workspace_folder $nocache
 }
 
 
@@ -269,10 +269,15 @@ elif [ "$action" = "init" ]; then
     init $own
 elif [ "$action" = "update" ]; then
     update $own
+elif [ "$action" = "build_base_nocache" ]; then
+    nocache="--no-cache"
+    build_base $image_name $workspace_folder $nocache
 elif [ "$action" = "build_base" ]; then
     build_base $image_name $workspace_folder
 elif [ "$action" = "build_local" ]; then
     build_local $image_name $username $uid $gid $groups
+elif [ "$action" = "pull" ]; then
+    pull $image_name $workspace_folder
 elif [ "$action" = "push" ]; then
     push $image_name $dockerhubusername $dockerhubpassword
 elif [ "$action" = "clean" ]; then

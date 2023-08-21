@@ -226,11 +226,15 @@ help:
 
 
 default:
-	@if grep -q '^PROFILE=dev' ${ENV_FILE_BUILD}; then \
-        $(MAKE) install-all && $(MAKE) build && $(MAKE) create_env; \
+	@if grep -q '^PROFILE=development' ${ENV_FILE_BUILD}; then \
+		$(MAKE) install-all && $(MAKE) build && $(MAKE) create_env; \
 	else \
-		echo "The building process is completed!"; \
-		echo "To rebuild please make sure you are in development profile running 'make dev'"; \
+		if ! test -f ${ENV_FILE_RUN}; then \
+			$(MAKE) install-all && $(MAKE) pull && $(MAKE) build-local && $(MAKE) create_env; \
+		else \
+			echo "The building process is completed!"; \
+			echo "To rebuild, please make sure you are in development profile running 'make dev'"; \
+		fi; \
 	fi
 
 create_env:
@@ -243,6 +247,13 @@ create_env:
 	else \
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
+
+build-base-nocache: stop
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		echo "Building base image from service '$$service' ..."; \
+		set -e; \
+		ACTION=build_base_nocache ${DOCKYMAN_BASE_COMMAND} run $$service; \
+	done
 
 build-base: stop
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
@@ -258,6 +269,13 @@ build-local: stop
 		ACTION=build_local ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
 	done
 
+pull: stop
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		echo "Pulling base image from service '$$service' ..."; \
+		set -e; \
+		ACTION=pull ${DOCKYMAN_BASE_COMMAND} run $$service; \
+	done
+
 push: stop
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Pushing base image from service '$$service' ..."; \
@@ -266,6 +284,9 @@ push: stop
 	done
 
 clean: stop
+	@echo "Cleaning volumes ...";
+	@${DOCKYMAN_LOCAL_COMMAND} down -v;
+	@echo "Removing env ${ENV_FILE_RUN} ... ";
 	@rm -f ${ENV_FILE_RUN};
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Cleaning image from service '$$service' ..."; \
@@ -274,39 +295,32 @@ clean: stop
 	done
 
 dev:
+	@echo "Configuring DEVELOPMENT PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
-        sed -i 's/^PROFILE=.*/PROFILE=dev/' ${ENV_FILE_BUILD}; \
-    else \
-        echo "PROFILE=dev" >> ${ENV_FILE_BUILD}; \
-    fi; \
-	$(MAKE) create_env;
-	@echo "Development profile added or updated in ${ENV_FILE_BUILD}"
-
-release:
-	@echo "Creating release..."
-	@if [ "${VERSION}" ]; then \
-		if grep -q '^VERSION=' ${ENV_FILE_BUILD}; then \
-			sed -i 's/^VERSION=.*/VERSION=${VERSION}/' ${ENV_FILE_BUILD}; \
-		else \
-			echo "VERSION=${VERSION}" >> ${ENV_FILE_BUILD}; \
-		fi; \
-		echo "Version ${VERSION} added or updated in ${ENV_FILE_BUILD}"; \
-		if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
-			sed -i 's/^PROFILE=.*/PROFILE=prod/' ${ENV_FILE_BUILD}; \
-		else \
-			echo "PROFILE=prod" >> ${ENV_FILE_BUILD}; \
-		fi; \
-		echo "Development profile added or updated in ${ENV_FILE_BUILD}"; \
-		$(MAKE) create_env; \
+		sed -i 's/^PROFILE=.*/PROFILE=development/' ${ENV_FILE_BUILD}; \
 	else \
-		echo "Please provide a version using 'make release VERSION=<version>'"; \
-	fi
+		echo "PROFILE=dev" >> ${ENV_FILE_BUILD}; \
+	fi;
+	@echo "DEVELOPMENT PROFILE updated in ${ENV_FILE_BUILD}";
+	$(MAKE) create_env;
+
+production:
+	@echo "Configuring PRODUCTION PROFILE..."
+	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
+		sed -i 's/^PROFILE=.*/PROFILE=production/' ${ENV_FILE_BUILD}; \
+	else \
+		echo "PROFILE=production" >> ${ENV_FILE_BUILD}; \
+	fi;
+	@echo "PRODUCTION PROFILE updated in ${ENV_FILE_BUILD}"; \
+	$(MAKE) create_env;
     
 
 init-host:
 	bash ${SCRIPTS}/initHost.sh
 
 build: build-base build-local
+
+rebuild: clean build-base-nocache build-local
 
 stop:
 	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
