@@ -273,7 +273,7 @@ elif [ "$action" = "build_base_nocache" ]; then
     nocache="--no-cache"
     build_base $image_name $workspace_folder $nocache
 elif [ "$action" = "build_base" ]; then
-    build_base $image_name $workspace_folder
+    pull $image_name $workspace_folder
 elif [ "$action" = "build_local" ]; then
     build_local $image_name $username $uid $gid $groups
 elif [ "$action" = "pull" ]; then
