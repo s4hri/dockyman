@@ -58,7 +58,7 @@ ifeq ($(UNAME), Linux)
     ifeq ($(shell lsb_release -is), Ubuntu)
         PACKAGE_MANAGER := apt-get
         DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := distribution=$(. /etc/os-release;echo $ID$VERSION_ID) && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - && curl -s -L https://nvidia.github.io/nvidia-docker/$$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list && sudo apt-get update && sudo apt-get install -y nvidia-docker2 && sudo systemctl restart docker
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), centos)
         PACKAGE_MANAGER := yum

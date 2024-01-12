@@ -7,4 +7,3 @@ aplay -l
 free
 lshw
 docker version
-docker compose version
