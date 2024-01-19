@@ -25,7 +25,7 @@
 services:
 
   dockyman:
-    image: iitschri/dockyman:${DOCKYMAN_VER:?err}
+    image: iitschri/dockyman:${DOCKYMAN_VER}
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -313,12 +313,12 @@ production:
 	fi;
 	@echo "PRODUCTION PROFILE updated in ${ENV_FILE_BUILD}"; \
 	$(MAKE) create_env;
-    
 
 init-host:
 	bash ${SCRIPTS}/initHost.sh
 
 build: build-base build-local
+	@docker network prune -f
 
 rebuild: clean build-base-nocache build-local
 
@@ -335,7 +335,7 @@ dockyman-run:
 run: default log init-host dockyman-run stop
 
 clean-docker:
-	@docker container prune -f
 	@docker network prune -f
+	@docker container prune -f
 	@docker image prune -af
 	@docker volume prune -f

@@ -23,24 +23,6 @@
 # SOFTWARE.
 
 #!/bin/bash
-cat << "EOF"
-
-###############################################################
-
-#####    ####    ####   #    #   #   #  #    #    ##    #    #
-#    #  #    #  #    #  #   #     # #   ##  ##   #  #   ##   #
-#    #  #    #  #       ####       #    # ## #  #    #  # #  #
-#    #  #    #  #       #  #       #    #    #  ######  #  # #
-#    #  #    #  #    #  #   #      #    #    #  #    #  #   ##
-#####    ####    ####   #    #     #    #    #  #    #  #    #
-
----
-A toolbox for managing docker containers running on local hosts
-
-github.com/s4hri/dockyman
-
-###############################################################
-EOF
 
 echo "Bash version: $BASH_VERSION"
 
@@ -166,45 +148,51 @@ build_base()
 
 build_local()
 {
-    echo "DOCKYMAN -> Building LOCAL image ..."
-    if [ -z ${image_name+x} ]; then echo "Param: image_name is unset"; exit 1; else echo "Param: image_name: '$image_name'"; fi
-    if [ -z ${groups+x} ]; then echo "Param: groups is unset"; exit 1; else echo "Param: groups: '$groups'"; fi
-    if [ -z ${username+x} ]; then echo "Param: username is unset"; exit 1; else echo "Param: username: '$username'"; fi
-    if [ -z ${uid+x} ]; then echo "Param: uid is unset"; exit 1; else echo "Param: uid: '$uid'"; fi
-    if [ -z ${gid+x} ]; then echo "Param: gid is unset"; exit 1; else echo "Param: gid: '$gid'"; fi
+    if docker image inspect "$image_name.local" &> /dev/null; then
+        echo "Docker image $image_name.local is already present locally."
+    else
+        echo "DOCKYMAN -> Building LOCAL image ..."
+        if [ -z ${image_name+x} ]; then echo "Param: image_name is unset"; exit 1; else echo "Param: image_name: '$image_name'"; fi
+        if [ -z ${groups+x} ]; then echo "Param: groups is unset"; exit 1; else echo "Param: groups: '$groups'"; fi
+        if [ -z ${username+x} ]; then echo "Param: username is unset"; exit 1; else echo "Param: username: '$username'"; fi
+        if [ -z ${uid+x} ]; then echo "Param: uid is unset"; exit 1; else echo "Param: uid: '$uid'"; fi
+        if [ -z ${gid+x} ]; then echo "Param: gid is unset"; exit 1; else echo "Param: gid: '$gid'"; fi
 
-    GROUP_IDS=""
-    while IFS=',' read -ra ADDR; do
-        for i in "${ADDR[@]}"; do
-            group_id=$(getent group "$i" | cut -d: -f3)
-            if [ ! -z "$group_id" ]; then
-                GROUP_IDS="${GROUP_IDS}${group_id},"
-            fi
-        done
-    done <<< "$groups"
+        GROUP_IDS=""
+        while IFS=',' read -ra ADDR; do
+            for i in "${ADDR[@]}"; do
+                group_id=$(getent group "$i" | cut -d: -f3)
+                if [ ! -z "$group_id" ]; then
+                    GROUP_IDS="${GROUP_IDS}${group_id},"
+                fi
+            done
+        done <<< "$groups"
 
-    GROUP_IDS=${GROUP_IDS::-1}
+        GROUP_IDS=${GROUP_IDS::-1}
 
 
-    echo "$GROUP_IDS"
+        echo "$GROUP_IDS"
 
-    docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
-                                      --build-arg USERNAME=$username \
-                                      --build-arg USER_UID=$uid \
-                                      --build-arg USER_GID=$gid \
-                                      --build-arg USER_GROUPS=$groups \
-                                      --build-arg GROUP_IDS=$GROUP_IDS \
-                                      /workdir/local
+        docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
+                                        --build-arg USERNAME=$username \
+                                        --build-arg USER_UID=$uid \
+                                        --build-arg USER_GID=$gid \
+                                        --build-arg USER_GROUPS=$groups \
+                                        --build-arg GROUP_IDS=$GROUP_IDS \
+                                        /workdir/local  
+    fi
 }
 
 pull()
 {
-    echo "DOCKYMAN -> Pulling BASE image from Docker registry..."
-
-    if docker pull $image_name; then
-        echo "DOCKYMAN -> Pulling BASE image succeed!"
+    if docker image inspect "$image_name" &> /dev/null; then
+        echo "Docker image $image_name is already present locally."
     else
-        build_base $image_name $workspace_folder
+        if docker pull "$image_name" &> /dev/null; then
+            echo "Pulled Docker image $image_name."
+        else
+            build_base $image_name $workspace_folder
+        fi
     fi
 }
 
@@ -226,8 +214,7 @@ clean()
 init()
 {
     echo "DOCKYMAN -> Initializing template ..."
-    cp -ir /workdir/template/* /shared/
-    cp -ir /workdir/template/.* /shared/
+    rsync -av /workdir/template/ /shared/
     chown -R $own /shared
     echo "Initialization finished!"
 }
@@ -235,8 +222,7 @@ init()
 update()
 {
     echo "DOCKYMAN -> Updating template ..."
-    cp -ir /workdir/template/.dockyman /shared/
-    cp -ir /workdir/template/.github /shared/
+    rsync -av /workdir/template/.dockyman /shared/.dockyman/
     chown -R $own /shared
     echo "Update finished!"
 }

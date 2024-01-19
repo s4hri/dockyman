@@ -6,17 +6,26 @@ on:
       - created
 
 jobs:
-  test-docker:
+  setup:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-
-    - name: Install Docker and Docker Compose
+    - name: Set up Docker
       run: |
+        sudo apt-get update
+        sudo apt-get install -y docker.io
+
+  test-docker:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Dockyman template test
+      run: |
+        docker run -it -v ${PWD}:/shared iitschri/dockyman --action init --own $(id -u):$(id -g)
         echo "y" | make -C template/.dockyman install-docker
         echo "y" | make -C template/.dockyman install-docker-compose
+        make -C template/.dockyman
 
     - name: Test Docker
       run: |

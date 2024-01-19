@@ -45,7 +45,4 @@ services:
       - ./:/workdir
 
     entrypoint: /bin/bash -c bash
-
-  dockyman-latest:
-    extends: dockyman
-    image: iitschri/dockyman:latest
+  
