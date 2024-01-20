@@ -26,6 +26,7 @@ ARG DOCKER_SRC
 
 FROM ${DOCKER_SRC}
 LABEL maintainer="Davide De Tommaso <davide.detommaso@iit.it>"
+LABEL version="local"
 
 ENV DEBIAN_FRONTEND noninteractive
 

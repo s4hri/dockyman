@@ -21,7 +21,7 @@ I want to create a Docker project for running:
 ## 2. Minimum requirements
 
 * GNU/Linux OS (Ubuntu, Debian, CentOS, Alpine)
-* Basic packages: make, sudo, curl, wget
+* Basic packages: git, make, sudo, curl, wget
 * Docker CE and docker-compose (if not present, they will be installed automatically by DOCKYMAN)
 * Visual Studio Code (optional)
 
@@ -32,7 +32,7 @@ I want to create a Docker project for running:
 
 The easiest way to start using DOCKYMAN is creating a GitHub project from the template.
 
-1. Visit the GitHub repository of the ![DOCKYMAN template](https://github.com/s4hri/dockyman-template)
+1. Visit the GitHub repository of the [DOCKYMAN template](https://github.com/s4hri/dockyman-template)
 
 2. Click on the "Use this template" button at the top of the repository.
 

@@ -1,5 +1,9 @@
+# Original image stage
 ARG DOCKER_SRC
 FROM ${DOCKER_SRC}
 
-ENV TZ=Europe/Rome
-ENV DEBIAN_FRONTEND noninteractive
+LABEL version="base"
+
+# Install here your packages ..
+#RUN apt-get update && \
+#    apt-get install -y git

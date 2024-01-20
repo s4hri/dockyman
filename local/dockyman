@@ -174,12 +174,12 @@ build_local()
         echo "$GROUP_IDS"
 
         docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
-                                        --build-arg USERNAME=$username \
-                                        --build-arg USER_UID=$uid \
-                                        --build-arg USER_GID=$gid \
-                                        --build-arg USER_GROUPS=$groups \
-                                        --build-arg GROUP_IDS=$GROUP_IDS \
-                                        /workdir/local  
+                                          --build-arg USERNAME=$username \
+                                          --build-arg USER_UID=$uid \
+                                          --build-arg USER_GID=$gid \
+                                          --build-arg USER_GROUPS=$groups \
+                                          --build-arg GROUP_IDS=$GROUP_IDS \
+                                          /workdir/local  
     fi
 }
 
@@ -203,10 +203,15 @@ push()
     docker push $image_name
 }
 
-clean()
+clean_base()
 {
     echo "DOCKYMAN -> Removing BASE image ..."
     docker image rmi -f $image_name
+}
+
+clean()
+{
+    clean_base
     echo "DOCKYMAN -> Removing LOCAL image ..."
     docker image rmi -f $image_name.local
 }
@@ -222,7 +227,67 @@ init()
 update()
 {
     echo "DOCKYMAN -> Updating template ..."
-    rsync -av /workdir/template/.dockyman /shared/.dockyman/
+    source_dir="/workdir/template"
+    dest_dir="/shared"
+
+    # Function to sync files and directories
+    sync_item() {
+        local item="$1"
+        local dest="$2"
+
+        # Extract item name without the full path
+        item_name=$(basename "$item")
+
+        # Check if the item exists in the destination directory
+        if [ -e "$dest/$item_name" ]; then
+            # Check if the item is a directory
+            if [ -d "$item" ]; then
+                # Sync the directory if it's different
+                if ! diff -q -r "$item" "$dest/$item_name" >/dev/null; then
+                    read -p "Do you want to update <$item_name> directory? (y/N) " choice
+                    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+                        rsync -av "$item" "$dest"
+                        echo "Updated <$item_name> directory"
+                    else
+                        echo "Skipped <$item_name> directory (user choice)"
+                    fi
+                else
+                    echo "Skipped <$item_name> directory (contents are the same)"
+                fi
+            elif [ -f "$item" ]; then
+                # Sync the file if it's different
+                if ! diff -q "$item" "$dest/$item_name" >/dev/null; then
+                    read -p "Do you want to update <$item_name> file? (y/N) " choice
+                    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+                        rsync -av "$item" "$dest"
+                        echo "Updated <$item_name> file"
+                    else
+                        echo "Skipped <$item_name> file (user choice)"
+                    fi
+                else
+                    echo "Skipped <$item_name> file (contents are the same)"
+                fi
+            fi
+        else
+            # Item doesn't exist in the destination directory, so sync it
+            read -p "Do you want to copy <$item_name>? (y/N) " choice
+            if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
+                rsync -av "$item" "$dest"
+                echo "Copied <$item_name>"
+            else
+                echo "Skipped <$item_name> (user choice)"
+            fi
+        fi
+    }
+
+    # Loop through each item in the source directory, including hidden items
+    for item in "$source_dir"/* "$source_dir"/.*; do
+        # Skip special entries (., .., .hidden, etc.)
+        if [ "$(basename "$item")" != "." ] && [ "$(basename "$item")" != ".." ]; then
+            # Sync each item and prompt for confirmation
+            sync_item "$item" "$dest_dir"
+        fi
+    done
     chown -R $own /shared
     echo "Update finished!"
 }
@@ -266,6 +331,8 @@ elif [ "$action" = "pull" ]; then
     pull $image_name $workspace_folder
 elif [ "$action" = "push" ]; then
     push $image_name $dockerhubusername $dockerhubpassword
+elif [ "$action" = "clean_base" ]; then
+    clean_base $image_name
 elif [ "$action" = "clean" ]; then
     clean $image_name
 fi

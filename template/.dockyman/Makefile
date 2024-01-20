@@ -50,7 +50,7 @@ ENV_BUILD := --env-file ${ENV_FILE_BUILD}
 UNAME := $(shell uname)
 DOCKER_INSTALLED := $(shell command -v docker 2> /dev/null)
 DOCKER_COMPOSE_INSTALLED := $(shell command -v docker-compose 2> /dev/null)
-NVIDIA_DOCKER_INSTALLED := $(shell command -v nvidia-docker 2> /dev/null)
+NVIDIA_DOCKER_INSTALLED := $(shell command -v nvidia-container-toolkit 2> /dev/null)
 HAS_NVIDIA_GPU := $(shell lspci | grep -i nvidia)
 HAS_DOCKER_GROUP := $(shell groups $(USER) | grep -o '\bdocker\b')
 
@@ -59,12 +59,24 @@ ifeq ($(UNAME), Linux)
         PACKAGE_MANAGER := apt-get
         DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh
         DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
-        NVIDIA_DOCKER_INSTALL_CMD := distribution=$(. /etc/os-release;echo $ID$VERSION_ID) && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - && curl -s -L https://nvidia.github.io/nvidia-docker/$$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list && sudo apt-get update && sudo apt-get install -y nvidia-docker2 && sudo systemctl restart docker
+        NVIDIA_DOCKER_INSTALL_CMD := \
+		                            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ; \
+	                                curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+	                                sed 's\#deb https://\#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://\#g' | \
+	                                sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list ; \
+	                                sed -i -e '/experimental/ s/^\#//g' /etc/apt/sources.list.d/nvidia-container-toolkit.list ; \
+	                                sudo apt-get update ; \
+	                                sudo apt-get install -y nvidia-container-toolkit
+
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), centos)
         PACKAGE_MANAGER := yum
         DOCKER_INSTALL_CMD := sudo yum install -y docker-ce
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
-        NVIDIA_DOCKER_INSTALL_CMD := sudo yum install -y nvidia-docker2
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/2.23.3/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        NVIDIA_DOCKER_INSTALL_CMD := curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
+		                             sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo ; \
+									 sudo yum-config-manager --enable nvidia-container-toolkit-experimental ; \
+									 sudo yum install -y nvidia-container-toolkit
+
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), arch)
         PACKAGE_MANAGER := pacman
         DOCKER_INSTALL_CMD := sudo pacman -S --noconfirm docker
@@ -211,6 +223,27 @@ uninstall-docker:
 			;; \
 	esac
 
+.PHONY: uninstall-nvidia-docker
+uninstall-nvidia-docker:
+	@read -p "This will uninstall NVIDIA Docker. Do you want to proceed? (y/N) " choice; \
+	case "$$choice" in \
+		y|Y) \
+			echo "Uninstalling NVIDIA Docker..."; \
+			if [ -z "$(HAS_NVIDIA_GPU)" ]; then \
+				echo "No NVIDIA GPU detected. Skipping NVIDIA Docker uninstallation."; \
+			else \
+				if dpkg -l | grep -q nvidia-container-toolkit; then \
+					sudo apt-get remove -y nvidia-container-toolkit; \
+					echo "Uninstall complete."; \
+				else \
+					echo "NVIDIA Docker is not installed."; \
+				fi; \
+			fi; \
+			;; \
+		*) \
+			echo "Aborting uninstallation."; \
+			;; \
+	esac
 
 .PHONY: help
 help:
@@ -221,7 +254,8 @@ help:
 	@echo "  add-docker-group           Add current user to the 'docker' group"
 	@echo "  reboot                     Reboot the machine"
 	@echo "  install-all                Install Docker, Docker Compose, NVIDIA Docker, add user to 'docker' group, and reboot"
-	@echo "  uninstall-docker           Uninstall Docker, Docker Compose and NVIDIA Docker"
+	@echo "  uninstall-docker           Uninstall Docker, Docker Compose"
+	@echo "  uninstall-nvidia-docker    Uninstall NVIDIA Docker"
 	@echo "  help                       Display this help message"
 
 
@@ -248,42 +282,66 @@ create_env:
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
 
-build-base-nocache: stop
+build-base-nocache:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Building base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=build_base_nocache ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
-build-base: stop
+build-base:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Building base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=build_base ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
-build-local: stop
+remove-build-base:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		echo "Removing base image from service '$$service' ..."; \
+		set -e; \
+		ACTION=clean_base ${DOCKYMAN_BASE_COMMAND} run $$service; \
+	done
+
+build-local:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
 	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
 		echo "Building local image from service '$$service' ..."; \
 		set -e; \
 		ACTION=build_local ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
 	done
 
-pull: stop
+pull:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Pulling base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=pull ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
-push: stop
+push:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		echo "Pushing base image from service '$$service' ..."; \
 		set -e; \
 		ACTION=push ${DOCKYMAN_BASE_COMMAND} run $$service; \
 	done
 
-clean: stop
+clean:
+	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+
 	@echo "Cleaning volumes ...";
 	@${DOCKYMAN_LOCAL_COMMAND} down -v;
 	@echo "Removing env ${ENV_FILE_RUN} ... ";
@@ -304,7 +362,7 @@ dev:
 	@echo "DEVELOPMENT PROFILE updated in ${ENV_FILE_BUILD}";
 	$(MAKE) create_env;
 
-production:
+production: remove-build-base
 	@echo "Configuring PRODUCTION PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
 		sed -i 's/^PROFILE=.*/PROFILE=production/' ${ENV_FILE_BUILD}; \
@@ -336,6 +394,5 @@ run: default log init-host dockyman-run stop
 
 clean-docker:
 	@docker network prune -f
-	@docker container prune -f
-	@docker image prune -af
+	@docker system prune -af
 	@docker volume prune -f
