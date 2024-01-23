@@ -24,12 +24,6 @@
 
 #!/bin/bash
 
-echo "Bash version: $BASH_VERSION"
-
-type declare
-
-set -e
-
 display_usage() {
 cat << EOF
 
@@ -179,18 +173,21 @@ build_local()
                                           --build-arg USER_GID=$gid \
                                           --build-arg USER_GROUPS=$groups \
                                           --build-arg GROUP_IDS=$GROUP_IDS \
-                                          /workdir/local  
+                                          /workdir/local
     fi
 }
 
 pull()
 {
+    echo "DOCKYMAN -> Checking if $image_name image is already present locally..."
     if docker image inspect "$image_name" &> /dev/null; then
         echo "Docker image $image_name is already present locally."
     else
+        echo "Docker image is not present locally! Pulling $image_name ..."
         if docker pull "$image_name" &> /dev/null; then
             echo "Pulled Docker image $image_name."
         else
+            echo "Docker image is not present remotely!"
             build_base $image_name $workspace_folder
         fi
     fi
