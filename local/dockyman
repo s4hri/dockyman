@@ -32,7 +32,7 @@ cat << EOF
     1. Download the template:
 
         \$ cd myrepo
-        \$ docker run -it -v \${PWD}:/shared iitschri/dockyman --action init --own \$(id -u):\$(id -g)
+        \$ docker run -it -v \${PWD}:/shared iitschri/dockyman:${DOCKYMAN_VER} --action init --own \$(id -u):\$(id -g)
 
     2a. Build & run (Visual Studio Code)
 
@@ -49,7 +49,7 @@ cat << EOF
     3. Update the core:
 
             \$ cd myrepo
-            \$ docker run -it -v \${PWD}:/shared iitschri/dockyman --action update --own \$(id -u):\$(id -g)
+            \$ docker run -it -v \${PWD}:/shared iitschri/dockyman:${DOCKYMAN_VER} --action update --own \$(id -u):\$(id -g)
 
 > COMMAND-LINE INTERFACE
     
