@@ -29,11 +29,13 @@ services:
   local:
     environment:
         - DISPLAY=${DISPLAY:?err}
-        - QT_X11_NO_MITSHM=1
         - PULSE_SERVER=unix:${XDG_RUNTIME_DIR:?err}/pulse/native
         - PULSE_COOKIE=/run/pulse/cookie
         - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:?err}
         - XDG_DATA_DIRS=${XDG_DATA_DIRS:?err}
+        - QT_X11_NO_MITSHM=1
+        - NO_AT_BRIDGE=1
+        - LIBGL_ALWAYS_INDIRECT=1
 
     extends:
       file: gpus.yaml

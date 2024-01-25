@@ -124,4 +124,6 @@ RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 
 ENV PATH=${PATH}:/home/${USERNAME}/.local/bin:/workdir
 
+RUN touch /.Xauthority && chmod 600 /.Xauthority
+
 USER $USERNAME
