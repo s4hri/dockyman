@@ -35,7 +35,6 @@ services:
         - XDG_DATA_DIRS=${XDG_DATA_DIRS:?err}
         - QT_X11_NO_MITSHM=1
         - NO_AT_BRIDGE=1
-        - LIBGL_ALWAYS_INDIRECT=1
 
     extends:
       file: gpus.yaml

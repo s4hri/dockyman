@@ -168,13 +168,14 @@ build_local()
 
         echo "$GROUP_IDS"
 
-        docker build -t $image_name.local --build-arg DOCKER_SRC=$image_name \
-                                          --build-arg USERNAME=$username \
-                                          --build-arg USER_UID=$uid \
-                                          --build-arg USER_GID=$gid \
-                                          --build-arg USER_GROUPS=$groups \
-                                          --build-arg GROUP_IDS=$GROUP_IDS \
-                                          /workdir/local
+        docker build $nocache -t $image_name.local --build-arg DOCKER_SRC=$image_name \
+                                                   --build-arg USERNAME=$username \
+                                                   --build-arg USER_UID=$uid \
+                                                   --build-arg USER_GID=$gid \
+                                                   --build-arg USER_GROUPS=$groups \
+                                                   --build-arg GROUP_IDS=$GROUP_IDS \
+                                                   /workdir/local
+                                          
     fi
 }
 
@@ -333,6 +334,9 @@ elif [ "$action" = "build_base_nocache" ]; then
     build_base $image_name $workspace_folder $nocache
 elif [ "$action" = "build_base" ]; then
     pull $image_name $workspace_folder
+elif [ "$action" = "build_local_nocache" ]; then
+    nocache="--no-cache"
+    build_local $image_name $username $uid $gid $groups $nocache
 elif [ "$action" = "build_local" ]; then
     build_local $image_name $username $uid $gid $groups
 elif [ "$action" = "pull" ]; then

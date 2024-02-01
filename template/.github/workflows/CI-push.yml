@@ -1,4 +1,4 @@
-name: Docker Release
+name: Dockyman build/push base image(s)
 
 on:
   release:
@@ -14,7 +14,7 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
          
       - name: Build and push Docker image
         run: |
