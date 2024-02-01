@@ -32,4 +32,4 @@ services:
       file: .dockyman/services/dockyman.yaml
       service: dockyman
 
-    command: --image_name ${BASE_NAME:?err} --username docky --groups "sudo,audio,video,input,dialout"
+    command: --image_name ${PROJECT_DOCKER_NAME:?err} --username docky --groups "sudo,audio,video,input,dialout"

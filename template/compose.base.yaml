@@ -33,9 +33,9 @@ services:
       service: dockyman
 
     environment:
-      - DOCKER_SRC=${BASE_DOCKER_SRC}
+      - DOCKER_SRC=${PROJECT_DOCKER_SRC}
     
-    command: --image_name ${BASE_NAME:?err} --workspace_folder ./base/image
+    command: --image_name ${PROJECT_DOCKER_NAME:?err} --workspace_folder ./base/image
 
     volumes:
       - type: bind

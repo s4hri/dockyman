@@ -27,7 +27,8 @@ version: '3.8'
 services:
 
   main:
-    image: ${BASE_NAME:?err}.local
+    image: ${PROJECT_DOCKER_NAME:?err}.local
+    container_name: ${PROJECT_NAME:?err}-${VERSION}
 
     extends:
       file: .dockyman/profiles/local.yaml
