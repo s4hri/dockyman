@@ -80,25 +80,26 @@ RUN IFS=',' read -ra groups_array <<< "$USER_GROUPS" && \
         fi; \
     done
 
-# Step 3: Check and create/modify the user
-RUN if ! getent passwd "$USER_UID" >/dev/null; then \
-        if getent passwd "$USERNAME" >/dev/null; then \
-            echo "User exists"; \
-            usermod -u "$USER_UID" "$USERNAME"; \
-            groupmod -g "$USER_GID" "$USERNAME"; \
-            passwd -d "$USERNAME"; \
-        else \
-            echo "User not found"; \
+# Step 3: Check if the user exists
+RUN if getent passwd "$USERNAME" >/dev/null; then \
+        echo "User exists"; \
+        usermod -u "$USER_UID" "$USERNAME"; \
+        groupmod -g "$USER_GID" "$USERNAME"; \
+        passwd -d "$USERNAME"; \
+    else \
+        # Create/modify the user
+        if ! getent passwd "$USER_UID" >/dev/null; then \
+            echo "User does not exist"; \
             useradd --no-log-init -m -d "/home/$USERNAME" "$USERNAME"; \
             passwd -d "$USERNAME"; \
             usermod -u "$USER_UID" "$USERNAME"; \
             groupmod -g "$USER_GID" "$USERNAME"; \
+        else \
+            echo "UID exists"; \
+            old_uname=$(getent passwd "$USER_UID" | cut -d: -f1); \
+            usermod -l "$USERNAME" "$old_uname"; \
+            groupmod -n "$USERNAME" "$old_uname"; \
         fi; \
-    else \
-        echo "UID exists"; \
-        old_uname=$(getent passwd "$USER_UID" | cut -d: -f1); \
-        usermod -l "$USERNAME" "$old_uname"; \
-        groupmod -n "$USERNAME" "$old_uname"; \
     fi
 
 # Step 4: Set user shell and home directory ownership

@@ -26,9 +26,11 @@ USER_UID := $(shell id -u)
 USER_GID := $(shell id -g)
 LINUX_DISTRO := $(shell awk -F= '/^ID=/{print $$2}' /etc/os-release)
 LINUX_VERSION := $(shell awk -F= '/^VERSION_ID=/{print $$2}' /etc/os-release)
+GPU_PROFILE := no-gpu
 
 export USER_UID
 export USER_GID
+export GPU_PROFILE
 
 .DEFAULT_GOAL := default
 
@@ -107,6 +109,7 @@ DOCKYMAN_BUILD_BASE_COMMAND := ${DOCKYMAN_BASE_COMMAND} up --remove-orphans
 DOCKYMAN_BUILD_LOCAL_COMMAND := ${DOCKYMAN_LOCAL_COMMAND} up --remove-orphans
 
 DOCKYMAN_RUN_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} up --remove-orphans
+DOCKYMAN_STOP_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} ${ENV_BUILD} down --remove-orphans
 
 DOCKYMAN_BASE_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_BASE_COMMAND} config --services)
 DOCKYMAN_LOCAL_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_LOCAL_COMMAND} config --services)
@@ -259,7 +262,7 @@ help:
 	@echo "  help                       Display this help message"
 
 
-default:
+default: stop
 	@if grep -q '^PROFILE=development' ${ENV_FILE_BUILD}; then \
 		$(MAKE) install-all && $(MAKE) build && $(MAKE) create_env; \
 	else \
@@ -282,77 +285,73 @@ create_env:
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
 
-build-base-nocache:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
-
-	@for service in $(DOCKYMAN_BASE_SERVICES); do \
-		echo "Building base image from service '$$service' ..."; \
-		set -e; \
-		ACTION=build_base_nocache ${DOCKYMAN_BASE_COMMAND} run $$service; \
-	done
+build-base-nocache: remove-build-base build-base
 
 build-base:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
-		echo "Building base image from service '$$service' ..."; \
 		set -e; \
+		echo "Building base image from service '$$service' ..."; \
 		ACTION=build_base ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		set +e; \
 	done
+	$(MAKE) stop-base
 
 remove-build-base:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
-		echo "Removing base image from service '$$service' ..."; \
 		set -e; \
+		echo "Removing base image from service '$$service' ..."; \
 		ACTION=clean_base ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		set +e; \
 	done
+	$(MAKE) stop-base
+
+remove-build-local:
+	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
+		set -e; \
+		echo "Cleaning image from service '$$service' ..."; \
+		ACTION=clean ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
+		set +e; \
+	done
+	$(MAKE) stop-local
 
 build-local:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+	@echo
 	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
-		echo "Building local image from service '$$service' ..."; \
 		set -e; \
+		echo "Building local image from service '$$service' ..."; \
 		ACTION=build_local ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
+		set +e; \
 	done
+	$(MAKE) stop-local
+
+build-local-nocache: remove-build-local build-local
 
 pull:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
-		echo "Pulling base image from service '$$service' ..."; \
 		set -e; \
+		echo "Pulling base image from service '$$service' ..."; \
 		ACTION=pull ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		set +e; \
 	done
+	$(MAKE) stop-base
 
 push:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
-
+	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		set -e; \
 		echo "Pushing base image from service '$$service' ..."; \
-		set -e; \
 		ACTION=push ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		set +e; \
 	done
+	$(MAKE) stop-base
 
-clean:
-	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
-	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
-
-	@echo "Cleaning volumes ...";
-	@${DOCKYMAN_LOCAL_COMMAND} down -v;
-	@echo "Removing env ${ENV_FILE_RUN} ... ";
-	@rm -f ${ENV_FILE_RUN};
-	@for service in $(DOCKYMAN_BASE_SERVICES); do \
-		echo "Cleaning image from service '$$service' ..."; \
-		set -e; \
-		ACTION=clean ${DOCKYMAN_BASE_COMMAND} run $$service; \
-	done
+clean: remove-build-base remove-build-local
 
 dev:
+	@echo
 	@echo "Configuring DEVELOPMENT PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
 		sed -i 's/^PROFILE=.*/PROFILE=development/' ${ENV_FILE_BUILD}; \
@@ -363,6 +362,7 @@ dev:
 	$(MAKE) create_env;
 
 production: remove-build-base
+	@echo
 	@echo "Configuring PRODUCTION PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
 		sed -i 's/^PROFILE=.*/PROFILE=production/' ${ENV_FILE_BUILD}; \
@@ -378,11 +378,15 @@ init-host:
 build: build-base build-local
 	@docker network prune -f
 
-rebuild: clean build-base-nocache build-local
+rebuild: stop build-base-nocache build-local-nocache
 
-stop:
+stop-base:
 	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
+
+stop-local:	
 	${DOCKYMAN_LOCAL_COMMAND} down --remove-orphans
+
+stop: stop-base stop-local
 
 log:
 	bash ${SCRIPTS}/logLocalInfo.sh > ../lastrun.log
@@ -390,7 +394,11 @@ log:
 dockyman-run:
 	${DOCKYMAN_RUN_COMMAND}
 
-run: default log init-host dockyman-run stop
+dockyman-stop:
+	${DOCKYMAN_STOP_COMMAND}
+
+run: default log init-host dockyman-run dockyman-stop
+
 
 clean-docker:
 	@docker network prune -f
