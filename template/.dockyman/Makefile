@@ -285,7 +285,15 @@ create_env:
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
 
-build-base-nocache: remove-build-base build-base
+build-base-nocache: remove-build-base
+	@echo
+	@for service in $(DOCKYMAN_BASE_SERVICES); do \
+		set -e; \
+		echo "Building base image from service '$$service' ..."; \
+		ACTION=build_base_nocache ${DOCKYMAN_BASE_COMMAND} run $$service; \
+		set +e; \
+	done
+	$(MAKE) stop-base
 
 build-base:
 	@echo
@@ -326,7 +334,15 @@ build-local:
 	done
 	$(MAKE) stop-local
 
-build-local-nocache: remove-build-local build-local
+build-local-nocache: remove-build-local
+	@echo
+	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
+		set -e; \
+		echo "Building local image from service '$$service' ..."; \
+		ACTION=build_local_nocache ${DOCKYMAN_LOCAL_COMMAND} run $$service; \
+		set +e; \
+	done
+	$(MAKE) stop-local
 
 pull:
 	@echo

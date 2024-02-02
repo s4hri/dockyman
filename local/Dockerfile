@@ -88,18 +88,9 @@ RUN if getent passwd "$USERNAME" >/dev/null; then \
         passwd -d "$USERNAME"; \
     else \
         # Create/modify the user
-        if ! getent passwd "$USER_UID" >/dev/null; then \
-            echo "User does not exist"; \
-            useradd --no-log-init -m -d "/home/$USERNAME" "$USERNAME"; \
-            passwd -d "$USERNAME"; \
-            usermod -u "$USER_UID" "$USERNAME"; \
-            groupmod -g "$USER_GID" "$USERNAME"; \
-        else \
-            echo "UID exists"; \
-            old_uname=$(getent passwd "$USER_UID" | cut -d: -f1); \
-            usermod -l "$USERNAME" "$old_uname"; \
-            groupmod -n "$USERNAME" "$old_uname"; \
-        fi; \
+        echo "User does not exist"; \
+        useradd --no-log-init -m -d "/home/$USERNAME" -u "$USER_UID" -g "$USER_GID" "$USERNAME"; \
+        passwd -d "$USERNAME"; \
     fi
 
 # Step 4: Set user shell and home directory ownership
