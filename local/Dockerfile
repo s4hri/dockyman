@@ -80,14 +80,23 @@ RUN IFS=',' read -ra groups_array <<< "$USER_GROUPS" && \
         fi; \
     done
 
-# Step 3: Check if the user exists
-RUN if getent passwd "$USERNAME" >/dev/null; then \
+# Add this line to create the group if it doesn't exist
+RUN groupadd -g "$USER_GID" "$USERNAME" || true
+
+# Check if the user exists
+RUN if id "$USERNAME" >/dev/null 2>&1; then \
         echo "User exists"; \
-        usermod -u "$USER_UID" "$USERNAME"; \
-        groupmod -g "$USER_GID" "$USERNAME"; \
+        if [ "$USER_UID" != "$(id -u $USERNAME)" ]; then \
+            echo "Changing UID to $USER_UID"; \
+            usermod -u "$USER_UID" "$USERNAME"; \
+        fi; \
+        if [ "$USER_GID" != "$(id -g $USERNAME)" ]; then \
+            echo "Changing GID to $USER_GID"; \
+            usermod -g "$USER_GID" "$USERNAME"; \
+        fi; \
         passwd -d "$USERNAME"; \
     else \
-        # Create/modify the user
+        # Create the user if it doesn't exist
         echo "User does not exist"; \
         useradd --no-log-init -m -d "/home/$USERNAME" -u "$USER_UID" -g "$USER_GID" "$USERNAME"; \
         passwd -d "$USERNAME"; \
