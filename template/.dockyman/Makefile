@@ -394,7 +394,7 @@ init-host:
 build: build-base build-local
 	@docker network prune -f
 
-rebuild: stop build-base-nocache build-local-nocache
+rebuild: stop build-base-nocache build-local
 
 stop-base:
 	${DOCKYMAN_BASE_COMMAND} down --remove-orphans
