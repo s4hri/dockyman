@@ -30,7 +30,6 @@ GPU_PROFILE := no-gpu
 
 export USER_UID
 export USER_GID
-export GPU_PROFILE
 
 .DEFAULT_GOAL := default
 
