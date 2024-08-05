@@ -1,0 +1,175 @@
+---
+- name: Uninstall Docker, Docker Compose, and NVIDIA Docker Container on Ubuntu
+  hosts: all
+  become: true
+  vars:
+    docker_installed: false
+    docker_compose_installed: false
+    nvidia_hardware_present: false
+
+  tasks:
+    - name: Check if Docker is installed
+      command: which docker
+      register: result
+      ignore_errors: true
+
+    - name: Debug Docker installation status
+      debug:
+        msg: "Docker installation status: {{ result }}"
+
+    - name: Set docker_installed fact
+      set_fact:
+        docker_installed: "{{ result.rc == 0 }}"
+
+    - name: Debug docker_installed fact
+      debug:
+        msg: "docker_installed fact: {{ docker_installed }}"
+
+    - name: Unmask Docker service
+      command: systemctl unmask docker
+      when: docker_installed
+
+    - name: Stop Docker service gracefully
+      service:
+        name: docker
+        state: stopped
+      when: docker_installed
+      ignore_errors: true
+      register: stop_docker_result
+
+    - name: Debug stop Docker result
+      debug:
+        msg: "Stop Docker result: {{ stop_docker_result }}"
+
+    - name: Forcefully stop Docker service if graceful stop failed
+      shell: systemctl stop docker || true
+      when: docker_installed and stop_docker_result.failed
+
+    - name: Remove Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-ce-rootless-extras
+          - docker-compose
+          - docker.io
+        state: absent
+      when: docker_installed
+
+    - name: Debug Docker package removal
+      shell: dpkg -l | grep -E 'docker|containerd'
+      register: package_removal_check
+      ignore_errors: true
+
+    - name: Display Docker package removal status
+      debug:
+        msg: "Remaining Docker packages: {{ package_removal_check.stdout_lines }}"
+
+    - name: Remove Docker sources list
+      file:
+        path: /etc/apt/sources.list.d/docker.list
+        state: absent
+      when: docker_installed
+
+    - name: Remove Docker keyrings
+      file:
+        path: /etc/apt/keyrings/docker.asc
+        state: absent
+      when: docker_installed
+
+    - name: Remove Docker directories
+      file:
+        path: /var/lib/docker
+        state: absent
+      when: docker_installed
+
+    - name: Remove Docker configuration files
+      file:
+        path: /etc/docker
+        state: absent
+      when: docker_installed
+
+    - name: Remove Docker systemd service files
+      file:
+        path: /etc/systemd/system/docker.service
+        state: absent
+      when: docker_installed
+
+    - name: Check if Docker Compose is installed
+      command: which docker-compose
+      register: compose_result
+      ignore_errors: true
+
+    - name: Debug Docker Compose installation status
+      debug:
+        msg: "Docker Compose installation status: {{ compose_result }}"
+
+    - name: Set docker_compose_installed fact
+      set_fact:
+        docker_compose_installed: "{{ compose_result.rc == 0 }}"
+
+    - name: Debug docker_compose_installed fact
+      debug:
+        msg: "docker_compose_installed fact: {{ docker_compose_installed }}"
+
+    - name: Remove Docker Compose binary
+      file:
+        path: /usr/local/bin/docker-compose
+        state: absent
+      when: docker_compose_installed
+
+    - name: Remove Docker Compose symlink
+      file:
+        path: /usr/bin/docker-compose
+        state: absent
+      when: docker_compose_installed
+
+    - name: Verify Docker removal
+      command: which docker
+      register: verify_docker_removal
+      ignore_errors: true
+
+    - name: Debug Docker removal verification
+      debug:
+        msg: "Docker removal verification: {{ verify_docker_removal }}"
+
+    - name: Verify Docker Compose removal
+      command: which docker-compose
+      register: verify_compose_removal
+      ignore_errors: true
+
+    - name: Debug Docker Compose removal verification
+      debug:
+        msg: "Docker Compose removal verification: {{ verify_compose_removal }}"
+
+    - name: Check for NVIDIA hardware
+      shell: lspci | grep -i nvidia
+      register: nvidia_check
+      ignore_errors: true
+
+    - name: Set NVIDIA hardware present fact
+      set_fact:
+        nvidia_hardware_present: "{{ nvidia_check.rc == 0 }}"
+
+    - name: Uninstall NVIDIA container toolkit
+      apt:
+        name: nvidia-container-toolkit
+        state: absent
+      when: nvidia_hardware_present
+
+    - name: Remove NVIDIA Docker repository
+      file:
+        path: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        state: absent
+      when: nvidia_hardware_present
+
+    - name: Remove NVIDIA keyrings
+      shell: apt-key del $(apt-key list | grep -B 1 "NVIDIA CORPORATION" | head -n 1 | awk '{print $2}')
+      when: nvidia_hardware_present
+      ignore_errors: true
+
+    - name: Update APT package index after removing NVIDIA repository
+      apt:
+        update_cache: yes
+      when: nvidia_hardware_present

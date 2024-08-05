@@ -1,0 +1,5 @@
+services:
+
+  main:
+    image: ${PROJECT_IMAGE_NAME:?err}.local
+    container_name: ${PROJECT_IMAGE_NAME:?err}-${VERSION}

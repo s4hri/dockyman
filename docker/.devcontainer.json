@@ -4,7 +4,7 @@
     "service": "dockyman",
     "workspaceFolder": "/workdir",
     "shutdownAction": "stopCompose",
-    "initializeCommand": "sed -i \"s/^DOCKYMAN_VER=.*/DOCKYMAN_VER=$(grep -o 'DOCKYMAN_VER=[^ ]*' .env | cut -d= -f2)/\" ./template/build.env",
+    "initializeCommand": "bash build.sh",
     "customizations": {
 		"vscode": {
             "settings": 

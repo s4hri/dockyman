@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Istituto Italiano di Tecnoogia
+# Copyright (c) 2024 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman Template
 #
@@ -25,23 +25,36 @@
 FROM node:20.4.0-alpine
 
 ENV TZ=Europe/Rome
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add docker docker-compose python3 make g++ bash openssh rsync
+COPY ./model /workdir/model
+COPY ./ansible /workdir/ansible
 
+# Install necessary packages
+RUN apk add --no-cache \
+    docker \
+    docker-compose \
+    python3 \
+    py3-pip \
+    make \
+    g++ \
+    bash \
+    openssh \
+    rsync \
+    && pip3 install --upgrade pip \
+    && pip3 install ansible
+
+# Set the Dockyman version as a build argument
 ARG DOCKYMAN_VER
 
-ENV DOCKYMAN_VER $DOCKYMAN_VER
+# Set the Dockyman version as an environment variable
+ENV DOCKYMAN_VER=$DOCKYMAN_VER
 
-ADD local /workdir/local
-ADD template /workdir/template
-RUN ln -s /workdir/local/dockyman /usr/local/bin/dockyman
-
-RUN mkdir -p /shared
-VOLUME /shared
-
+# Install Dev Container CLI
 RUN npm install -g @devcontainers/cli
 
+# Set the working directory
 WORKDIR /workdir
 
-ENTRYPOINT ["/bin/bash", "-c", "dockyman \"$@\"", "--"]
+# Set the default command
+CMD ["bash"]

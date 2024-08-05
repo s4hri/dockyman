@@ -1,0 +1,13 @@
+---
+- name: Build Docker Compose on Local Host
+  hosts: local
+  tasks:
+      - name: Run Docker Compose build
+        ansible.builtin.shell: |
+          docker-compose -f compose.yaml --env-file ../.env build
+        args:
+          chdir: ../base
+        register: output
+        changed_when: false # This is a workaround to avoid the task to be marked as changed
+
+      - debug: var=output.stdout_lines

@@ -1,0 +1,10 @@
+# Original image stage
+ARG DOCKER_SRC
+FROM ${DOCKER_SRC}
+
+LABEL maintainer="Davide De Tommaso"
+
+
+# Install here your packages ..
+#RUN apt-get update && \
+#    apt-get install -y git

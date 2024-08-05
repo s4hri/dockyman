@@ -1,0 +1,175 @@
+---
+- name: Install Docker, Docker Compose, and NVIDIA Docker Container on Ubuntu
+  hosts: all
+  become: true
+  vars:
+    docker_installed: false
+
+  tasks:
+    - name: Check if Docker is installed
+      command: which docker
+      register: result
+      ignore_errors: true
+
+    - name: Set docker_installed fact
+      set_fact:
+        docker_installed: "{{ result.rc == 0 }}"
+
+    - name: Remove existing Docker sources list
+      file:
+        path: /etc/apt/sources.list.d/docker.list
+        state: absent
+      when: not docker_installed
+
+    - name: Remove existing Docker keyrings
+      file:
+        path: /etc/apt/keyrings/docker.asc
+        state: absent
+      when: not docker_installed
+
+    - name: Ensure prerequisites are installed
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+        state: present
+      when: not docker_installed
+
+    - name: Clean the APT cache
+      command: apt-get clean
+      when: not docker_installed
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      when: not docker_installed
+
+    - name: Create the Docker keyring directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      when: not docker_installed
+
+    - name: Download Docker's GPG key to the keyring directory
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+      when: not docker_installed
+
+    - name: Add Docker's APT repository
+      apt_repository:
+        repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+        filename: docker
+      when: not docker_installed
+
+    - name: Update the APT package index
+      apt:
+        update_cache: yes
+      when: not docker_installed
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+      when: not docker_installed
+
+    - name: Check Docker service status
+      shell: service docker status
+      register: docker_status
+      when: not docker_installed
+
+    - name: Debug Docker service status
+      debug:
+        var: docker_status.stdout
+      when: not docker_installed
+
+    - name: Restart Docker service
+      shell: service docker restart
+      register: docker_restart
+      when: not docker_installed
+
+    - name: Debug Docker service restart
+      debug:
+        var: docker_restart
+      when: not docker_installed
+
+    - name: Enable Docker service to start on boot
+      shell: systemctl enable docker
+      ignore_errors: true
+      when: not docker_installed
+
+    - name: Check if Docker Compose is installed
+      command: which docker-compose
+      register: compose_result
+      ignore_errors: true
+
+    - name: Set docker_compose_installed fact
+      set_fact:
+        docker_compose_installed: "{{ compose_result.rc == 0 }}"
+
+    - name: Fetch Docker Compose binary
+      shell: >
+        curl -L https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s)-$(uname -m)
+        -o /usr/local/bin/docker-compose
+      when: not docker_compose_installed
+      register: fetch_docker_compose
+      ignore_errors: yes
+
+    - name: Make Docker Compose binary executable
+      file:
+        path: /usr/local/bin/docker-compose
+        mode: '0755'
+        state: file
+      when: fetch_docker_compose.changed
+
+    - name: Check for NVIDIA hardware
+      shell: lspci | grep -i nvidia
+      register: nvidia_check
+      ignore_errors: true
+
+    - name: Set NVIDIA hardware present fact
+      set_fact:
+        nvidia_hardware_present: "{{ nvidia_check.rc == 0 }}"
+
+    - name: Add NVIDIA package repositories
+      shell: |
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+        && curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | sudo apt-key add - \
+        && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      when: nvidia_hardware_present
+
+    - name: Update APT package index for NVIDIA packages
+      apt:
+        update_cache: yes
+      when: nvidia_hardware_present
+
+    - name: Install NVIDIA container toolkit
+      apt:
+        name: nvidia-container-toolkit
+        state: present
+      when: nvidia_hardware_present
+
+    - name: Configure Docker daemon for NVIDIA runtime
+      copy:
+        content: |
+          {
+            "runtimes": {
+              "nvidia": {
+                "path": "nvidia-container-runtime",
+                "runtimeArgs": []
+              }
+            }
+          }
+        dest: /etc/docker/daemon.json
+      when: nvidia_hardware_present
+
+    - name: Restart Docker service to apply NVIDIA runtime
+      shell: systemctl restart docker
+      when: nvidia_hardware_present
