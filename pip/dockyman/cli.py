@@ -1,22 +1,17 @@
 import os
 import sys
-import docker
+import subprocess
 
 def init_command(directory):
-    client = docker.from_env()
     image_name = "iitschri/dockyman:latest"
     
-    # Check if the Docker image is available, if not pull it
-    try:
-        client.images.get(image_name)
-    except docker.errors.ImageNotFound:
-        print(f"Image {image_name} not found locally. Pulling from Docker Hub...")
-        client.images.pull(image_name)
+    # Pull the latest Docker image if not available locally
+    pull_image(image_name)
 
     # Absolute path of the target directory
     target_directory = os.path.abspath(directory)
 
-    # Check if target directory exists
+    # Check if the target directory exists
     if not os.path.exists(target_directory):
         print(f"Error: The target directory {target_directory} does not exist.")
         sys.exit(1)
@@ -25,66 +20,85 @@ def init_command(directory):
     user_id = os.getuid()
     group_id = os.getgid()
 
-    # Create a temporary container with a bind mount
+    # Run the Docker container to copy files
     print(f"Running container to copy files from /workdir/model to {target_directory}")
-    container = client.containers.run(
+    command = [
+        "docker", "run", "--rm", "--network", "host",
+        "-v", f"{target_directory}:/target_directory",
+        "-v", "/var/run/docker.sock:/var/run/docker.sock",
         image_name,
-        command=f"sh -c 'cp -r /workdir/model/* /target_directory && chown -R {user_id}:{group_id} /target_directory'",
-        volumes={target_directory: {'bind': '/target_directory', 'mode': 'rw'}},
-        detach=True
-    )
-
-    # Wait for the container to finish its job
-    result = container.wait()
-    logs = container.logs().decode('utf-8')
-    print("Container logs:\n", logs)
-
-    # Clean up the temporary container
-    container.remove()
+        "sh", "-c", f"cp -r /workdir/model/* /target_directory && chown -R {user_id}:{group_id} /target_directory"
+    ]
+    run_command(command)
 
     # Check if the files were copied
     if not os.listdir(target_directory):
-        print(f"Error: No files were copied to {target_directory}. Please check the container logs above for details.")
+        print(f"Error: No files were copied to {target_directory}.")
     else:
         print(f"Contents from /workdir/model in {image_name} have been copied to {directory} with correct ownership.")
 
 def install_command(inventory_filepath):
-    client = docker.from_env()
-    image_name = "iitschri/dockyman:latest"
-    
-    # Check if the Docker image is available, if not pull it
-    try:
-        client.images.get(image_name)
-    except docker.errors.ImageNotFound:
-        print(f"Image {image_name} not found locally. Pulling from Docker Hub...")
-        client.images.pull(image_name)
-
     # Absolute path of the inventory file
     inventory_path = os.path.abspath(inventory_filepath)
 
-    # Check if inventory file exists
+    # Check if the inventory file exists
     if not os.path.exists(inventory_path):
         print(f"Error: The inventory file {inventory_path} does not exist.")
         sys.exit(1)
     
-    # Create a temporary container with a bind mount
-    print(f"Running container to execute Ansible playbook with inventory file {inventory_path}")
-    container = client.containers.run(
-        image_name,
-        command=f"ansible-playbook /workdir/ansible/jobs/setup/install_docker.yml -i /inventory/inventory.ini",
-        volumes={inventory_path: {'bind': '/inventory/inventory.ini', 'mode': 'rw'}},
-        detach=True
-    )
+    # Read the inventory file and execute the install commands directly
+    with open(inventory_path) as f:
+        for line in f:
+            if line.strip():
+                run_command(line.strip().split())
 
-    # Wait for the container to finish its job
-    result = container.wait()
-    logs = container.logs().decode('utf-8')
-    print("Container logs:\n", logs)
+def build_base_command(directory):
+    image_name = "iitschri/dockyman:latest"
+    
+    # Pull the latest Docker image if not available locally
+    pull_image(image_name)
 
-    # Clean up the temporary container
-    container.remove()
+    # Absolute path of the target directory
+    target_directory = os.path.abspath(directory)
 
-    print(f"Ansible playbook executed with inventory file {inventory_path}")
+    # Check if the target directory exists
+    if not os.path.exists(target_directory):
+        print(f"Error: The target directory {target_directory} does not exist.")
+        sys.exit(1)
+    
+    compose_file = os.path.join(target_directory, "compose.yaml")
+    env_file = os.path.join(target_directory, "build.env")
+
+    # Check if the compose file and env file exist
+    if not os.path.exists(compose_file):
+        print(f"Error: The Docker Compose file {compose_file} does not exist.")
+        sys.exit(1)
+    if not os.path.exists(env_file):
+        print(f"Error: The environment file {env_file} does not exist.")
+        sys.exit(1)
+
+    # Run the Docker Compose build command directly
+    print(f"Running Docker Compose build with {compose_file} and {env_file}")
+    command = [
+        "docker-compose", "-f", compose_file, "--env-file", env_file, "build"
+    ]
+    run_command(command, shell=False)
+
+def pull_image(image_name):
+    #print(f"Pulling Docker image {image_name}")
+    #command = ["docker", "pull", image_name]
+    #run_command(command)
+    pass
+
+def run_command(command, shell=True):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
+    for line in iter(process.stdout.readline, b''):
+        print(line.decode('utf-8').strip())
+    process.stdout.close()
+    process.stderr.close()
+    return_code = process.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, command)
 
 def main():
     if len(sys.argv) < 2:
@@ -102,6 +116,12 @@ def main():
             sys.exit(1)
         inventory_filepath = sys.argv[2]
         install_command(inventory_filepath)
+    elif command == "build_base":
+        if len(sys.argv) < 3:
+            print("Usage: dockyman build_base <directory>")
+            sys.exit(1)
+        directory = sys.argv[2]
+        build_base_command(directory)
     else:
         print(f"Unknown command: {command}")
         print("Usage: dockyman <command> <args>")

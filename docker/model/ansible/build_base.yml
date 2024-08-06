@@ -4,7 +4,7 @@
   tasks:
       - name: Run Docker Compose build
         ansible.builtin.shell: |
-          docker-compose -f compose.yaml --env-file ../.env build
+          docker-compose -f compose.yaml --env-file ../build.env build
         args:
           chdir: ../base
         register: output
