@@ -1,3 +1,0 @@
-docker
-python-dotenv
-urllib3==1.26.14
