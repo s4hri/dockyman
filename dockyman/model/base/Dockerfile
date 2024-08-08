@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2024 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2024 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -22,28 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-services:
+# Original image stage
+ARG DOCKER_SRC=alpine:latest
 
-  main:
-    image: ${LOCAL_IMAGE_NAME:?err}
-    container_name: ${BASE_PROJECT_NAME:?err}_${VERSION:?err}
+FROM ${DOCKER_SRC}
 
-    extends:
-      file: profiles/local.yaml
-      service: local
-      
-    env_file:
-      - dockyman.env
-
-    entrypoint: /var/dockyman/scripts/initContainer.sh
-    
-    command: bash
-
-    volumes:
-      - type: bind
-        source: ./workdir
-        target: /workdir
-
-      - type: bind
-        source: ./scripts
-        target: /var/dockyman/scripts
+# Install here your packages ..

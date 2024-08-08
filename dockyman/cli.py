@@ -1,5 +1,5 @@
 import click
-from dockyman.commands import init, help, setup, build
+from dockyman.commands import init, help, setup, build, clean, run
 
 @click.group()
 def cli():
@@ -8,6 +8,8 @@ def cli():
 cli.add_command(init.init_command, 'init')
 cli.add_command(setup.setup_command, 'setup')
 cli.add_command(build.build_command, 'build')
+cli.add_command(clean.clean_command, 'clean')
+cli.add_command(run.run_command, 'run')
 cli.add_command(help.help_command, 'help')
 
 

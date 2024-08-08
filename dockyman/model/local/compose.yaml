@@ -24,26 +24,15 @@
 
 services:
 
-  main:
+  project.local:
     image: ${LOCAL_IMAGE_NAME:?err}
-    container_name: ${BASE_PROJECT_NAME:?err}_${VERSION:?err}
-
-    extends:
-      file: profiles/local.yaml
-      service: local
-      
-    env_file:
-      - dockyman.env
-
-    entrypoint: /var/dockyman/scripts/initContainer.sh
-    
-    command: bash
-
-    volumes:
-      - type: bind
-        source: ./workdir
-        target: /workdir
-
-      - type: bind
-        source: ./scripts
-        target: /var/dockyman/scripts
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_SRC: ${BASE_IMAGE_NAME:?err}
+        USERNAME: ${LOCAL_IMAGE_USERNAME:?err}
+        USER_UID: ${USER_UID:?err}
+        USER_GID: ${USER_GID:?err}
+        GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
+        GROUP_IDS: ${GROUP_IDS:?err}

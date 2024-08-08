@@ -22,28 +22,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+version: '3.8'
+
 services:
 
-  main:
-    image: ${LOCAL_IMAGE_NAME:?err}
-    container_name: ${BASE_PROJECT_NAME:?err}_${VERSION:?err}
+  nvidia-gpu:
+    environment:
+      - GPU_PROFILE=${GPU_PROFILE:?err}
 
-    extends:
-      file: profiles/local.yaml
-      service: local
-      
-    env_file:
-      - dockyman.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [utility, compute, graphics]
 
-    entrypoint: /var/dockyman/scripts/initContainer.sh
-    
-    command: bash
-
-    volumes:
-      - type: bind
-        source: ./workdir
-        target: /workdir
-
-      - type: bind
-        source: ./scripts
-        target: /var/dockyman/scripts
+  no-gpu:
+    environment:
+      - GPU_PROFILE=${GPU_PROFILE:?err}

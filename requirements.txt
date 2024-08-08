@@ -1,4 +1,4 @@
-python-on-whales==0.40.0
+python-on-whales==0.72.0
 pyyaml==6.0
 paramiko==2.11.0
 click==8.0.3
@@ -8,3 +8,5 @@ urllib3==1.26.14
 charset_normalizer>=2.0.4
 cryptography<43.0.0
 pytest==6.2.4
+colorama==0.4.4
+python-dotenv==0.19.1
