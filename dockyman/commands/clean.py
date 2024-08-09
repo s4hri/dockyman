@@ -7,7 +7,7 @@ import yaml
 from dotenv import load_dotenv
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Clean Docker images.")
 @click.argument('target', required=False, default='both')

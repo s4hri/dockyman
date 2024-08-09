@@ -5,7 +5,7 @@ import shutil
 from colorama import Fore, init
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False, convert=False)
 
 def copy_model(target_directory):
     model_dir = os.path.join(os.path.dirname(__file__), '..', 'model')

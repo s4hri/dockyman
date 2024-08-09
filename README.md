@@ -1,0 +1,1 @@
+docker run -e SSH_LOCAL_USERNAME=${USER} -v ~/.ssh:/root/.ssh --network host -it dockyman:latest

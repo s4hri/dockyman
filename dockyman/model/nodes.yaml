@@ -1,0 +1,17 @@
+version: "1.0"
+swarm:
+  manager:
+    hostname: localhost # hostname of the manager node
+    ssh_address: localhost
+    docker_daemon_address: unix:///var/run/docker.sock
+    role: manager
+  workers:
+    - hostname: localhost # hostname of the worker node
+      ssh_address: localhost # ssh address of the worker node
+      docker_daemon_address: tcp://localhost:2375
+      role: worker
+
+#   - hostname: worker-node-1
+#     ssh_address: user@192.168.1.12:22
+#     docker_daemon_address: tcp://192.168.1.12:2375
+#     role: worker

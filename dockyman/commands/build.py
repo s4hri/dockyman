@@ -8,7 +8,7 @@ from dockyman.commands.setup import has_nvidia_hardware
 
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Build Docker containers using Docker Compose.")
 @click.argument('target', required=False, default='both')

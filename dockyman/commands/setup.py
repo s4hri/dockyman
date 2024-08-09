@@ -1,13 +1,14 @@
 import click
 from dockyman.utils import run_ssh_command
 from colorama import Fore, init
+from dockyman.config import SSH_LOCAL_USERNAME
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s).")
 @click.argument('action', type=click.Choice(['install', 'uninstall', 'check']), required=True)
-@click.argument('host', required=False, default='ssh://localhost')
+@click.argument('host', required=False, default='ssh://%s@localhost' % SSH_LOCAL_USERNAME)
 def setup_command(action, host):
     """Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s)."""
     
@@ -141,28 +142,13 @@ def is_docker_service_present(host):
         return False
     
 def is_docker_installed(host):
-    try:
-        run_ssh_command(host, 'docker --version')
-        return True
-    except Exception as e:
-        click.echo(f"{Fore.YELLOW}  Docker is not installed.")
-        return False
+    return run_ssh_command(host, 'docker --version')
 
 def is_docker_compose_installed(host):
-    try:
-        run_ssh_command(host, 'docker-compose --version')
-        return True
-    except Exception as e:
-        click.echo(f"{Fore.YELLOW}  Docker Compose is not installed.")
-        return False
+    return run_ssh_command(host, 'docker-compose  --version')
 
 def has_nvidia_hardware(host):
-    try:
-        run_ssh_command(host, 'lspci | grep -i nvidia')
-        return True
-    except Exception as e:
-        click.echo(f"{Fore.YELLOW}  NVIDIA hardware not detected.")
-        return False
+    return run_ssh_command(host, 'lspci | grep -i nvidia')
 
 def is_nvidia_docker_installed(host):
     try:

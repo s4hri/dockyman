@@ -6,7 +6,7 @@ import signal
 import sys
 
 # Initialize colorama
-init(autoreset=True)
+init(autoreset=True, strip=False, convert=False)
 
 def signal_handler(signal, frame):
     """Handle the user interruption and run docker-compose down."""
