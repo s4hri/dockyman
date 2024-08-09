@@ -4,6 +4,11 @@ FROM python:3.10-slim
 # Set the working directory
 WORKDIR /app
 
+ARG DOCKYMAN_VER
+
+ENV DOCKYMAN_VER=$DOCKYMAN_VER
+
+
 # Install system dependencies and Docker
 RUN apt-get update && \
     apt-get install -y \

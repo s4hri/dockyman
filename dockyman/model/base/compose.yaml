@@ -26,9 +26,14 @@ services:
 
   project.base:
     image: ${BASE_IMAGE_NAME:?err}
+
     build:
       context: .
       dockerfile: Dockerfile
       args:
         DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
-        
+  
+    deploy:
+      placement:
+        constraints: 
+          - node.hostname == localhost        

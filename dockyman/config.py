@@ -1,3 +1,5 @@
 import os
 
-SSH_LOCAL_USERNAME = os.environ['SSH_LOCAL_USERNAME']
+LOCAL_USERNAME = os.environ['LOCAL_USERNAME']
+
+HOST_CONFIG_FILE = "hosts.yaml"

@@ -1,3 +1,7 @@
 include requirements.txt
 include README.md
-recursive-include dockyman/model *
+include dockyman/model/compose.yaml
+include dockyman/model/dockyman.env
+recursive-include dockyman/model/base *
+recursive-include dockyman/model/local *
+recursive-include dockyman/model/profiles *

@@ -4,6 +4,7 @@ from colorama import Fore, Style, init
 import os
 import signal
 import sys
+from dockyman.config import LOCAL_USERNAME
 
 # Initialize colorama
 init(autoreset=True, strip=False, convert=False)
@@ -19,11 +20,11 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 @click.command(help="Run Docker containers using Docker Compose.")
-@click.argument('host', required=False, default='ssh://localhost')
+@click.argument('host', required=False, default='ssh://%s@localhost' % LOCAL_USERNAME)
 def run_command(host):
     """Run Docker containers using Docker Compose with specified files and environment variables."""
-    compose_file = 'compose.yaml'
-    env_file = '.env'
+    compose_file = '/shared/compose.yaml'
+    env_file = '/shared/.env'
     
     # Register the signal handler
     signal.signal(signal.SIGINT, signal_handler)

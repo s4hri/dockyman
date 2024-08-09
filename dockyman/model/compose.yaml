@@ -39,6 +39,11 @@ services:
     
     command: bash
 
+    deploy:
+      placement:
+        constraints: 
+          - node.hostname == localhost
+
     volumes:
       - type: bind
         source: ./workdir

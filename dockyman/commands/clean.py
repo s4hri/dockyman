@@ -5,28 +5,29 @@ from dockyman.utils import run_ssh_command
 import os
 import yaml
 from dotenv import load_dotenv
+from dockyman.config import LOCAL_USERNAME
 
 # Initialize colorama
 init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Clean Docker images.")
 @click.argument('target', required=False, default='both')
-@click.argument('host', required=False, default='ssh://localhost')
+@click.argument('host', required=False, default='ssh://%s@localhost' % LOCAL_USERNAME)
 def clean_command(target, host):
     """Clean Docker images for 'base' and/or 'local' configurations."""
 
     # Load environment variables from dockyman.env
-    load_dotenv('dockyman.env')
+    load_dotenv('/shared/dockyman.env')
 
     ssh_address = host
 
     if target == 'base' or target == 'both':
         click.echo(f"\n{Fore.CYAN}*** Cleaning base images on {host} ***")
-        clean_images_from_compose(ssh_address, 'base/compose.yaml')
+        clean_images_from_compose(ssh_address, '/shared/base/compose.yaml')
 
     if target == 'local' or target == 'both':
         click.echo(f"\n{Fore.CYAN}*** Cleaning local images on {host} ***")
-        clean_images_from_compose(ssh_address, 'local/compose.yaml')
+        clean_images_from_compose(ssh_address, '/shared/local/compose.yaml')
 
 def clean_images_from_compose(host, compose_file):
     """Clean Docker images from services defined in a Docker Compose file."""

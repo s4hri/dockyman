@@ -1,14 +1,14 @@
 import click
 from dockyman.utils import run_ssh_command
 from colorama import Fore, init
-from dockyman.config import SSH_LOCAL_USERNAME
+from dockyman.config import LOCAL_USERNAME
 
 # Initialize colorama
 init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s).")
 @click.argument('action', type=click.Choice(['install', 'uninstall', 'check']), required=True)
-@click.argument('host', required=False, default='ssh://%s@localhost' % SSH_LOCAL_USERNAME)
+@click.argument('host', required=False, default='ssh://%s@localhost' % LOCAL_USERNAME)
 def setup_command(action, host):
     """Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s)."""
     

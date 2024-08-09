@@ -1,9 +1,15 @@
 import click
+import colorama
 from dockyman.commands import init, help, setup, build, clean, run
+from dockyman.utils import get_dockyman_version
+
+# Initialize colorama
+colorama.init(autoreset=True)
 
 @click.group()
 def cli():
     pass
+
 
 cli.add_command(init.init_command, 'init')
 cli.add_command(setup.setup_command, 'setup')
@@ -17,4 +23,7 @@ def main():
     cli()
 
 if __name__ == '__main__':
+    version = get_dockyman_version()
+    click.echo(f'{colorama.Fore.YELLOW}Dockyman CLI - Docker Management Tool (Version: {version})')
     main()
+

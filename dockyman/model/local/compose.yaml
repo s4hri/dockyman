@@ -26,6 +26,7 @@ services:
 
   project.local:
     image: ${LOCAL_IMAGE_NAME:?err}
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -36,3 +37,8 @@ services:
         USER_GID: ${USER_GID:?err}
         GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
         GROUP_IDS: ${GROUP_IDS:?err}
+
+    deploy:
+      placement:
+        constraints: 
+          - node.hostname == localhost
