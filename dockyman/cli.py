@@ -1,6 +1,6 @@
 import click
 import colorama
-from dockyman.commands import init, help, setup, build, clean, run
+from dockyman.commands import init, help, setup, build, clean, run, status
 from dockyman.utils import get_dockyman_version
 
 # Initialize colorama
@@ -11,6 +11,7 @@ def cli():
     pass
 
 
+cli.add_command(status.status_command, 'status')
 cli.add_command(init.init_command, 'init')
 cli.add_command(setup.setup_command, 'setup')
 cli.add_command(build.build_command, 'build')

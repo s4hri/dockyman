@@ -1,10 +1,7 @@
 import click
 from dockyman.utils import run_ssh_command
-from colorama import Fore, init
+from colorama import Fore
 from dockyman.config import LOCAL_USERNAME
-
-# Initialize colorama
-init(autoreset=True, strip=False, convert=False)
 
 @click.command(help="Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s).")
 @click.argument('action', type=click.Choice(['install', 'uninstall', 'check']), required=True)

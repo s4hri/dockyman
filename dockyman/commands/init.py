@@ -1,17 +1,15 @@
 import os
 import shutil
 import click
-from colorama import Fore, init as colorama_init
-
-# Initialize colorama
-colorama_init(autoreset=True, strip=False, convert=False)
+from config import PREFIX_TARGET, LOCAL_GID, LOCAL_UID
+from colorama import Fore
 
 @click.command()
 @click.argument('target_directory')
 def init_command(target_directory):
     """Copies a set of template files to a target directory."""
 
-    target_directory = os.path.join("/shared", target_directory)
+    target_directory = os.path.join(PREFIX_TARGET, target_directory)
     
     # Define the source directory inside the Docker container
     model_dir = os.path.join(os.path.dirname(__file__), '..', 'model')
@@ -30,18 +28,16 @@ def init_command(target_directory):
             shutil.copy2(s, d)
     
     # Change ownership to the local user
-    local_uid = int(os.getenv('LOCAL_UID', 1000))
-    local_gid = int(os.getenv('LOCAL_GID', 1000))
-    click.echo(f"{Fore.LIGHTBLACK_EX}Changing ownership to UID: {local_uid} and GID: {local_gid}")
+    click.echo(f"{Fore.LIGHTBLACK_EX}Changing ownership to UID: {LOCAL_UID} and GID: {LOCAL_GID}")
 
-    os.chown(target_directory, local_uid, local_gid)
+    os.chown(target_directory, LOCAL_UID, LOCAL_GID)
     for root, dirs, files in os.walk(target_directory):
         for dir_ in dirs:
-            os.chown(os.path.join(root, dir_), local_uid, local_gid)
+            os.chown(os.path.join(root, dir_), LOCAL_UID, LOCAL_GID)
         for file_ in files:
-            os.chown(os.path.join(root, file_), local_uid, local_gid)
+            os.chown(os.path.join(root, file_), LOCAL_UID, LOCAL_GID)
 
-    click.echo(f'{Fore.GREEN}Dockyman template files copied to {target_directory} with ownership changed to UID:{local_uid} and GID:{local_gid}')
+    click.echo(f'{Fore.GREEN}Dockyman template files copied to {target_directory} with ownership changed to UID:{LOCAL_UID} and GID:{LOCAL_GID}')
 
 if __name__ == "__main__":
     init_command()

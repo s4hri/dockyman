@@ -30,15 +30,14 @@ run_dockyman_command() {
     local gid=$(id -g)
     
     docker run \
+        --rm \
         -e LOCAL_USERNAME="$user" \
         -e LOCAL_UID="$uid" \
         -e LOCAL_GID="$gid" \
-        -e XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR} \
-        -e DISPLAY=${DISPLAY} \
-        -e XDG_DATA_DIRS=${XDG_DATA_DIRS} \
+        -e PREFIX_TARGET="/shared" \
         -v "${HOME}/.ssh:/root/.ssh" \
         -v "$(pwd):/shared" \
-        -v "/tmp/.X11-unix:/tmp/.X11-unix" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
         --network host \
         -it "iitschri/dockyman:${docker_image_tag}" "$@"
 }

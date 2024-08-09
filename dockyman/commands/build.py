@@ -2,14 +2,10 @@ import click
 import os
 
 from python_on_whales import DockerClient
-from colorama import Fore, Style, init
+from colorama import Fore, Style
 from dockyman.utils import run_ssh_command
 from dockyman.commands.setup import has_nvidia_hardware
-from dockyman.config import LOCAL_USERNAME
-
-
-# Initialize colorama
-init(autoreset=True, strip=False, convert=False)
+from dockyman.config import LOCAL_USERNAME, PREFIX_TARGET
 
 @click.command(help="Build Docker containers using Docker Compose.")
 @click.argument('target', required=False, default='both')
@@ -29,14 +25,14 @@ def build_command(target, host):
 
 def build_base(host):
     """Build base containers using Docker Compose."""
-    compose_file = '/shared/base/compose.yaml'
-    env_file = '/shared/dockyman.env'
+    compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
+    env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
     build_docker_compose(host, compose_file, env_file)
 
 def build_local(host):
     """Build local containers using Docker Compose."""
-    compose_file = '/shared/local/compose.yaml'
-    env_file = '/shared/dockyman.env'
+    compose_file = os.path.join(PREFIX_TARGET, 'local/compose.yaml')
+    env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
 
     # Get user and group information
     user_uid = run_ssh_command(host, "id -u").strip()
@@ -59,7 +55,7 @@ def build_local(host):
         env_vars["GPU_PROFILE"] = 'no-gpu'
 
     # Generate the .env file
-    generate_env_file('/shared/.env', env_vars)
+    generate_env_file(os.path.join(PREFIX_TARGET, '.env'), env_vars)
     
     build_docker_compose(host, compose_file, env_file)
 
