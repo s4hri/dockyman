@@ -1,16 +1,93 @@
 import click
 import os
 import paramiko
+import yaml
 from urllib.parse import urlparse
-import logging
-from colorama import init, Fore, Style
+import re
+from dockyman.config import LOCAL_UID, LOCAL_GID
+from colorama import Fore
 
-# Initialize colorama
-init(autoreset=True)
 
-# Set up basic logging
-logging.basicConfig(level=logging.FATAL)
-logger = logging.getLogger(__name__)
+def resolve_nodes_value(value):
+    # Check if the string matches the pattern for an environment variable
+    match = re.match(r'\$\{([^}]+)\}', str(value))
+    
+    if match:
+        # Extract the variable name
+        variable_name = match.group(1)
+        # Try to get the environment variable value, default to the original string if not found
+        return os.getenv(variable_name, value)
+    else:
+        # Return the string as is if it doesn't match the env variable pattern
+        return value
+
+class Node:
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
+        self.id = id
+        self.host = host
+        self.user = user
+        self.docker_daemon_address = docker_daemon_address
+        self.ssh_port = ssh_port
+        self.ssh_address = self.user + '@' + host + ':' + str(ssh_port)
+        self.role = role
+        self.label = label
+
+    def __repr__(self):
+        return f"<Node(id={self.id}, host={self.host}, user={self.user}, ssh_port={self.ssh_port}, ssh_address={self.ssh_address}, role={self.role}), label={self.label}>"
+
+class Manager(Node):
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
+        super().__init__(id, host, user, docker_daemon_address, ssh_port, role, label)
+
+class Worker(Node):
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
+        super().__init__(id, host, user, docker_daemon_address, ssh_port, role, label)
+
+class SwarmConfig:
+    def __init__(self, manager, workers):
+        self.manager = manager
+        self.workers = workers
+
+    @classmethod
+    def from_dict(cls, data):
+        manager_data = data['swarm']['manager']
+        manager = Manager(
+            id=str(resolve_nodes_value(manager_data['id'])),
+            host=str(resolve_nodes_value(manager_data['host'])),
+            user=str(resolve_nodes_value(manager_data['user'])),
+            docker_daemon_address=str(resolve_nodes_value(manager_data['docker_daemon_address'])),
+            ssh_port=int(resolve_nodes_value(manager_data['ssh_port'])),
+            role=str(resolve_nodes_value(manager_data['role'])),
+            label=str(resolve_nodes_value(manager_data['label']))
+        )
+
+        workers = [
+            Worker(
+                id=str(resolve_nodes_value(worker['id'])),
+                host=str(resolve_nodes_value(worker['host'])),
+                user=str(resolve_nodes_value(worker['user'])),
+                docker_daemon_address=str(resolve_nodes_value(worker['docker_daemon_address'])),
+                ssh_port=int(resolve_nodes_value(worker['ssh_port'])),
+                role=str(resolve_nodes_value(worker['role'])),
+                label=str(resolve_nodes_value(worker['label']))
+            )
+            for worker in data['swarm']['workers']
+        ]
+
+        return cls(manager=manager, workers=workers)
+
+    def __repr__(self):
+        return f"<SwarmConfig(manager={self.manager}, workers={self.workers})>"
+
+def get_swarm(file_path="nodes.yaml"):
+    """Load nodes configuration from a YAML file and parse into objects."""
+    with open(file_path, 'r') as file:
+        data = yaml.safe_load(file)
+
+    # Create the SwarmConfig object from the parsed YAML data
+    swarm_config = SwarmConfig.from_dict(data)
+
+    return swarm_config
 
 def get_dockyman_version():
     """Reads the version from the dockyman.env file."""
@@ -28,49 +105,125 @@ def get_dockyman_version():
         version = "Unknown"
     return version
 
-def run_ssh_command(host, command):
+def run_ssh_command(ssh_address, command):
     try:
         """Executes an SSH command on a remote host."""
-        url = urlparse(host)
+        url_with_scheme = f"ssh://{ssh_address}"
+        url = urlparse(url_with_scheme)
         hostname = url.hostname
         username = url.username
         port = url.port if url.port else 22  # Default to port 22 if not specified
 
-        logger.debug(f"Connecting to {hostname} as {username} on port {port}")
-        print(Fore.CYAN + f"  Connecting to {hostname} as {username} on port {port}")
+        click.echo(f"{Fore.LIGHTBLACK_EX} Connecting to {hostname} as {username} on port {port} ...")
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=hostname, username=username, port=port, allow_agent=False)
 
-        logger.debug(f"Executing command: {command}")
+        click.echo(f"{Fore.LIGHTBLACK_EX} Executing command: {command}")
 
         stdin, stdout, stderr = ssh.exec_command(command)
+        result = stdout.read().decode().strip()
         exit_status = stdout.channel.recv_exit_status()
-
-        logger.debug(f"Exit status: {exit_status}")
-
+        click.echo(f"{Fore.LIGHTBLACK_EX} Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
         if exit_status != 0:
             error_message = stderr.read().decode().strip()
-            raise Exception(f"Command failed on {hostname}: {error_message}")
-
-        result = stdout.read().decode().strip()
+            #raise Exception(f"Command failed on {hostname}: {error_message}")
+            return False
         ssh.close()
-        logger.debug(f"Command output: {result}")
-        print(Fore.GREEN + f"  Executing command: {command}", 
-              Fore.YELLOW + f"  Exit status: {exit_status}", 
-              Fore.WHITE + Style.BRIGHT + f"  Command output: {result}")
         return result
-        #return True
     except paramiko.ssh_exception.NoValidConnectionsError as e:
-        click.echo(f"{Fore.RED}  Connection failed to {host}: {str(e)}")
-        #return False
+        click.echo(f"{Fore.RED} Connection failed to {ssh_address}: {str(e)}")
+        return False
     except paramiko.ssh_exception.AuthenticationException as e:
-        click.echo(f"{Fore.RED}  Authentication failed for {host}: {str(e)}")
-        #return False
+        click.echo(f"{Fore.RED} Authentication failed for {ssh_address}: {str(e)}")
+        return False
     except paramiko.ssh_exception.SSHException as e:
-        click.echo(f"{Fore.RED}  SSH error occurred while connecting to {host}: {str(e)}")
-        #return False
+        click.echo(f"{Fore.RED} SSH error occurred while connecting to {ssh_address}: {str(e)}")
+        return False
     except Exception as e:
         click.echo(f"{Fore.YELLOW}  {str(e)}")
-        #return False
+        return False
+    
+def get_nodes_for_services(compose_file, swarm: SwarmConfig):
+    """Determine the host for the service based on constraints."""
+
+    services = {}
+    
+    with open(compose_file, 'r') as file:
+        compose_data = yaml.safe_load(file)
+    
+    services = compose_data.get('services', {})
+    constraints = []
+    for service_name, service in services.items():
+        constraints = service.get('deploy', {}).get('placement', {}).get('constraints', [])
+        nodes = []
+        for constraint in constraints:
+            if 'node.id' in constraint:
+                node_id = constraint.split('==')[1].strip()
+                if node_id == swarm.manager.id:
+                    nodes.append(swarm.manager)
+                for worker in swarm.workers:
+                    if worker.id == node_id:
+                        nodes.append(worker)
+            if 'node.hostname' in constraint:
+                hostname = constraint.split('==')[1].strip()
+                if swarm.manager.host == hostname:
+                    nodes.append(swarm.manager)
+                for worker in swarm.workers:
+                    if worker.host == hostname:
+                        nodes.append(worker)
+            if 'node.role' in constraint:
+                role = constraint.split('==')[1].strip()
+                if role == 'manager':
+                    nodes.append(swarm.manager)
+                else:
+                    for worker in swarm.workers:
+                        if role == worker.role:
+                            nodes.append(worker)
+            if 'node.label' in constraint:
+                label = constraint.split('==')[1].strip()
+                if label == swarm.manager.label:
+                    nodes.append(swarm.manager)
+                for worker in swarm.workers:
+                    if label == worker.label:
+                        nodes.append(worker)
+            services[service_name] = nodes
+    return services
+
+# def get_nodes_for_services(compose_file_path, swarm: SwarmConfig):
+#     with open(compose_file_path, 'r') as file:
+#         compose_data = yaml.safe_load(file)
+
+#     services = {}
+
+#     for service_name, service_data in compose_data.get('services', {}).items():
+#         profiles = service_data.get('profiles', [])
+#         nodes = []
+#         if profiles:
+#             if swarm.manager.id in profiles:
+#                 nodes.append(swarm.manager)
+#             for worker in swarm.workers:
+#                 if worker.id in profiles:
+#                     nodes.append(worker)
+#         services[service_name] = nodes 
+
+#     return services
+
+def load_env_variables(env_file):
+    """Load all environment variables from the given .env file."""
+    env_vars = {}
+    with open(env_file, 'r') as file:
+        for line in file:
+            if '=' in line:
+                key, value = line.strip().split('=', 1)
+                env_vars[key] = value
+    return env_vars
+
+def generate_env_file(file_path, env_vars):
+    """Generate an .env file with the given environment variables."""
+    with open(file_path, 'w') as file:
+        for key, value in env_vars.items():
+            file.write(f"{key}={value}\n")
+    os.chown(file_path, LOCAL_UID, LOCAL_GID)
+

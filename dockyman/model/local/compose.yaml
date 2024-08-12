@@ -38,7 +38,6 @@ services:
         GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
         GROUP_IDS: ${GROUP_IDS:?err}
 
-    deploy:
-      placement:
-        constraints: 
-          - node.hostname == localhost
+    profiles:
+      - manager-node
+      - worker-node

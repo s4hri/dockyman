@@ -31,24 +31,20 @@ services:
     extends:
       file: profiles/local.yaml
       service: local
-      
-    env_file:
-      - dockyman.env
 
-    entrypoint: /var/dockyman/scripts/initContainer.sh
-    
-    command: bash
+    entrypoint: /bin/bash
 
-    deploy:
-      placement:
-        constraints: 
-          - node.hostname == localhost
+    command: sleep 5
 
-    volumes:
-      - type: bind
-        source: ./workdir
-        target: /workdir
+    profiles:
+      - manager-node
 
-      - type: bind
-        source: ./scripts
-        target: /var/dockyman/scripts
+  remote:
+    image: ${LOCAL_IMAGE_NAME:?err}
+   
+    entrypoint: /bin/bash
+
+    command: sleep infinity
+
+    profiles:
+      - worker-node

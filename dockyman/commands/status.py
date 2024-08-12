@@ -1,80 +1,73 @@
 import os
-import yaml
 import click
-import paramiko
-import requests
-from urllib.parse import urlparse
 from python_on_whales import DockerClient
-from config import PREFIX_TARGET, LOCAL_GID, LOCAL_UID, LOCAL_USERNAME
-
-# Import colorama for colored output
-from colorama import Fore, Style
+from colorama import Fore
+from dockyman.config import PREFIX_TARGET, LOCALHOST_USER
+from dockyman.utils import get_swarm, run_ssh_command, Node
 
 
 @click.command()
-@click.argument('config_file', default='nodes.yaml')
-def status_command(config_file):
+@click.argument('nodes_file', required=False, default='nodes.yaml')
+@click.option('--ssh_address', required=False)
+@click.option('--docker_daemon_address', required=False)
+def status_command(nodes_file, ssh_address, docker_daemon_address):
     """Check the status of the Docker Swarm nodes defined in the config file."""
 
-    config_file_path = os.path.join(PREFIX_TARGET, config_file)
-    
-    # Load the configuration file
-    with open(config_file_path, 'r') as file:
-        config = yaml.safe_load(file)
+    if ssh_address or docker_daemon_address:
+        if ssh_address:
+            check_ssh_connection(ssh_address)
+        if docker_daemon_address:
+            check_docker_daemon(docker_daemon_address)
+    else:
+        try:
+            nodes_file_path = os.path.join(PREFIX_TARGET, nodes_file)
+            swarm = get_swarm(nodes_file_path)
 
-    # Check the manager node
-    check_node(config['swarm']['manager'])
+            # Check the manager node
+            click.echo(f"\n{Fore.CYAN}*** Checking Manager Node: {swarm.manager.id} ***")
+            check_node(swarm.manager)
 
-    # Check the worker nodes
-    for worker in config['swarm']['workers']:
-        check_node(worker)
+            # Check the worker nodes
+            for worker in swarm.workers:
+                click.echo(f"\n{Fore.CYAN}*** Checking Worker Node: {worker.id} ***")
+                check_node(worker)
+        except Exception as e:
+            click.echo(f"{Fore.RED} Please provide a valid nodes file path or options.")
 
-def check_node(node):
+def check_node(node: Node):
     """Check the SSH connection and Docker daemon for a given node."""
-    click.echo(f"\n{Fore.CYAN}*** Checking node: {node['hostname']} ***")
-    
-    ssh_status = check_ssh_connection(node['ssh_address'])
-    if ssh_status:
-        click.echo(f"{Fore.GREEN}SSH connection to {node['ssh_address']} is successful.")
-    else:
-        click.echo(f"{Fore.RED}Failed to connect via SSH to {node['ssh_address']}.")
-
-    docker_status = check_docker_daemon(node['docker_daemon_address'])
-    if docker_status:
-        click.echo(f"{Fore.GREEN}Docker daemon at {node['docker_daemon_address']} is responding.")
-    else:
-        click.echo(f"{Fore.RED}Failed to connect to Docker daemon at {node['docker_daemon_address']}.")
+    check_ssh_connection(node.ssh_address)
+    check_docker_daemon(node.docker_daemon_address)
 
 def check_ssh_connection(ssh_address):
-    """Check if the SSH connection to the node is successful."""
-    try:
-        url = urlparse(ssh_address)
-        hostname = url.hostname or 'localhost'
-        username = url.username or LOCAL_USERNAME
-        port = url.port or 22
+    """Check if the SSH connection with the provided address is working."""
+    click.echo(f"\n{Fore.WHITE} Checking SSH connection with: {ssh_address} ...")
+    ssh_status = run_ssh_command(ssh_address, "echo 'SSH connection successful'")
 
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(hostname=hostname, username=username, port=port)
-        ssh.close()
+    if ssh_status:
+        click.echo(f"{Fore.GREEN} SSH connection to {ssh_address} is successful.")
         return True
-    except Exception as e:
-        click.echo(f"{Fore.RED}SSH Error: {str(e)}")
+    else:
+        click.echo(f"{Fore.RED} Failed to connect via SSH to {ssh_address}.")
         return False
 
 def check_docker_daemon(docker_daemon_address):
     """Check if the Docker daemon is responding using python-on-whales."""
+    click.echo(f"\n{Fore.WHITE} Checking Docker Daemon: {docker_daemon_address} ...")
+
     try:
         # Initialize DockerClient with the appropriate host
         docker = DockerClient(host=docker_daemon_address)
 
         # Retrieve Docker version to verify the connection
         version_info = docker.version()
-        click.echo(f"Docker Version: {version_info}")
+        click.echo(f"{Fore.GREEN} Docker Version: {version_info.client.version}")
+        click.echo(f"{Fore.GREEN} Docker daemon at {docker_daemon_address} is responding.")
         return True
 
     except Exception as e:
-        click.echo(f"{Fore.RED}Docker Daemon Error: {str(e)}")
+        click.echo(f"{Fore.RED} Docker Daemon Error: {str(e)}")
+        click.echo(f"{Fore.RED} Failed to connect to Docker daemon at {docker_daemon_address}.")
         return False
 
 if __name__ == '__main__':

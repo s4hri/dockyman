@@ -33,7 +33,5 @@ services:
       args:
         DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
   
-    deploy:
-      placement:
-        constraints: 
-          - node.hostname == localhost        
+    profiles:
+      - manager-node
