@@ -3,7 +3,7 @@ import subprocess
 import os
 from colorama import Fore, Style
 from python_on_whales import DockerClient
-from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file, get_nodes_for_services
+from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file
 from dockyman.config import PREFIX_TARGET
 
 
@@ -21,33 +21,41 @@ def clean_command(target, nodes_file):
         click.echo(f"{Fore.YELLOW}Error: Nodes configuration file not found.")
 
     if target == 'base' or target == 'both':
-        compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
-        services = get_nodes_for_services(compose_file, swarm)
-        for service, nodes in services.items():
-            for node in nodes:
-                click.echo(f"\n{Fore.CYAN}*** Cleaning image {service} on node: {node.id} ***")
-                env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-                remove_docker_compose_service(compose_file, env_file, service, node)
+        remove_base(swarm)
 
     if target == 'local' or target == 'both':
-        compose_file = os.path.join(PREFIX_TARGET, 'local/compose.yaml')
-        services = get_nodes_for_services(compose_file, swarm)
-        for service, nodes in services.items():
-            for node in nodes:
-                click.echo(f"\n{Fore.CYAN}*** Cleaning image {service} on node: {node.id} ***")
-                if node.role == 'manager':
-                    env_file = os.path.join(PREFIX_TARGET, '.env')
-                else:
-                    env_file = os.path.join(PREFIX_TARGET, f'.env.{node.id}')
-                remove_docker_compose_service(compose_file, env_file, service, node)
+        click.echo(f"\n{Fore.CYAN}*** Building local containers ***")
+        remove_local(swarm)
 
+def remove_base(swarm):
+    """Remove base containers using Docker Compose."""
+    compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
+    env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
+    click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {swarm.manager.id} rm")
 
-def remove_docker_compose_service(compose_file, env_file, service, node):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
+    remove_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager)
+
+    for worker in swarm.workers:
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} rm")
+        remove_docker_images(compose_file, env_file, worker.id, worker)
+
+def remove_local(swarm):
+    """Remove local containers using Docker Compose."""
+    compose_file = os.path.join(PREFIX_TARGET, 'local/compose.yaml')
+    env_file = os.path.join(PREFIX_TARGET, '.env')
+    remove_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager)
+
+    for worker in swarm.workers:
+        env_file = os.path.join(PREFIX_TARGET, '.env-' + worker.id)
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} rm")
+        remove_docker_images(compose_file, env_file, worker.id, worker)
+
+def remove_docker_images(compose_file, env_file, profile, node):
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[profile])
     
     try:
         # Stop and remove the service containers
-        res = docker.compose.rm(services=[service], stop=True)
+        res = docker.compose.rm(stop=True)
         if res:
             for log_type, log_message in res:
                 if isinstance(log_message, tuple):
@@ -63,16 +71,19 @@ def remove_docker_compose_service(compose_file, env_file, service, node):
         
         # Retrieve the Docker Compose project configuration
         project_config = docker.compose.config()
-        service_image = project_config.services.get(service).image
+        images = []
+        for service_name, service in project_config.services.items():
+            images.append(service.image)
         
-        if service_image:
-            # Now, remove the image associated with the service
-            click.echo(f"{Fore.YELLOW}Removing associated image for service: {service} (image: {service_image})...")
-            docker.image.remove(service_image, force=True)
-            docker.image.prune()
-            click.echo(f"{Fore.GREEN}Image {service_image} associated with the service {service} removed successfully.")
+        if images:
+            for image in images:
+                # Now, remove the image associated with the service
+                click.echo(f"{Fore.YELLOW}Removing image {image}) associated with node {node.id} ...")
+                docker.image.remove(image, force=True, prune=True)
+                click.echo(f"{Fore.GREEN}Image {image} removed successfully!")
         else:
-            click.echo(f"{Fore.RED}No image found for service: {service}")
+            click.echo(f"{Fore.RED}No image found for node {node.id}")
+        
     except Exception as e:
         click.echo(f"{Fore.RED}Error during remove process: {e}")
 

@@ -44,4 +44,4 @@ def test_init_command(temp_dir):
         assert os.path.exists(target_file)
     
     # Assert the output contains the expected message
-    assert "Templates copied to" in result.output
+    assert "Dockyman template files copied with ownership changed" in result.output

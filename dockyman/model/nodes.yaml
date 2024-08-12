@@ -3,19 +3,36 @@ version: "1.0"
 swarm:
 
   manager:
-    id: manager-node # id of the manager node
-    host: 192.168.1.14 # ip address of the manager node
-    user: ${LOCALHOST_USER} # user of the manager node
-    docker_daemon_address: unix:///var/run/docker.sock
+    id: local-node
+    host: 127.0.0.1
+    user: ${LOCALHOST_USER}
     ssh_port: 22
-    role: manager
-    label: label-1
+    docker_daemon_address: unix:///var/run/docker.sock
 
-  workers:
-    - id: worker-node
-      host: 192.168.1.11
-      user: dave
-      docker_daemon_address: ssh://dave@192.168.1.11
-      ssh_port: 22
-      role: worker
-      label: label-1
+  workers: []
+
+
+# Example: 1 manager and 2 workers in the same local network
+# version: "1.0"
+#
+# swarm:
+#
+#   manager:
+#     id: manager-node
+#     host: 192.168.1.100
+#     user: ${LOCALHOST_USER}
+#     ssh_port: 22
+#     docker_daemon_address: unix:///var/run/docker.sock
+#
+#   workers:
+#     - id: worker-node-1
+#       host: 192.168.1.1
+#       user: myuser
+#       ssh_port: 22
+#       docker_daemon_address: ssh://myuser@192.168.1.1
+#
+#     - id: worker-node-2
+#       host: 192.168.1.2
+#       user: myuser
+#       ssh_port: 22
+#       docker_daemon_address: ssh://myuser@192.168.1.2

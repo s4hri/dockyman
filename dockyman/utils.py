@@ -22,26 +22,24 @@ def resolve_nodes_value(value):
         return value
 
 class Node:
-    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port):
         self.id = id
         self.host = host
         self.user = user
         self.docker_daemon_address = docker_daemon_address
         self.ssh_port = ssh_port
         self.ssh_address = self.user + '@' + host + ':' + str(ssh_port)
-        self.role = role
-        self.label = label
 
     def __repr__(self):
-        return f"<Node(id={self.id}, host={self.host}, user={self.user}, ssh_port={self.ssh_port}, ssh_address={self.ssh_address}, role={self.role}), label={self.label}>"
+        return f"<Node(id={self.id}, host={self.host}, user={self.user}, ssh_port={self.ssh_port}, ssh_address={self.ssh_address})>"
 
 class Manager(Node):
-    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
-        super().__init__(id, host, user, docker_daemon_address, ssh_port, role, label)
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port):
+        super().__init__(id, host, user, docker_daemon_address, ssh_port)
 
 class Worker(Node):
-    def __init__(self, id, host, user, docker_daemon_address, ssh_port, role, label):
-        super().__init__(id, host, user, docker_daemon_address, ssh_port, role, label)
+    def __init__(self, id, host, user, docker_daemon_address, ssh_port):
+        super().__init__(id, host, user, docker_daemon_address, ssh_port)
 
 class SwarmConfig:
     def __init__(self, manager, workers):
@@ -50,29 +48,30 @@ class SwarmConfig:
 
     @classmethod
     def from_dict(cls, data):
-        manager_data = data['swarm']['manager']
-        manager = Manager(
-            id=str(resolve_nodes_value(manager_data['id'])),
-            host=str(resolve_nodes_value(manager_data['host'])),
-            user=str(resolve_nodes_value(manager_data['user'])),
-            docker_daemon_address=str(resolve_nodes_value(manager_data['docker_daemon_address'])),
-            ssh_port=int(resolve_nodes_value(manager_data['ssh_port'])),
-            role=str(resolve_nodes_value(manager_data['role'])),
-            label=str(resolve_nodes_value(manager_data['label']))
-        )
 
-        workers = [
-            Worker(
-                id=str(resolve_nodes_value(worker['id'])),
-                host=str(resolve_nodes_value(worker['host'])),
-                user=str(resolve_nodes_value(worker['user'])),
-                docker_daemon_address=str(resolve_nodes_value(worker['docker_daemon_address'])),
-                ssh_port=int(resolve_nodes_value(worker['ssh_port'])),
-                role=str(resolve_nodes_value(worker['role'])),
-                label=str(resolve_nodes_value(worker['label']))
+        manager = None
+        workers = []
+
+        if 'manager' in data['swarm'].keys(): 
+            manager_data = data['swarm']['manager']
+            manager = Manager(
+                id=str(resolve_nodes_value(manager_data['id'])),
+                host=str(resolve_nodes_value(manager_data['host'])),
+                user=str(resolve_nodes_value(manager_data['user'])),
+                docker_daemon_address=str(resolve_nodes_value(manager_data['docker_daemon_address'])),
+                ssh_port=int(resolve_nodes_value(manager_data['ssh_port']))
             )
-            for worker in data['swarm']['workers']
-        ]
+        if 'workers' in data['swarm'].keys():
+            workers = [
+                Worker(
+                    id=str(resolve_nodes_value(worker['id'])),
+                    host=str(resolve_nodes_value(worker['host'])),
+                    user=str(resolve_nodes_value(worker['user'])),
+                    docker_daemon_address=str(resolve_nodes_value(worker['docker_daemon_address'])),
+                    ssh_port=int(resolve_nodes_value(worker['ssh_port']))
+                )
+                for worker in data['swarm']['workers']
+            ]
 
         return cls(manager=manager, workers=workers)
 
@@ -144,71 +143,6 @@ def run_ssh_command(ssh_address, command):
     except Exception as e:
         click.echo(f"{Fore.YELLOW}  {str(e)}")
         return False
-    
-def get_nodes_for_services(compose_file, swarm: SwarmConfig):
-    """Determine the host for the service based on constraints."""
-
-    services = {}
-    
-    with open(compose_file, 'r') as file:
-        compose_data = yaml.safe_load(file)
-    
-    services = compose_data.get('services', {})
-    constraints = []
-    for service_name, service in services.items():
-        constraints = service.get('deploy', {}).get('placement', {}).get('constraints', [])
-        nodes = []
-        for constraint in constraints:
-            if 'node.id' in constraint:
-                node_id = constraint.split('==')[1].strip()
-                if node_id == swarm.manager.id:
-                    nodes.append(swarm.manager)
-                for worker in swarm.workers:
-                    if worker.id == node_id:
-                        nodes.append(worker)
-            if 'node.hostname' in constraint:
-                hostname = constraint.split('==')[1].strip()
-                if swarm.manager.host == hostname:
-                    nodes.append(swarm.manager)
-                for worker in swarm.workers:
-                    if worker.host == hostname:
-                        nodes.append(worker)
-            if 'node.role' in constraint:
-                role = constraint.split('==')[1].strip()
-                if role == 'manager':
-                    nodes.append(swarm.manager)
-                else:
-                    for worker in swarm.workers:
-                        if role == worker.role:
-                            nodes.append(worker)
-            if 'node.label' in constraint:
-                label = constraint.split('==')[1].strip()
-                if label == swarm.manager.label:
-                    nodes.append(swarm.manager)
-                for worker in swarm.workers:
-                    if label == worker.label:
-                        nodes.append(worker)
-            services[service_name] = nodes
-    return services
-
-# def get_nodes_for_services(compose_file_path, swarm: SwarmConfig):
-#     with open(compose_file_path, 'r') as file:
-#         compose_data = yaml.safe_load(file)
-
-#     services = {}
-
-#     for service_name, service_data in compose_data.get('services', {}).items():
-#         profiles = service_data.get('profiles', [])
-#         nodes = []
-#         if profiles:
-#             if swarm.manager.id in profiles:
-#                 nodes.append(swarm.manager)
-#             for worker in swarm.workers:
-#                 if worker.id in profiles:
-#                     nodes.append(worker)
-#         services[service_name] = nodes 
-
-#     return services
 
 def load_env_variables(env_file):
     """Load all environment variables from the given .env file."""

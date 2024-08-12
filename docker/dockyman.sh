@@ -46,31 +46,82 @@ run_dockyman_command() {
         -it "iitschri/dockyman:${docker_image_tag}" "$@"
 }
 
-# Run docker compose commands for each node.id in nodes.yaml
-run_docker_compose_for_nodes() {
+
+# Run docker compose up commands for manager and workers
+run_docker_compose_up_for_all() {
     if [[ -f "nodes.yaml" ]]; then
         local current_dir=$(pwd)
-        
-        # Parse nodes.yaml to get node IDs and their corresponding docker_daemon_address
-        local nodes=$(grep -oP 'id:\s*\K\S+|docker_daemon_address:\s*\K\S+' nodes.yaml | paste - -)
-        
-        while IFS=$'\t' read -r node_id docker_daemon_address; do
-            echo "Running docker compose -f ${current_dir}/compose.yaml --profile $node_id --host $docker_daemon_address up -d"
-            DOCKER_HOST="$docker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --profile "$node_id" up -d
-        done <<< "$nodes"
-        
+
+        # Extract manager node details
+        local manager=$(grep -v '^\s*#' nodes.yaml | grep -v '^\s*$' | awk '/manager:/{flag=1; next} /workers:/{flag=0} flag' | grep -oP 'id:\s*\K\S+|docker_daemon_address:\s*\K\S+' | paste - -)
+
+        # Extract worker nodes details
+        local workers=$(grep -v '^\s*#' nodes.yaml | grep -v '^\s*$' | awk '/workers:/{flag=1; next} /manager:/{flag=0} flag' | grep -oP 'id:\s*\K\S+|docker_daemon_address:\s*\K\S+' | paste - -)
+
+        bash "${current_dir}/scripts/initHost.sh"
+
+        # Run docker compose up for the manager node
+        if [[ -n "$manager" ]]; then
+            IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
+            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env" --profile "$manager_id" up -d
+        fi
+
+        # Check if the workers variable is empty
+        if [ -z "$workers" ]; then
+            echo "No workers defined, skipping Docker Compose up."
+        else
+            # Run docker compose up for the worker nodes
+            while IFS=$'\t' read -r worker_id worker_daemon_address; do
+                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env-$worker_id" --profile "$worker_id" up -d
+            done <<< "$workers"
+        fi        
     else
         echo "nodes.yaml file not found!"
         exit 1
     fi
 }
 
+run_docker_compose_down_for_all() {
+    if [[ -f "nodes.yaml" ]]; then
+        local current_dir=$(pwd)
+
+        # Extract manager node details
+        local manager=$(grep -v '^\s*#' nodes.yaml | grep -v '^\s*$' | awk '/manager:/{flag=1; next} /workers:/{flag=0} flag' | grep -oP 'id:\s*\K\S+|docker_daemon_address:\s*\K\S+' | paste - -)
+
+        # Extract worker nodes details
+        local workers=$(grep -v '^\s*#' nodes.yaml | grep -v '^\s*$' | awk '/workers:/{flag=1; next} /manager:/{flag=0} flag' | grep -oP 'id:\s*\K\S+|docker_daemon_address:\s*\K\S+' | paste - -)
+
+        # Run docker compose down for the manager node
+        if [[ -n "$manager" ]]; then
+            IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
+            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env" --profile "$manager_id" down
+        fi
+
+        # Check if the workers variable is empty
+        if [ -z "$workers" ]; then
+            echo "No workers defined, skipping Docker Compose up."
+        else
+            # Run docker compose down for the worker nodes
+            while IFS=$'\t' read -r worker_id worker_daemon_address; do
+                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env-$worker_id" --profile "$worker_id" down
+            done <<< "$workers"
+        fi        
+    else
+        echo "nodes.yaml file not found!"
+        exit 1
+    fi
+}
+
+
 # Main function
 main() {
     load_dockyman_env
     if [[ "$1" == "run" ]]; then
         shift
-        run_docker_compose_for_nodes "$@"
+        run_docker_compose_up_for_all "$@"
+    elif [[ "$1" == "stop" ]]; then
+        shift
+        run_docker_compose_down_for_all "$@"
     else
         local docker_image_tag=$(get_docker_image_tag)
         run_dockyman_command "$docker_image_tag" "$@"

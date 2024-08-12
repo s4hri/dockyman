@@ -34,4 +34,4 @@ services:
         DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
   
     profiles:
-      - manager-node
+      - local-node

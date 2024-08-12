@@ -1,2 +1,2 @@
-sudo cp dockyman.sh /usr/local/bin/dockymano
-sudo chmod ugo+x /usr/local/bin/dockymano
+sudo cp dockyman.sh /usr/local/bin/dockyman
+sudo chmod ugo+x /usr/local/bin/dockyman

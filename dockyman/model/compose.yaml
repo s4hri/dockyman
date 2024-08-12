@@ -32,19 +32,17 @@ services:
       file: profiles/local.yaml
       service: local
 
-    entrypoint: /bin/bash
-
-    command: sleep 5
-
-    profiles:
-      - manager-node
-
-  remote:
-    image: ${LOCAL_IMAGE_NAME:?err}
-   
-    entrypoint: /bin/bash
-
-    command: sleep infinity
+    entrypoint: /var/dockyman/scripts/initContainer.sh
+    command: bash
 
     profiles:
-      - worker-node
+      - local-node
+
+    volumes:
+      - type: bind
+        source: ./workdir
+        target: /workdir
+
+      - type: bind
+        source: ./scripts
+        target: /var/dockyman/scripts

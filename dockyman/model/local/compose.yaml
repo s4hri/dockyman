@@ -39,5 +39,4 @@ services:
         GROUP_IDS: ${GROUP_IDS:?err}
 
     profiles:
-      - manager-node
-      - worker-node
+      - local-node

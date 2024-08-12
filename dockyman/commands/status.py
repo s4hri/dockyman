@@ -34,6 +34,7 @@ def status_command(nodes_file, ssh_address, docker_daemon_address):
         except Exception as e:
             click.echo(f"{Fore.RED} Please provide a valid nodes file path or options.")
 
+
 def check_node(node: Node):
     """Check the SSH connection and Docker daemon for a given node."""
     check_ssh_connection(node.ssh_address)
@@ -45,7 +46,7 @@ def check_ssh_connection(ssh_address):
     ssh_status = run_ssh_command(ssh_address, "echo 'SSH connection successful'")
 
     if ssh_status:
-        click.echo(f"{Fore.GREEN} SSH connection to {ssh_address} is successful.")
+        click.echo(f"{Fore.GREEN} SSH connection to {ssh_address} is successful!")
         return True
     else:
         click.echo(f"{Fore.RED} Failed to connect via SSH to {ssh_address}.")
@@ -62,7 +63,7 @@ def check_docker_daemon(docker_daemon_address):
         # Retrieve Docker version to verify the connection
         version_info = docker.version()
         click.echo(f"{Fore.GREEN} Docker Version: {version_info.client.version}")
-        click.echo(f"{Fore.GREEN} Docker daemon at {docker_daemon_address} is responding.")
+        click.echo(f"{Fore.GREEN} Docker daemon at {docker_daemon_address} is responding!")
         return True
 
     except Exception as e:
