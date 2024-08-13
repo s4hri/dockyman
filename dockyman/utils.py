@@ -127,7 +127,7 @@ def run_ssh_command(ssh_address, command):
         click.echo(f"{Fore.LIGHTBLACK_EX} Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
         if exit_status != 0:
             error_message = stderr.read().decode().strip()
-            #raise Exception(f"Command failed on {hostname}: {error_message}")
+            click.echo(f"{Fore.YELLOW} Command failed on {hostname}: Error message: {error_message}")
             return False
         ssh.close()
         return result

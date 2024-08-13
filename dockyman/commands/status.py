@@ -62,7 +62,8 @@ def check_docker_daemon(docker_daemon_address):
 
         # Retrieve Docker version to verify the connection
         version_info = docker.version()
-        click.echo(f"{Fore.GREEN} Docker Version: {version_info.client.version}")
+        click.echo(f"{Fore.GREEN} Docker Version in your system: {version_info.server.version}")
+        click.echo(f"{Fore.GREEN} Docker Version in current Dockyman: {version_info.client.version}")
         click.echo(f"{Fore.GREEN} Docker daemon at {docker_daemon_address} is responding!")
         return True
 
