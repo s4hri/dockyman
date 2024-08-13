@@ -1,20 +1,5 @@
 #!/bin/bash
 
-# Determine the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Load environment variables from dockyman.env file located in the script's directory
-load_dockyman_env() {
-    if [[ -f "${SCRIPT_DIR}/dockyman.env" ]]; then
-        while IFS= read -r line; do
-            # Skip lines that are comments or don't contain an equal sign
-            if [[ "$line" =~ ^[^#]*= ]]; then
-                export "$line"
-            fi
-        done < "${SCRIPT_DIR}/dockyman.env"
-    fi
-}
-
 # Get the Docker image tag based on DOCKYMAN_VER in the environment
 get_docker_image_tag() {
     if [[ -n "$DOCKYMAN_VER" ]]; then
@@ -40,6 +25,7 @@ run_dockyman_command() {
         -e PREFIX_TARGET="/shared" \
         -v "${HOME}/.ssh:/root/.ssh" \
         -v "$(pwd):/shared" \
+        -v "${HOME}/.docker:/root/.docker" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         --network host \
         --privileged \
@@ -63,7 +49,7 @@ run_docker_compose_up_for_all() {
         # Run docker compose up for the manager node
         if [[ -n "$manager" ]]; then
             IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
-            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env" --profile "$manager_id" up -d
+            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile "$manager_id" up -d
         fi
 
         # Check if the workers variable is empty
@@ -72,7 +58,7 @@ run_docker_compose_up_for_all() {
         else
             # Run docker compose up for the worker nodes
             while IFS=$'\t' read -r worker_id worker_daemon_address; do
-                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env-$worker_id" --profile "$worker_id" up -d
+                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile "$worker_id" up -d
             done <<< "$workers"
         fi        
     else
@@ -94,7 +80,7 @@ run_docker_compose_down_for_all() {
         # Run docker compose down for the manager node
         if [[ -n "$manager" ]]; then
             IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
-            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env" --profile "$manager_id" down
+            DOCKER_HOST="$manager_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile "$manager_id" down
         fi
 
         # Check if the workers variable is empty
@@ -103,7 +89,7 @@ run_docker_compose_down_for_all() {
         else
             # Run docker compose down for the worker nodes
             while IFS=$'\t' read -r worker_id worker_daemon_address; do
-                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file ".env-$worker_id" --profile "$worker_id" down
+                DOCKER_HOST="$worker_daemon_address" docker compose -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile "$worker_id" down
             done <<< "$workers"
         fi        
     else
@@ -115,7 +101,7 @@ run_docker_compose_down_for_all() {
 
 # Main function
 main() {
-    load_dockyman_env
+    #load_dockyman_env
     if [[ "$1" == "run" ]]; then
         shift
         run_docker_compose_up_for_all "$@"

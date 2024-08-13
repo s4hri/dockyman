@@ -14,11 +14,19 @@ This documentation will guide you through customizing, expanding, and managing y
    - [compose.yaml](#customizing-composeyaml)
    - [base/compose.yaml](#customizing-basecomposeyaml)
    - [local/compose.yaml](#customizing-localcomposeyaml)
-5. [Best Practices](#best-practices)
+5. [Commands](#commands)
+   - [Status Command](#status-command)
+   - [Setup Command](#setup-command)
+   - [Build Command](#build-command)
+   - [Pull Command](#pull-command)
+   - [Push Command](#push-command)
+   - [Run Command](#run-command)
+   - [Stop Command](#stop-command)
+6. [Best Practices](#best-practices)
    - [Security Considerations](#security-considerations)
    - [Managing Node Configurations](#managing-node-configurations)
    - [Logging and Error Handling](#logging-and-error-handling)
-6. [Support](#support)
+7. [Support](#support)
 
 ## Overview
 
@@ -83,37 +91,102 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
    dockyman run
    ```
 
-## Customizing the Configuration
+## Commands
 
-### Customizing `dockyman.env`
+### Status Command
 
-The `dockyman.env` file contains global settings that affect your Docker environment:
+The `status` command is used to check the status of your nodes and specifically SSH connections.
 
-- **`VERSION`**: The version of your project.
-- **`DOCKYMAN_VER`**: The version of the Dockyman tool.
-- **`BASE_PROJECT_NAME`**: The base name for your Docker project.
-- **`BASE_IMAGE_SRC`**: The base Docker image source (e.g., `alpine:latest`, `ubuntu:latest`).
-- **`LOCAL_IMAGE_NAME`**: The name of the local Docker image, derived from the base image.
-- **`LOCAL_IMAGE_GROUPS`**: Comma-separated list of user groups (e.g., `sudo,audio,video`) that the local Docker user should belong to.
-- **`LOCAL_IMAGE_USERNAME`**: The username for the non-root user within the container.
+```bash
+dockyman status [nodes_file]
+```
 
-### Customizing `nodes.yaml`
+- **nodes_file**: Optional. The path to the `nodes.yaml` file. Defaults to `nodes.yaml`.
 
-The `nodes.yaml` file defines your Docker Swarm configuration:
+**Example:**
+```bash
+dockyman status
+```
 
-- **Manager Node**:
-  - `id`: Identifier for the manager node.
-  - `host`: IP address or hostname of the manager node.
-  - `user`: SSH user to connect to the manager node (supports environment variables like `${LOCALHOST_USER}`).
-  - `ssh_port`: SSH port (default is 22).
-  - `docker_daemon_address`: Docker daemon address (e.g., `unix:///var/run/docker.sock`).
+### Setup Command
 
-- **Worker Nodes**:
-  - `id`: Identifier for each worker node.
-  - `host`: IP address or hostname of the worker node.
-  - `user`: SSH user to connect to the worker node.
-  - `ssh_port`: SSH port.
-  - `docker_daemon_address`: Docker daemon address (e.g., `ssh://user@host`).
+The `setup` command is used to check, install or uninstall the required software in your nodes.
+
+```bash
+dockyman setup [action] [nodes_file]
+```
+
+- **action**: Required. The action can be `check`, `install` or `uninstall`.
+- **nodes_file**: Optional. The path to the `nodes.yaml` file. Defaults to `nodes.yaml`.
+
+**Example:**
+```bash
+dockyman setup check
+```
+
+### Build Command
+
+The `build` command is used to build the base and the local images in your nodes.
+
+```bash
+dockyman build [target] [nodes_file]
+```
+
+- **target**: Optional. The target can be `base`, `local` or `both` (default).
+- **nodes_file**: Optional. The path to the `nodes.yaml` file. Defaults to `nodes.yaml`.
+
+**Example:**
+```plaintext
+dockyman build local
+```
+
+### Pull Command
+
+The `pull` command is used to pull Docker base images specified in the configuration files.
+
+```bash
+dockyman pull [nodes_file] [registry]
+```
+
+- **nodes_file**: Optional. The path to the `nodes.yaml` file. Defaults to `nodes.yaml`.
+- **registry**: Optional. The Docker registry to pull images from. Defaults to an empty string, meaning the images will be pulled without specifying a registry.
+
+**Example:**
+```bash
+dockyman pull
+```
+
+### Push Command
+
+The `push` command is used to push Docker base images specified in the configuration files to a Docker registry.
+
+```bash
+dockyman push [nodes_file] [registry]
+```
+
+- **nodes_file**: Optional. The path to the `nodes.yaml` file. Defaults to `nodes.yaml`.
+- **registry**: Optional. The Docker registry to push images to. Defaults to an empty string, meaning the images will be pushed to the default registry.
+
+**Example:**
+```bash
+dockyman push
+```
+
+### Run Command
+
+The `run` command is used to deploy the local images in your nodes.
+
+```bash
+dockyman run
+```
+
+### Stop Command
+
+The `stop` command is used to stop the containers of the local images in your nodes.
+
+```bash
+dockyman stop
+```
 
 ## Best Practices
 

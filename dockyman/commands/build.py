@@ -100,8 +100,7 @@ def build_docker_base(compose_file, env_file, swarm):
         build_docker_compose_service(compose_file, env_file, worker.id, worker)
 
 def build_docker_compose_service(compose_file, env_file, profile, node):
-    #try:
-    if True:
+    try:
         docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[profile])
 
         # Retrieve the Docker Compose project configuration
@@ -122,8 +121,8 @@ def build_docker_compose_service(compose_file, env_file, profile, node):
             elif log_type == "stderr":
                 click.echo(f"{Fore.RED}{log_message.decode('utf-8').strip()}", err=True)
         click.echo(f"{Fore.GREEN}Docker Image(s) {images} built successfully.")
-    #except Exception as e:
-    #    click.echo(f"{Fore.RED}Error builing image(s) {images} process: {e}")
+    except Exception as e:
+        click.echo(f"{Fore.RED}Error builing image(s) {images} process: {e}")
 
 if __name__ == "__main__":
     build_command()
