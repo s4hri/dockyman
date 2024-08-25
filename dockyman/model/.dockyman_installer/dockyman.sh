@@ -33,19 +33,31 @@ run_dockyman_command() {
     local uid=$(id -u)
     local gid=$(id -g)
     
+    # Check if the script is running in an interactive shell
+    if [ -t 0 ] && [ -t 1 ]; then
+        local interactive_flags="-it"
+    else
+        local interactive_flags=""
+    fi
+    
     docker run \
-        --rm \
-        -e LOCALHOST_USER="$user" \
-        -e LOCAL_UID="$uid" \
-        -e LOCAL_GID="$gid" \
-        -e PREFIX_TARGET="/shared" \
-        -v "${HOME}/.ssh:/root/.ssh" \
-        -v "$(pwd):/shared" \
-        -v "${HOME}/.docker:/root/.docker" \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        --network host \
-        --privileged \
-        -it "iitschri/dockyman:${docker_image_tag}" "$@"
+           --rm \
+           -e LOCALHOST_USER="$user" \
+           -e LOCAL_USERNAME=$(id -nu) \
+           -e LOCAL_UID=$(id -u) \
+           -e LOCAL_GID=$(id -g) \
+           -e PREFIX_TARGET="/shared" \
+           -e SSH_AUTH_SOCK=/run/user/$(id -u)/keyring/ssh \
+           -e DOCKER_BUILDKIT=1 \
+           -e COMPOSE_DOCKER_CLI_BUILD=1 \
+           -e DOCKER_GID=$(getent group docker | cut -d: -f3) \
+           -v "${HOME}/.ssh:/home/docky/.ssh" \
+           -v "$(pwd):/shared" \
+           -v /var/run/docker.sock:/var/run/docker.sock \
+           -v $SSH_AUTH_SOCK:/run/user/$(id -u)/keyring/ssh \
+           --network host \
+           --privileged \
+           $interactive_flags "iitschri/dockyman:${docker_image_tag}" "$@"
 }
 
 
@@ -65,7 +77,7 @@ run_docker_compose_up_for_all() {
         # Run docker compose up for the manager node
         if [[ -n "$manager" ]]; then
             IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
-            DOCKER_HOST="$manager_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile "$manager_id" up -d
+            DOCKER_HOST="$manager_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile $manager_id up -d
         fi
 
         # Check if the workers variable is empty
@@ -74,7 +86,7 @@ run_docker_compose_up_for_all() {
         else
             # Run docker compose up for the worker nodes
             while IFS=$'\t' read -r worker_id worker_daemon_address; do
-                DOCKER_HOST="$worker_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile "$worker_id" up -d
+                DOCKER_HOST="$worker_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile $worker_id up -d
             done <<< "$workers"
         fi        
     else
@@ -96,7 +108,7 @@ run_docker_compose_down_for_all() {
         # Run docker compose down for the manager node
         if [[ -n "$manager" ]]; then
             IFS=$'\t' read -r manager_id manager_daemon_address <<< "$manager"
-            DOCKER_HOST="$manager_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile "$manager_id" down
+            DOCKER_HOST="$manager_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env" --profile $manager_id down
         fi
 
         # Check if the workers variable is empty
@@ -105,7 +117,7 @@ run_docker_compose_down_for_all() {
         else
             # Run docker compose down for the worker nodes
             while IFS=$'\t' read -r worker_id worker_daemon_address; do
-                DOCKER_HOST="$worker_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile "$worker_id" down
+                DOCKER_HOST="$worker_daemon_address" ${DOCKERCOMPOSE_CMD} -f "${current_dir}/compose.yaml" --env-file "${current_dir}/.env-$worker_id" --profile $worker_id down
             done <<< "$workers"
         fi        
     else
