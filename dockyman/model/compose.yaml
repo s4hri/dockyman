@@ -26,7 +26,7 @@ services:
 
   main:
     image: ${LOCAL_IMAGE_NAME:?err}
-    container_name: ${BASE_PROJECT_NAME:?err}_${VERSION:?err}
+    container_name: ${PROJECT_NAME:?err}_${VERSION:?err}
 
     extends:
       file: profiles/local.yaml
@@ -35,8 +35,8 @@ services:
     entrypoint: /var/dockyman/scripts/initContainer.sh
     command: bash
 
-    profiles:
-      - local-node
+    labels:
+      dockyman.node: local-node
 
     volumes:
       - type: bind

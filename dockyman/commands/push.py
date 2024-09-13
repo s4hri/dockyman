@@ -2,13 +2,12 @@ import click
 import os
 from python_on_whales import DockerClient
 from colorama import Fore, Style
-from dockyman.utils import get_swarm, load_env_variables
+from dockyman.utils import get_swarm, load_compose_file
 from dockyman.config import PREFIX_TARGET
 
 @click.command(help="Push Docker images.")
 @click.argument('nodes_file', required=False, default='nodes.yaml')
-@click.argument('registry', required=False, default='')
-def push_command(nodes_file, registry):
+def push_command(nodes_file):
     """Push Docker Base images."""
 
     swarm = None
@@ -18,23 +17,29 @@ def push_command(nodes_file, registry):
     except FileNotFoundError:
         click.echo(f"{Fore.YELLOW}Error: Nodes configuration file not found.")
 
-    push_base(swarm, registry)
+    push_base(swarm)
 
-def push_base(swarm, registry):
+def push_base(swarm):
     """Push base images using Docker Compose."""
     compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
     env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-    click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {swarm.manager.id} push")
 
-    push_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager, registry)
+    services = load_compose_file(compose_file).get('services', {})
+    for service_name, service_data in services.items():
+        target_node = swarm.manager
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
+        
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {env_file} push")
+        push_docker_images(compose_file, env_file, target_node, registry)
 
-    for worker in swarm.workers:
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} push")
-        push_docker_images(compose_file, env_file, worker.id, worker, registry)
-
-
-def push_docker_images(compose_file, env_file, profile, node, registry):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[profile])
+def push_docker_images(compose_file, env_file, node):
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
 
     try:
         # Retrieve the Docker Compose project configuration
@@ -45,13 +50,10 @@ def push_docker_images(compose_file, env_file, profile, node, registry):
         
         if images:
             for image in images:
-                # Tag the image with the registry name
-                #tag = f"{registry}/{image}"
                 tag = f"{image}"
                 docker.image.tag(image, tag)
                 click.echo(f"{Fore.YELLOW}Pushing image {tag} associated with node {node.id} ...")
                 
-                # Now, push the tagged image to the registry
                 docker.image.push(tag)
                 click.echo(f"{Fore.GREEN}Image {tag} pushed successfully!")
         else:

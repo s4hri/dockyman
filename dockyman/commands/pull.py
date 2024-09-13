@@ -2,13 +2,12 @@ import click
 import os
 from python_on_whales import DockerClient
 from colorama import Fore, Style
-from dockyman.utils import get_swarm
+from dockyman.utils import get_swarm, load_compose_file
 from dockyman.config import PREFIX_TARGET
 
 @click.command(help="Pull Docker images.")
 @click.argument('nodes_file', required=False, default='nodes.yaml')
-@click.argument('registry', required=False, default='')
-def pull_command(nodes_file, registry):
+def pull_command(nodes_file):
     """Pull Docker Base images."""
 
     swarm = None
@@ -19,22 +18,29 @@ def pull_command(nodes_file, registry):
         click.echo(f"{Fore.YELLOW}Error: Nodes configuration file not found.")
         return
 
-    pull_base(swarm, registry)
+    pull_base(swarm)
 
-def pull_base(swarm, registry):
+def pull_base(swarm):
     """Pull base images using Docker Compose."""
     compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
     env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-    click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {swarm.manager.id} pull")
 
-    pull_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager, registry)
+    services = load_compose_file(compose_file).get('services', {})
+    for service_name, service_data in services.items():
+        target_node = swarm.manager
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
+        
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {env_file} pull")
+        pull_docker_images(compose_file, env_file, target_node)
 
-    for worker in swarm.workers:
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} pull")
-        pull_docker_images(compose_file, env_file, worker.id, worker, registry)
-
-def pull_docker_images(compose_file, env_file, profile, node, registry):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[profile])
+def pull_docker_images(compose_file, env_file, node):
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
 
     try:
         # Retrieve the Docker Compose project configuration
@@ -45,11 +51,9 @@ def pull_docker_images(compose_file, env_file, profile, node, registry):
         
         if images:
             for image in images:
-                # Construct the full image path including registry
-                tag = f"{registry}/{image}" if registry else image
+                tag = image
                 click.echo(f"{Fore.YELLOW}Pulling image {tag} associated with node {node.id} ...")
                 
-                # Now, pull the image from the registry
                 docker.image.pull(tag)
                 click.echo(f"{Fore.GREEN}Image {tag} pulled successfully!")
         else:

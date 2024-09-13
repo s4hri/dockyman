@@ -36,7 +36,7 @@ Dockyman is designed for managing Docker environments across multiple nodes with
 To install Dockyman, you can use the following command:
 
 ```bash
-sh -c 'curl -O https://s4hri/dockyman/docker/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
+sh -c 'curl -O https://s4hri/dockyman/dockyman/model/.dockyman_installer/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
 ```
 
 This command will download the `dockyman.sh` script, make it executable, and move it to `/usr/local/bin/` for easy access.

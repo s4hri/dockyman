@@ -2,7 +2,7 @@ import os
 import click
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.config import PREFIX_TARGET, LOCALHOST_USER
+from dockyman.config import PREFIX_TARGET
 from dockyman.utils import get_swarm, run_ssh_command, Node
 
 

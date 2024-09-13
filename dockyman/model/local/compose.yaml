@@ -38,5 +38,5 @@ services:
         GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
         GROUP_IDS: ${GROUP_IDS:?err}
 
-    profiles:
-      - local-node
+    labels:
+      dockyman.node: local-node

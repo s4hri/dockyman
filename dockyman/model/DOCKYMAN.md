@@ -46,7 +46,7 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
 
 1. **Install Dockyman**:
    ```bash
-   sh -c 'curl -O https://s4hri/dockyman/docker/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
+      sh -c 'curl -O https://s4hri/dockyman/dockyman/model/.dockyman_installer/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
    ```
 
 2. **Set Up Environment Variables**:
@@ -61,7 +61,7 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
    **Key Points:**
    - `image:` Defines the base image name.
    - `build:` Specifies the context, Dockerfile, and build arguments.
-   - `profiles:` Indicates which nodes this build should apply to (nodes are defined in `nodes.yaml`).
+   - `dockyman.node:` Indicates which nodes this build should apply to (nodes are defined in `nodes.yaml`).
 
 5. **Configure your Local Docker Images**:
    Update the `local/compose.yaml` services that will build Local Docker Images during the building process.
@@ -69,7 +69,7 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
    **Key Points:**
    - `image:` Defines the base image name.
    - `build:` Customizes the image build to match the user and group configurations of the host.
-   - `profiles:` As with the base image, this section specifies which nodes the service applies to.
+   - `dockyman.node:` As with the base image, this section specifies which nodes the service applies to.
 
 6. **Configure the Main Compose File**:
    Update the `compose.yaml` services that will run Local Docker Images during the deployment process.
@@ -77,7 +77,7 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
    **Key Points:**
    - `image:` Defines the base image name.
    - `build:` Specifies the context, Dockerfile, and build arguments.
-   - `profiles:` Indicates which nodes this build should apply to (nodes are defined in `nodes.yaml`).
+   - `dockyman.node:` Indicates which nodes this build should apply to (nodes are defined in `nodes.yaml`).
 
 7. **Build Docker Images**:
    Run the following commands to build the base and local images:

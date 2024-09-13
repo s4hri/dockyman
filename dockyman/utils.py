@@ -78,6 +78,19 @@ class SwarmConfig:
     def __repr__(self):
         return f"<SwarmConfig(manager={self.manager}, workers={self.workers})>"
 
+    def get_node_from_id(self, node_id):
+            # First, check if the manager has the matching ID
+            if self.manager and self.manager.id == node_id:
+                return self.manager
+
+            # Then, check through the workers list for a matching ID
+            for worker in self.workers:
+                if worker.id == node_id:
+                    return worker
+
+            # If no node is found with the given ID, return None
+            return None
+
 def get_swarm(file_path="nodes.yaml"):
     """Load nodes configuration from a YAML file and parse into objects."""
     with open(file_path, 'r') as file:
@@ -161,3 +174,6 @@ def generate_env_file(file_path, env_vars):
             file.write(f"{key}={value}\n")
     os.chown(file_path, LOCAL_UID, LOCAL_GID)
 
+def load_compose_file(compose_file_path):
+    with open(compose_file_path, 'r') as file:
+        return yaml.safe_load(file)

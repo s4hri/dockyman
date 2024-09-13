@@ -4,7 +4,7 @@ import os
 from dockyman.utils import run_ssh_command
 from colorama import Fore
 from dockyman.utils import get_swarm, run_ssh_command, Node
-from dockyman.config import LOCALHOST_USER, PREFIX_TARGET
+from dockyman.config import PREFIX_TARGET
 from dockyman.commands.status import check_ssh_connection
 
 @click.command(help="Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s).")
@@ -13,8 +13,6 @@ from dockyman.commands.status import check_ssh_connection
 @click.option('--ssh_address', required=False)
 def setup_command(action, nodes_file, ssh_address):
     """Installs, uninstalls, or checks Docker, Docker Compose, and NVIDIA Docker (if applicable) on the target machine(s)."""
-
-    os.environ['LOCALHOST_USER'] = LOCALHOST_USER
 
     if ssh_address:
         if check_ssh_connection(ssh_address):

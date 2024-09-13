@@ -3,7 +3,7 @@ import subprocess
 import os
 from colorama import Fore, Style
 from python_on_whales import DockerClient
-from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file
+from dockyman.utils import get_swarm, load_compose_file
 from dockyman.config import PREFIX_TARGET
 
 
@@ -31,27 +31,44 @@ def remove_base(swarm):
     """Remove base containers using Docker Compose."""
     compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
     env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-    click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {swarm.manager.id} rm")
 
-    remove_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager)
+    services = load_compose_file(compose_file).get('services', {})
+    for service_name, service_data in services.items():
+        target_node = swarm.manager
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {env_file} rm ")
+        remove_docker_images(compose_file, env_file, target_node)
 
-    for worker in swarm.workers:
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} rm")
-        remove_docker_images(compose_file, env_file, worker.id, worker)
+
 
 def remove_local(swarm):
     """Remove local containers using Docker Compose."""
     compose_file = os.path.join(PREFIX_TARGET, 'local/compose.yaml')
-    env_file = os.path.join(PREFIX_TARGET, '.env')
-    remove_docker_images(compose_file, env_file, swarm.manager.id, swarm.manager)
 
-    for worker in swarm.workers:
-        env_file = os.path.join(PREFIX_TARGET, '.env-' + worker.id)
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running: docker compose -f {compose_file} --env-file {env_file} --profile {worker.id} rm")
-        remove_docker_images(compose_file, env_file, worker.id, worker)
+    services = load_compose_file(compose_file).get('services', {})
+    for service_name, service_data in services.items():
+        target_node = swarm.manager
+        local_env_file = os.path.join(PREFIX_TARGET, '.env')
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
+                    local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
 
-def remove_docker_images(compose_file, env_file, profile, node):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[profile])
+        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {local_env_file} rm")
+        remove_docker_images(compose_file, local_env_file, target_node)
+
+def remove_docker_images(compose_file, env_file, node):
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
     
     try:
         # Stop and remove the service containers

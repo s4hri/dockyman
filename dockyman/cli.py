@@ -2,7 +2,7 @@ import click
 import config
 
 from colorama import Fore
-from dockyman.commands import init, help, setup, build, clean, status, pull, push
+from dockyman.commands import init, help, setup, build, clean, status, pull, push, run, stop
 from dockyman.utils import get_dockyman_version
 
 @click.group()
@@ -17,6 +17,8 @@ cli.add_command(build.build_command, 'build')
 cli.add_command(clean.clean_command, 'clean')
 cli.add_command(push.push_command, 'push')
 cli.add_command(pull.pull_command, 'pull')
+cli.add_command(run.run_command, 'run')
+cli.add_command(stop.stop_command, 'stop')
 cli.add_command(help.help_command, 'help')
 
 

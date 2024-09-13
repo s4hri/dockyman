@@ -33,5 +33,5 @@ services:
       args:
         DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
   
-    profiles:
-      - local-node
+    labels:
+      dockyman.node: local-node
