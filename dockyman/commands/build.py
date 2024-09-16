@@ -3,9 +3,9 @@ import os
 
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file, load_compose_file
+from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file, load_compose_file, services_for_nodes
 from dockyman.commands.setup import has_nvidia_hardware
-from dockyman.config import PREFIX_TARGET
+from dockyman.config import PREFIX_TARGET, DISPLAY
 
 
 # Future work: Consider buildx to build multi-platform images
@@ -26,10 +26,11 @@ def build_command(target, nodes_file):
         raise click.Abort()
 
     if target == 'base' or target == 'both':
+        click.echo(f"\n{Fore.CYAN}*** Building BASE images ***")
         build_base(swarm)
 
     if target == 'local' or target == 'both':
-        click.echo(f"\n{Fore.CYAN}*** Building local containers ***")
+        click.echo(f"\n{Fore.CYAN}*** Building LOCAL images ***")
         build_local(swarm)
 
 def build_base(swarm):
@@ -62,7 +63,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
         env_vars["USER_GID"] = user_gid
         env_vars["GROUP_IDS"] = group_ids
         env_vars["XDG_RUNTIME_DIR"] = xdg_runtime_dir
-        env_vars["DISPLAY"] = ':0'
+        env_vars["DISPLAY"] = DISPLAY
 
         # Determine GPU_PROFILE
         if has_nvidia_hardware(node.ssh_address):
@@ -74,47 +75,26 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
         click.echo(f"{Fore.RED}Error generating env file for service for node {node.id} process: {e}")
 
 def build_docker_base(compose_file, env_file, swarm):
-    """Build Docker containers using Docker Compose with specified files, environment variables and profiles."""
-    
-    services = load_compose_file(compose_file).get('services', {})
-    for service_name, service_data in services.items():
-        target_node = swarm.manager
-        labels = service_data.get('labels', {})
-        node_label = labels.get('dockyman.node')
-        if node_label:
-            node = swarm.get_node_from_id(node_id=node_label)
-            if node:
-                if node != swarm.manager:
-                    target_node = node
-        
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {env_file} build ")
-        build_docker_compose_service(compose_file, env_file, target_node)
-
+    services = services_for_nodes(compose_file, swarm)
+    for target_node, service_names in services.items():
+        click.echo(f"\n{Fore.CYAN}*** Building BASE services {service_names} on {target_node.id} ***")
+        build_docker_compose_service(compose_file, env_file, target_node, service_names)
 
 
 def build_docker_local(compose_file, swarm, env_file):
-
-    services = load_compose_file(compose_file).get('services', {})
-    for service_name, service_data in services.items():
-        target_node = swarm.manager
-        local_env_file = os.path.join(PREFIX_TARGET, '.env')
-        labels = service_data.get('labels', {})
-        node_label = labels.get('dockyman.node')
-        if node_label:
-            node = swarm.get_node_from_id(node_id=node_label)
-            if node:
-                if node != swarm.manager:
-                    target_node = node
-                    local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-
-        click.echo(f"\n{Fore.CYAN}*** Generating env file for local image in node: {swarm.manager.id}***")
+    services = services_for_nodes(compose_file, swarm)
+    for target_node, service_names in services.items():
+        if target_node == swarm.manager:
+            local_env_file = os.path.join(PREFIX_TARGET, '.env')
+        else:
+            local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
         generate_local_env_file_for_node(target_node, env_file, local_env_file)
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {local_env_file} build")
-        build_docker_compose_service(compose_file, local_env_file, target_node)
+        click.echo(f"{Fore.CYAN}*** Building LOCAL services {service_names} on {target_node.id} ***")
+        build_docker_compose_service(compose_file, local_env_file, target_node, service_names)
 
 
 
-def build_docker_compose_service(compose_file, env_file, node):
+def build_docker_compose_service(compose_file, env_file, node, services=None):
     try:
         docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
 
@@ -126,7 +106,7 @@ def build_docker_compose_service(compose_file, env_file, node):
 
         click.echo(f"\n{Fore.CYAN}*** Building image(s) {images} in node: {node.id}***")
 
-        for log_type, log_message in docker.compose.build(stream_logs=True):
+        for log_type, log_message in docker.compose.build(services=services, stream_logs=True):
             if isinstance(log_message, tuple):
                 log_message = log_message[1]  # Extract the actual message part of the tuple
             if "server: error reading preface from client" in log_message.decode('utf-8'):

@@ -2,7 +2,7 @@ import click
 import os
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.utils import get_swarm, load_compose_file
+from dockyman.utils import get_swarm, services_for_nodes
 from dockyman.config import PREFIX_TARGET
 
 @click.command(help="Run Docker containers using Docker Compose.")
@@ -28,39 +28,28 @@ def run_command(nodes_file):
 
 def run_docker_compose_up_for_all(swarm):
     """Run docker compose up commands for manager and workers using python-on-whales."""
-    docker_compose_command = "docker compose"
     compose_file = os.path.join(PREFIX_TARGET, "compose.yaml")
 
-    services = load_compose_file(compose_file).get('services', {})
-    for service_name, service_data in services.items():
-        target_node = swarm.manager
-        local_env_file = os.path.join(PREFIX_TARGET, '.env')
-        labels = service_data.get('labels', {})
-        node_label = labels.get('dockyman.node')
-        if node_label:
-            node = swarm.get_node_from_id(node_id=node_label)
-            if node:
-                if node != swarm.manager:
-                    target_node = node
-                    local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-        
-        click.echo(f"{Fore.LIGHTBLACK_EX}Running on {target_node.id}: docker compose -f {compose_file} --env-file {local_env_file} build ")
-        run_docker_compose_for_node(target_node, docker_compose_command, "up", env_file=local_env_file)
+    services = services_for_nodes(compose_file, swarm)
+    for target_node, service_names in services.items():
+        if target_node == swarm.manager:
+            local_env_file = os.path.join(PREFIX_TARGET, '.env')
+        else:
+            local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
+        click.echo(f"{Fore.CYAN}*** Running services {service_names} on {target_node.id}")
+        run_docker_compose_for_node(target_node, local_env_file, service_names)
 
-def run_docker_compose_for_node(node, docker_compose_command, action, env_file):
+
+def run_docker_compose_for_node(node, env_file, services=None):
     """Run Docker Compose action (up or down) for a specific node."""
     compose_file = os.path.join(PREFIX_TARGET, "compose.yaml")
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=[node.id])
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
 
     try:
-        if action == "up":
-            docker.compose.up(detach=True)
-            click.echo(f"{Fore.GREEN}Service started successfully for node {node.id}.")
-        else:
-            click.echo(f"{Fore.RED}Unknown action: {action}")
-
+        docker.compose.up(services=services, detach=False)
+        click.echo(f"{Fore.GREEN}Service started successfully for node {node.id}.")
     except Exception as e:
-        click.echo(f"{Fore.RED}Error during {action} process for node {node.id}: {e}")
+        click.echo(f"{Fore.RED}Error during running process for node {node.id}: {e}")
 
 if __name__ == "__main__":
     run_command()

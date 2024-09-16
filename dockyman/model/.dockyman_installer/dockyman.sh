@@ -39,6 +39,7 @@ run_dockyman_command() {
     
     docker run \
            --rm \
+           -e DISPLAY=${DISPLAY} \
            -e LOCALHOST_USER=$(id -nu) \
            -e LOCAL_UID=$(id -u) \
            -e LOCAL_GID=$(id -g) \

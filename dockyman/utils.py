@@ -177,3 +177,22 @@ def generate_env_file(file_path, env_vars):
 def load_compose_file(compose_file_path):
     with open(compose_file_path, 'r') as file:
         return yaml.safe_load(file)
+
+def services_for_nodes(compose_file, swarm):
+    services = {}
+    for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
+        target_node = swarm.manager
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
+
+        if target_node in services.keys():
+            services[target_node].append(service_name)
+        else:
+            services[target_node] = [service_name]
+    return services
+    
