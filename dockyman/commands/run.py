@@ -2,7 +2,7 @@ import click
 import os
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.utils import get_swarm, services_for_nodes
+from dockyman.utils import get_swarm, services_for_nodes, load_env_variables, services_in_profiles
 from dockyman.config import PREFIX_TARGET
 
 @click.command(help="Run Docker containers using Docker Compose.")
@@ -37,17 +37,27 @@ def run_docker_compose_up_for_all(swarm):
         else:
             local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
         click.echo(f"{Fore.CYAN}*** Running services {service_names} on {target_node.id}")
-        run_docker_compose_for_node(target_node, local_env_file, service_names)
+        run_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
 
 
-def run_docker_compose_for_node(node, env_file, services=None):
+def run_docker_compose_for_node(compose_file, node, env_file, services=None):
     """Run Docker Compose action (up or down) for a specific node."""
-    compose_file = os.path.join(PREFIX_TARGET, "compose.yaml")
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
 
+    env_vars = load_env_variables(env_file)
+    if "COMPOSE_PROFILES" in env_vars.keys():
+        profiles = env_vars["COMPOSE_PROFILES"].split(',')
+    if not profiles:
+        profiles = []
+
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=profiles)
+    services = services_in_profiles(compose_file, services, profiles)
+    if services:
+        click.echo(f"Running services: {services}")
     try:
-        docker.compose.up(services=services, detach=False)
-        click.echo(f"{Fore.GREEN}Service started successfully for node {node.id}.")
+        docker.compose.up(services=services, detach=False, remove_orphans=True)
+        #for service in services:
+        #    docker.compose.run(service=service, detach=True, remove=True, tty=False)
+        click.echo(f"{Fore.GREEN}Services started successfully for node {node.id}.")
     except Exception as e:
         click.echo(f"{Fore.RED}Error during running process for node {node.id}: {e}")
 
