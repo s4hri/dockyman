@@ -1,5 +1,5 @@
 
-# Dockyman Template v2.0 Documentation
+# Dockyman Template v2.2 Documentation
 
 This documentation will guide you through customizing, expanding, and managing your `dockyman` setup. The `dockyman` tool is designed to streamline Docker management, especially for environments that require mirroring local devices and user/group permissions between the container and the host machine.
 
@@ -46,7 +46,7 @@ Dockyman simplifies the management of Docker environments across multiple nodes,
 
 1. **Install Dockyman**:
    ```bash
-      sh -c 'curl -O https://s4hri/dockyman/dockyman/model/.dockyman_installer/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
+      sh -c 'curl -O https://raw.githubusercontent.com/s4hri/dockyman/v2.0/dockyman/model/.dockyman_installer/dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
    ```
 
 2. **Set Up Environment Variables**:

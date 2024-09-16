@@ -1,7 +1,7 @@
 
-# Dockyman v2.0
+# Dockyman v2.2
 
-Dockyman is a powerful tool designed to streamline Docker management across multiple nodes, especially for environments that require mirroring local devices and user/group permissions between the container and the host machine. It allows you to easily build, deploy, and manage Docker containers in a distributed system, ensuring that your applications run with the necessary permissions and access to host resources.
+Dockyman is a powerful tool designed to streamline building and deploying of Docker containers across multiple nodes. Dockyman suits specifically for scenarios that require mirroring local devices and user/group permissions between the container and the host machine. It allows you to easily manage containers in a distributed system, ensuring that your applications run with the necessary permissions and access to host resources.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ Dockyman is a powerful tool designed to streamline Docker management across mult
 
 ## Overview
 
-Dockyman is designed for managing Docker environments across multiple nodes with ease. It provides a simple way to deploy, monitor, and manage Docker containers, especially for setups requiring specific user permissions, graphical applications, or audio processing. Dockyman is ideal for distributed systems where containers must interact closely with the host machine.
+Dockyman is designed for managing Docker environments across multiple nodes with ease. It provides a simple way to build and deploy containers, especially for setups requiring specific user permissions, graphical applications, or audio processing. Dockyman is ideal for distributed systems where containers must interact closely with the host machine.
 
 ## Features
 
@@ -31,12 +31,21 @@ Dockyman is designed for managing Docker environments across multiple nodes with
 - **Customizable deployment**: Extensive configuration options via Docker Compose files and environment variables.
 - **Centralized control**: Manage builds, deployments, and services from a single command line interface.
 
+Examples of use cases are:
+
+- Running graphical applications using the X11 server running in the host machine.
+- Running applications using GPUs capabilities of the host machine (NVIDIA supported).
+- Running audio applications using PulseAudio server running in the host machine.
+- Using custom bash scripts to run before/after the container has started.
+- Using containers with a non-root user having the same UIDs/GIDs of the current logged user in the host machine.
+- Using containers with non-root user with specific group permissions (sudo, audio, video, ...) with the same GIDs of the host machine.
+
 ## Installation
 
 To install Dockyman, you can use the following command:
 
 ```bash
-sh -c 'curl -O https://s4hri/dockyman/dockyman/model/.dockyman_installer/dockyman.sh && chmod +x dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
+sh -c 'curl -O https://raw.githubusercontent.com/s4hri/dockyman/v2.0/dockyman/model/.dockyman_installer/dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
 ```
 
 This command will download the `dockyman.sh` script, make it executable, and move it to `/usr/local/bin/` for easy access.
