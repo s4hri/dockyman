@@ -31,14 +31,20 @@ def stop_docker_compose_for_all(swarm):
     compose_file = os.path.join(PREFIX_TARGET, "compose.yaml")
 
     services = services_for_nodes(compose_file, swarm)
+
+    for target_node, service_names in services.items():
+        if target_node != swarm.manager:
+            local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
+            if not os.path.isfile(local_env_file):
+                local_env_file = os.path.join(PREFIX_TARGET, '.env')
+            click.echo(f"{Fore.CYAN}*** Stopping services {service_names} on {target_node.id}")
+            stop_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
+
     for target_node, service_names in services.items():
         if target_node == swarm.manager:
             local_env_file = os.path.join(PREFIX_TARGET, '.env')
-        else:
-            local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-        click.echo(f"{Fore.CYAN}*** Stopping services {service_names} on {target_node.id}")
-        stop_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
-
+            click.echo(f"{Fore.CYAN}*** Stopping services {service_names} on {target_node.id}")
+            stop_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
 
 def stop_docker_compose_for_node(compose_file, node, env_file, services=None):
     """Stop and remove Docker Compose services for a specific node."""
