@@ -18,7 +18,6 @@ jobs:
       run: |
         echo "y" | make -C template/.dockyman install-docker
         echo "y" | make -C template/.dockyman install-docker-compose
-        make -C template/.dockyman
 
     - name: Test Docker
       run: |
