@@ -54,14 +54,26 @@ def stop_docker_compose_for_node(compose_file, node, env_file, services=None):
     if "COMPOSE_PROFILES" in env_vars.keys():
         profiles = env_vars["COMPOSE_PROFILES"].split(',')
 
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file, compose_profiles=profiles)
+    docker = DockerClient(
+        host=node.docker_daemon_address,
+        compose_files=[compose_file],
+        compose_env_file=env_file,
+        compose_profiles=profiles
+    )
+
     services = services_in_profiles(compose_file, services, profiles)
     if services:
         click.echo(f"Stopping services: {services}")
+
     try:
-        # Stop and remove the services
-        docker.compose.stop(services=services)
-        docker.compose.down(services=services, remove_orphans=True)
+        # Stop individual services if specified
+        if services:
+            docker.compose.stop(services=services)
+        else:
+            docker.compose.stop()  # Stop all services if none are specified
+
+        # Bring down the entire stack (without specifying services)
+        docker.compose.down(remove_orphans=True)
         click.echo(f"{Fore.GREEN}Services stopped and removed successfully for node {node.id}.")
 
     except Exception as e:
