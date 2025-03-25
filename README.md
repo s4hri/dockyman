@@ -106,7 +106,7 @@ In the Develpment profile the building process, for both BASE and LOCAL containe
 
 ```bash
 cd .dockyman
-make dev
+make development
 ```
 
 ### 4.1.2 Development Profile

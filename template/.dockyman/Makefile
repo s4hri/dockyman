@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -58,8 +58,8 @@ HAS_DOCKER_GROUP := $(shell groups $(USER) | grep -o '\bdocker\b')
 ifeq ($(UNAME), Linux)
     ifeq ($(shell lsb_release -is), Ubuntu)
         PACKAGE_MANAGER := apt-get
-        DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh 
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := \
 		                            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ; \
 	                                curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -72,7 +72,7 @@ ifeq ($(UNAME), Linux)
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), centos)
         PACKAGE_MANAGER := yum
         DOCKER_INSTALL_CMD := sudo yum install -y docker-ce
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/2.23.3/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/2.34.0/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
 		                             sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo ; \
 									 sudo yum-config-manager --enable nvidia-container-toolkit-experimental ; \
@@ -104,9 +104,6 @@ DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then ech
 DOCKYMAN_BASE_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_BASE} ${ENV_BUILD}
 DOCKYMAN_LOCAL_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_LOCAL} ${ENV_BUILD}
 
-DOCKYMAN_BUILD_BASE_COMMAND := ${DOCKYMAN_BASE_COMMAND} up --remove-orphans
-DOCKYMAN_BUILD_LOCAL_COMMAND := ${DOCKYMAN_LOCAL_COMMAND} up --remove-orphans
-
 DOCKYMAN_RUN_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} up --remove-orphans
 DOCKYMAN_STOP_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_RUN} ${ENV_BUILD} down --remove-orphans
 
@@ -114,18 +111,25 @@ DOCKYMAN_BASE_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DO
 DOCKYMAN_LOCAL_SERVICES := $(shell USER_UID=${USER_UID} USER_GID=${USER_GID} ${DOCKYMAN_LOCAL_COMMAND} config --services)
 endif
 
+CHECK_NOT_PRODUCTION = \
+	@if grep -q '^PROFILE=production' $(ENV_FILE_BUILD); then \
+		echo "-> ERROR: Cannot run this target in PRODUCTION mode."; \
+		echo "-> TIP: Please switch to development mode: make development"; \
+		exit 1; \
+	fi
 
 .PHONY: install-docker
 install-docker:
 	@if [ -z "$(DOCKER_INSTALLED)" ]; then \
-        read -p "Docker is not installed. Do you want to install it? (y/N) " choice; \
-        case "$$choice" in \
-            y|Y) $(DOCKER_INSTALL_CMD) ;; \
-            *) echo "Aborting Docker installation." ;; \
-        esac \
-    else \
-        echo "Docker is already installed." ; \
-    fi
+		read -p "Docker is not installed. Do you want to install it? (y/N) " choice; \
+		case "$$choice" in \
+			y|Y) $(DOCKER_INSTALL_CMD); \
+			     $(MAKE) add-docker-group ;; \
+			*) echo "Aborting Docker installation." ;; \
+		esac; \
+	else \
+		echo "Docker is already installed."; \
+	fi
 
 .PHONY: install-docker-compose
 install-docker-compose:
@@ -175,7 +179,7 @@ reboot:
     esac
 
 .PHONY: install-all
-install-all: install-docker install-docker-compose install-nvidia-docker add-docker-group
+install-all: install-docker install-docker-compose install-nvidia-docker
 	@echo "Installation and configuration completed."
 
 
@@ -261,7 +265,8 @@ help:
 	@echo "  help                       Display this help message"
 
 
-default: stop
+default: 
+	$(MAKE) stop
 	@if grep -q '^PROFILE=development' ${ENV_FILE_BUILD}; then \
 		$(MAKE) install-all && $(MAKE) build && $(MAKE) create_env; \
 	else \
@@ -269,7 +274,7 @@ default: stop
 			$(MAKE) install-all && $(MAKE) pull && $(MAKE) build-local && $(MAKE) create_env; \
 		else \
 			echo "The building process is completed!"; \
-			echo "To rebuild, please make sure you are in development profile running 'make dev'"; \
+			echo "To rebuild, please make sure you are in development profile running 'make development'"; \
 		fi; \
 	fi
 
@@ -284,7 +289,9 @@ create_env:
 		echo "GPU_PROFILE=no-gpu" >> ${ENV_FILE_RUN}; \
 	fi
 
-build-base-nocache: remove-build-base
+build-base-nocache:
+	$(CHECK_NOT_PRODUCTION)
+	$(MAKE) remove-build-base
 	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		set -e; \
@@ -295,6 +302,7 @@ build-base-nocache: remove-build-base
 	$(MAKE) stop-base
 
 build-base:
+	$(CHECK_NOT_PRODUCTION)
 	@echo
 	@for service in $(DOCKYMAN_BASE_SERVICES); do \
 		set -e; \
@@ -324,6 +332,7 @@ remove-build-local:
 	$(MAKE) stop-local
 
 build-local:
+	$(CHECK_NOT_PRODUCTION)
 	@echo
 	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
 		set -e; \
@@ -333,7 +342,9 @@ build-local:
 	done
 	$(MAKE) stop-local
 
-build-local-nocache: remove-build-local
+build-local-nocache:
+	$(CHECK_NOT_PRODUCTION)
+	$(MAKE) remove-build-local
 	@echo
 	@for service in $(DOCKYMAN_LOCAL_SERVICES); do \
 		set -e; \
@@ -363,20 +374,21 @@ push:
 	done
 	$(MAKE) stop-base
 
-clean: remove-build-base remove-build-local
+clean: stop remove-build-base remove-build-local
 
-dev:
+development:
 	@echo
 	@echo "Configuring DEVELOPMENT PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
 		sed -i 's/^PROFILE=.*/PROFILE=development/' ${ENV_FILE_BUILD}; \
 	else \
-		echo "PROFILE=dev" >> ${ENV_FILE_BUILD}; \
+		echo "PROFILE=development" >> ${ENV_FILE_BUILD}; \
 	fi;
 	@echo "DEVELOPMENT PROFILE updated in ${ENV_FILE_BUILD}";
 	$(MAKE) create_env;
 
-production: remove-build-base
+production:
+	$(MAKE) remove-build-base
 	@echo
 	@echo "Configuring PRODUCTION PROFILE..."
 	@if grep -q '^PROFILE=' ${ENV_FILE_BUILD}; then \
@@ -390,10 +402,19 @@ production: remove-build-base
 init-host:
 	bash ${SCRIPTS}/initHost.sh
 
-build: build-base build-local
+build:
+	$(CHECK_NOT_PRODUCTION)
+	$(MAKE) stop
+	$(MAKE) build-base
+	$(MAKE) build-local
 	@docker network prune -f
 
-rebuild: stop build-base-nocache build-local
+rebuild:
+	$(CHECK_NOT_PRODUCTION)
+	$(MAKE) stop
+	$(MAKE) build-base-nocache
+	$(MAKE) build-local-nocache
+	@docker network prune -f
 
 stop-base:
 	${DOCKYMAN_BASE_COMMAND} down --remove-orphans

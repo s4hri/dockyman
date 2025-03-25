@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Istituto Italiano di Tecnoogia
+# Copyright (c) 2025 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman Template
 #
