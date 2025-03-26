@@ -41,7 +41,7 @@ endif
 
 SCRIPTS := ${PROJECT_DIR}/scripts
 ENV_FILE_RUN := ${PROJECT_DIR}/.env
-ENV_FILE_BUILD := ${PROJECT_DIR}/build.env
+ENV_FILE_BUILD := ${PROJECT_DIR}/dockyman.env
 COMPOSE_BASE := -f ${PROJECT_DIR}/compose.base.yaml
 COMPOSE_LOCAL := -f ${PROJECT_DIR}/compose.local.yaml
 COMPOSE_RUN := -f ${PROJECT_DIR}/compose.yaml
