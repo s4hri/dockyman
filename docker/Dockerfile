@@ -42,19 +42,16 @@ RUN chown -R docky:docky /home/docky
 # Copy the requirements.txt to install dependencies
 COPY requirements.txt .
 
+# Ensure that the app directory is in the Python path
+ENV PYTHONPATH=/app
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy the Dockyman application code
 COPY . .
 
 RUN chown -R docky:docky /app
-
-# Ensure that the app directory is in the Python path
-ENV PYTHONPATH=/app
-
-# Switch to the non-root user
-#USER docky
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Make sure the scripts are executable
 RUN chmod +x /app/dockyman/cli.py

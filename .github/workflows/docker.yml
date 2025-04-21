@@ -36,4 +36,3 @@ jobs:
           bash build.sh
           echo "Pushing Docker image..."
           docker push $DOCKER_IMAGE_NAME:$PROJECT_VERSION
-          docker push $DOCKER_IMAGE_NAME:latest

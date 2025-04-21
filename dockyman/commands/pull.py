@@ -32,7 +32,7 @@ def pull_base(swarm):
         
 
 def pull_docker_images(compose_file, env_file, node, services=None):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_files=[env_file])
     try:
         docker.compose.pull(services=services)
     except Exception as e:

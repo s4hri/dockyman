@@ -1,5 +1,5 @@
 
-# Dockyman v2.3 Documentation
+# Dockyman v2.4 Documentation
 
 Dockyman is designed to streamline building and deploying Docker containers across multiple nodes. It is particularly suited for scenarios that require mirroring local devices and user/group permissions between the container and the host machine. Dockyman makes it easy to manage containers in a distributed system, ensuring that your applications run with the necessary permissions and access to host resources.
 

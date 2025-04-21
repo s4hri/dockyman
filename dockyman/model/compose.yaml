@@ -35,6 +35,9 @@ services:
     entrypoint: /var/dockyman/scripts/initContainer.sh
     command: bash
 
+    profiles:
+      - profileA
+
     labels:
       dockyman.node: local-node
 
@@ -46,3 +49,18 @@ services:
       - type: bind
         source: ./scripts
         target: /var/dockyman/scripts
+
+
+  aux:
+    image: ${LOCAL_IMAGE_NAME:?err}
+    container_name: ${PROJECT_NAME:?err}_${VERSION:?err}_auxiliary
+
+    extends:
+      file: profiles/local.yaml
+      service: local
+
+    profiles:
+      - profileB
+
+    labels:
+      dockyman.node: local-node

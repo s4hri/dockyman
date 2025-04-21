@@ -30,7 +30,7 @@ def push_base(swarm):
         push_docker_images(compose_file, env_file, target_node, service_names)
 
 def push_docker_images(compose_file, env_file, node, services=None):
-    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_file=env_file)
+    docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_files=[env_file])
     try:
         docker.compose.push(services=services)
     except Exception as e:

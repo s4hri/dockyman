@@ -126,35 +126,35 @@ def run_ssh_command(ssh_address, command):
         username = url.username
         port = url.port if url.port else 22  # Default to port 22 if not specified
 
-        click.echo(f"{Fore.LIGHTBLACK_EX} Connecting to {hostname} as {username} on port {port} ...")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Connecting to {hostname} as {username} on port {port} ...")
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=hostname, username=username, port=port, allow_agent=False)
 
-        click.echo(f"{Fore.LIGHTBLACK_EX} Executing command: {command}")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Executing command: {command}")
 
         stdin, stdout, stderr = ssh.exec_command(command)
         result = stdout.read().decode().strip()
         exit_status = stdout.channel.recv_exit_status()
-        click.echo(f"{Fore.LIGHTBLACK_EX} Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
         if exit_status != 0:
             error_message = stderr.read().decode().strip()
-            click.echo(f"{Fore.YELLOW} Command failed on {hostname}: Error message: {error_message}")
+            click.echo(f"\t{Fore.YELLOW} [.] Command failed on {hostname}: Error message: {error_message}")
             return False
         ssh.close()
         return result
     except paramiko.ssh_exception.NoValidConnectionsError as e:
-        click.echo(f"{Fore.RED} Connection failed to {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED} [x] Connection failed to {ssh_address}: {str(e)}")
         return False
     except paramiko.ssh_exception.AuthenticationException as e:
-        click.echo(f"{Fore.RED} Authentication failed for {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED} [x] Authentication failed for {ssh_address}: {str(e)}")
         return False
     except paramiko.ssh_exception.SSHException as e:
-        click.echo(f"{Fore.RED} SSH error occurred while connecting to {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED} [x] SSH error occurred while connecting to {ssh_address}: {str(e)}")
         return False
     except Exception as e:
-        click.echo(f"{Fore.YELLOW}  {str(e)}")
+        click.echo(f"\t{Fore.YELLOW} [!]  {str(e)}")
         return False
 
 def load_env_variables(env_file):
@@ -178,22 +178,30 @@ def load_compose_file(compose_file_path):
     with open(compose_file_path, 'r') as file:
         return yaml.safe_load(file)
 
-def services_for_nodes(compose_file, swarm):
+def services_for_nodes(compose_file, swarm, env_file=None):
     services = {}
+    
     for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
         target_node = swarm.manager
         labels = service_data.get('labels', {})
         node_label = labels.get('dockyman.node')
+        service_profiles = service_data.get("profiles", [])
         if node_label:
             node = swarm.get_node_from_id(node_id=node_label)
             if node:
                 if node != swarm.manager:
                     target_node = node
 
-        if target_node in services.keys():
-            services[target_node].append(service_name)
+        if env_file:
+            profiles = get_docker_profiles(env_file)
         else:
-            services[target_node] = [service_name]
+            profiles = service_profiles
+
+        if not service_profiles or any(profile in profiles for profile in service_profiles):
+            if target_node in services.keys():
+                services[target_node].append(service_name)
+            else:
+                services[target_node] = [service_name]
     return services
 
 def services_in_profiles(compose_file, services, active_profiles):
@@ -205,3 +213,12 @@ def services_in_profiles(compose_file, services, active_profiles):
             if service_name in services:
                 services_in_profiles.append(service_name)
     return services_in_profiles
+
+
+def get_docker_profiles(env_file):
+    """Get the selected docker profiles from the .env file."""
+    env_vars = load_env_variables(env_file)
+    profiles = []
+    if "COMPOSE_PROFILES" in env_vars.keys():
+        profiles = env_vars["COMPOSE_PROFILES"].split(',')        
+    return profiles

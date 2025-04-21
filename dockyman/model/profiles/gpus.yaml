@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2024 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -28,7 +28,7 @@ services:
 
   nvidia-gpu:
     environment:
-      - GPU_PROFILE=${GPU_PROFILE:?err}
+      - GPU_PROFILE=${GPU_PROFILE:-nvidia-gpu}
 
     deploy:
       resources:
@@ -40,4 +40,4 @@ services:
 
   no-gpu:
     environment:
-      - GPU_PROFILE=${GPU_PROFILE:?err}
+      - GPU_PROFILE=${GPU_PROFILE:-no-gpu}

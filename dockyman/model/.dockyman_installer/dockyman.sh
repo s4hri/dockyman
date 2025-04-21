@@ -1,5 +1,7 @@
 #!/bin/bash
 
+DOCKYMAN_VER=v2.4
+
 # Determine the correct Docker Compose command
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKERCOMPOSE_CMD="docker compose"
@@ -16,13 +18,8 @@ get_docker_image_tag() {
     if [ -f "$(pwd)/dockyman.env" ]; then
         source "$(pwd)/dockyman.env"
     fi
-
-    # Check if DOCKYMAN_VER is set
-    if [[ -n "$DOCKYMAN_VER" ]]; then
-        echo "$DOCKYMAN_VER"
-    else
-        echo "latest"
-    fi
+    
+    echo "${DOCKYMAN_VER:-$DOCKYMAN_VER}"
 }
 
 # Run the dockyman command inside a Docker container

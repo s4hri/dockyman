@@ -117,8 +117,6 @@ def perform_action(action, ssh_address):
         click.echo(f"\n{Fore.CYAN}*** Checking NVIDIA Docker on {ssh_address} ***")
         if check_nvidia_hardware(ssh_address):
             check_nvidia_docker_installed(ssh_address)
-        
-        click.echo(f'\n{Fore.CYAN}*** Check completed on {ssh_address} ***')
 
 def is_docker_service_present(host):
     return run_ssh_command(host, 'systemctl status docker.service')

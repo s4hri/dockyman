@@ -27,6 +27,6 @@ def main():
 
 if __name__ == '__main__':
     version = get_dockyman_version()
-    click.echo(f'{Fore.YELLOW}Dockyman CLI - Docker Management Tool (Version: {version})')
+    click.echo(f'\n{Fore.YELLOW}Dockyman CLI - Docker Management Tool (Version: {version})\n')
     main()
 
