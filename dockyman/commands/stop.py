@@ -32,21 +32,19 @@ def stop_docker_compose_for_all(swarm):
 
     services = services_for_nodes(compose_file, swarm)
 
-    for target_node, service_names in services.items():
-        if target_node != swarm.manager:
-            local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-            if not os.path.isfile(local_env_file):
-                local_env_file = os.path.join(PREFIX_TARGET, '.env')
-            click.echo(f"\n{Fore.CYAN}*** Preparing to stop services {service_names} in the node: {target_node.id}")
-            stop_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
-
-    for target_node, service_names in services.items():
-        if target_node == swarm.manager:
+    for worker in swarm.workers:
+        local_env_file = os.path.join(PREFIX_TARGET, '.env-' + worker.id)
+        if not os.path.isfile(local_env_file):
             local_env_file = os.path.join(PREFIX_TARGET, '.env')
-            click.echo(f"\n{Fore.CYAN}*** Preparing to stop services {service_names} in the node: {target_node.id}")
-            stop_docker_compose_for_node(compose_file, target_node, local_env_file, service_names)
+        click.echo(f"\n{Fore.WHITE}-> Preparing to stop services in the worker node: {Fore.CYAN}{worker.id}")
+        stop_docker_compose_for_node(compose_file, worker, local_env_file)
 
-def stop_docker_compose_for_node(compose_file, node, env_file, services=None):
+    manager = swarm.manager
+    local_env_file = os.path.join(PREFIX_TARGET, '.env')
+    click.echo(f"\n{Fore.WHITE}-> Preparing to stop services in the manager node: {Fore.CYAN}{manager.id}")
+    stop_docker_compose_for_node(compose_file, manager, local_env_file)
+
+def stop_docker_compose_for_node(compose_file, node, env_file):
     """Stop and remove Docker Compose services for a specific node."""
 
     env_vars = load_env_variables(env_file)
@@ -61,9 +59,9 @@ def stop_docker_compose_for_node(compose_file, node, env_file, services=None):
         compose_profiles=profiles
     )
 
-    services = services_in_profiles(compose_file, services, profiles)
+    services = services_in_profiles(compose_file, profiles)
     if services:
-        click.echo(f"{Fore.LIGHTBLACK_EX} [.] Stopping services: {services}")
+        click.echo(f"{Fore.LIGHTBLACK_EX}[.] Stopping services: {services}")
 
     try:
         # Stop individual services if specified
@@ -74,10 +72,10 @@ def stop_docker_compose_for_node(compose_file, node, env_file, services=None):
 
         # Bring down the entire stack (without specifying services)
         docker.compose.down(remove_orphans=True)
-        click.echo(f"{Fore.GREEN} [✓] Services stopped and removed successfully for node {node.id}.")
+        click.echo(f"{Fore.GREEN}[✓] Services stopped and removed successfully for node {node.id}.")
 
     except Exception as e:
-        click.echo(f"{Fore.RED} [x] Error during stop/remove process for node {node.id}: {e}")
+        click.echo(f"{Fore.RED}[x] Error during stop/remove process for node {node.id}: {e}")
 
 
 if __name__ == "__main__":

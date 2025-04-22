@@ -204,14 +204,13 @@ def services_for_nodes(compose_file, swarm, env_file=None):
                 services[target_node] = [service_name]
     return services
 
-def services_in_profiles(compose_file, services, active_profiles):
+def services_in_profiles(compose_file, active_profiles):
     """Check the services in the compose file and match them with active profiles."""
     services_in_profiles = []
     for service_name, service_data in load_compose_file(compose_file).get("services", {}).items():
         service_profiles = service_data.get("profiles", [])
         if not service_profiles or any(profile in active_profiles for profile in service_profiles):
-            if service_name in services:
-                services_in_profiles.append(service_name)
+            services_in_profiles.append(service_name)
     return services_in_profiles
 
 
