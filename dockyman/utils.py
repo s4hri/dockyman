@@ -11,7 +11,7 @@ from colorama import Fore
 def resolve_nodes_value(value):
     # Check if the string matches the pattern for an environment variable
     match = re.match(r'\$\{([^}]+)\}', str(value))
-    
+
     if match:
         # Extract the variable name
         variable_name = match.group(1)
@@ -52,7 +52,7 @@ class SwarmConfig:
         manager = None
         workers = []
 
-        if 'manager' in data['swarm'].keys(): 
+        if 'manager' in data['swarm'].keys():
             manager_data = data['swarm']['manager']
             manager = Manager(
                 id=str(resolve_nodes_value(manager_data['id'])),
@@ -180,7 +180,7 @@ def load_compose_file(compose_file_path):
 
 def services_for_nodes(compose_file, swarm, env_file=None):
     services = {}
-    
+
     for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
         target_node = swarm.manager
         labels = service_data.get('labels', {})
@@ -220,5 +220,5 @@ def get_docker_profiles(env_file):
     env_vars = load_env_variables(env_file)
     profiles = []
     if "COMPOSE_PROFILES" in env_vars.keys():
-        profiles = env_vars["COMPOSE_PROFILES"].split(',')        
+        profiles = env_vars["COMPOSE_PROFILES"].split(',')
     return profiles

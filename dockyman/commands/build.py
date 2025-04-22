@@ -48,7 +48,7 @@ def build_local(swarm):
 
 def generate_local_env_file_for_node(node, env_file, local_env_file):
     try:
-        click.echo(f"\t{Fore.CYAN} [.] Generating env file for node: {node.id}***")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Generating env file for node: {Fore.WHITE}{node.id}")
         user_uid = run_ssh_command(node.ssh_address, "id -u").strip()
         user_gid = run_ssh_command(node.ssh_address, "id -g").strip()
         xdg_runtime_dir = run_ssh_command(node.ssh_address, "echo $XDG_RUNTIME_DIR").strip()
@@ -67,7 +67,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
             group_ids_list.append(group_id)
 
         group_ids = ",".join(group_ids_list)
-                
+
         env_vars["USER_UID"] = user_uid
         env_vars["USER_GID"] = user_gid
         env_vars["GROUP_IDS"] = group_ids
@@ -86,7 +86,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
 def build_docker_base(compose_file, env_file, swarm):
     services = services_for_nodes(compose_file, swarm, env_file)
     for target_node, service_names in services.items():
-        click.echo(f"\t{Fore.CYAN} [.] Building BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
         build_docker_compose_service(compose_file, env_file, target_node, service_names)
 
 
@@ -98,7 +98,7 @@ def build_docker_local(compose_file, swarm, env_file):
         else:
             local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
         generate_local_env_file_for_node(target_node, env_file, local_env_file)
-        click.echo(f"\t{Fore.CYAN} [.] Building LOCAL services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building LOCAL services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
         build_docker_compose_service(compose_file, local_env_file, target_node, service_names)
 
 
@@ -113,7 +113,7 @@ def build_docker_compose_service(compose_file, env_file, node, services=None):
         for service_name, service in project_config.services.items():
             images.append(service.image)
 
-        click.echo(f"\t{Fore.CYAN} [.] Building image(s) {images} in the node: {Fore.WHITE}{node.id}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building image(s) {images} in the node: {Fore.WHITE}{node.id}")
 
         for log_type, log_message in docker.compose.build(services=services, stream_logs=True):
             if isinstance(log_message, tuple):

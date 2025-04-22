@@ -60,7 +60,7 @@ def perform_action(action, ssh_address):
             if click.confirm(question):
                 click.echo(f'{Fore.GREEN} Installing Docker Compose on {ssh_address}...')
                 install_docker_compose(ssh_address)
-        
+
         click.echo(f"\n{Fore.CYAN}*** Checking NVIDIA Docker on {ssh_address} ***")
         click.echo(f"{Fore.LIGHTBLACK_EX} Checking NVIDIA hardware...")
 
@@ -73,7 +73,7 @@ def perform_action(action, ssh_address):
                 if click.confirm(question):
                     click.echo(f'{Fore.GREEN} Installing NVIDIA Docker on {ssh_address}...')
                     install_nvidia_docker(ssh_address)
-    
+
         click.echo(f'\n{Fore.CYAN}*** Setup completed on {ssh_address} ***')
 
     elif action == 'uninstall':
@@ -104,7 +104,7 @@ def perform_action(action, ssh_address):
                     uninstall_nvidia_docker(ssh_address)
                 else:
                     click.echo(f'{Fore.YELLOW} NVIDIA Docker will not be uninstalled from {ssh_address}.')
-            
+
         click.echo(f'\n{Fore.CYAN}*** Uninstall completed on {ssh_address} ***')
 
     elif action == 'check':
@@ -231,13 +231,13 @@ def uninstall_nvidia_docker(ssh_address):
         "sudo rm -f /usr/bin/nvidia-container-toolkit",  # Remove additional binaries if they exist
         "sudo rm -rf /var/lib/nvidia-docker"
     ]
-    
+
     for command in commands:
         try:
             run_ssh_command(ssh_address, command)
         except Exception as e:
             click.echo(f"{Fore.YELLOW}  Warning: {str(e)}")
-    
+
     # Only restart Docker if the Docker service unit is present
     if is_docker_service_present(ssh_address):
         try:

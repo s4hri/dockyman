@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -21,8 +21,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-version: '3.8'
 
 services:
 
@@ -51,10 +49,6 @@ services:
       - type: bind
         source: /tmp/.X11-unix
         target: /tmp/.X11-unix
-
-      - type: bind
-        source: ${HOME}/.config/pulse/cookie
-        target: /run/pulse/cookie
 
       - type: bind
         source: ${XDG_RUNTIME_DIR:?err}/pulse

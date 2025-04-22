@@ -35,7 +35,7 @@ def remove_base(swarm):
 
     services = services_for_nodes(compose_file, swarm, env_file)
     for target_node, service_names in services.items():
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Cleaning BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Cleaning BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
         remove_docker_images(compose_file, env_file, target_node, service_names)
 
 
@@ -50,7 +50,7 @@ def remove_local(swarm):
             local_env_file = os.path.join(PREFIX_TARGET, '.env')
         else:
             local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Cleaning LOCAL services {service_names} in the node: {Fore.WHITE}{target_node.id}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Cleaning LOCAL services {service_names} in the node: {Fore.WHITE}{target_node.id}")
         remove_docker_images(compose_file, local_env_file, target_node, service_names)
 
 
@@ -60,7 +60,7 @@ def remove_docker_images(compose_file, env_file, node, services=None):
         # Stop and remove the service containers
         res = docker.compose.rm(services=services, stop=True)
         if res:
-            click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Stopping services defined in the compose file: {Fore.CYAN}{compose_file}")
+            click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Stopping services defined in the compose file: {Fore.WHITE}{compose_file}")
             for log_type, log_message in res:
                 if isinstance(log_message, tuple):
                     log_message = log_message[1]  # Extract the actual message part of the tuple
@@ -70,15 +70,15 @@ def remove_docker_images(compose_file, env_file, node, services=None):
                     click.echo(f"\t{Fore.LIGHTBLACK_EX}{log_message.decode('utf-8').strip()}")
                 elif log_type == "stderr":
                     click.echo(f"\t{Fore.RED}{log_message.decode('utf-8').strip()}", err=True)
-            
+
             click.echo(f"\t{Fore.GREEN} [✓] Service stopped successfully for {compose_file}.")
-        
+
         # Retrieve the Docker Compose project configuration
         project_config = docker.compose.config()
         images = []
         for service_name, service in project_config.services.items():
             images.append(service.image)
-        
+
         if images:
             for image in images:
                 # Now, remove the image associated with the service
@@ -87,7 +87,7 @@ def remove_docker_images(compose_file, env_file, node, services=None):
                 click.echo(f"\t{Fore.GREEN} [✓] Image {image} removed successfully!")
         else:
             click.echo(f"\t{Fore.RED} [x] No image found for node {node.id}")
-        
+
     except Exception as e:
         click.echo(f"\t{Fore.RED} [x] Error during remove process: {e}")
 

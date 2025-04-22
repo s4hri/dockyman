@@ -42,7 +42,7 @@ def check_node(node: Node):
 
 def check_ssh_connection(ssh_address):
     """Check if the SSH connection with the provided address is working."""
-    click.echo(f"\n{Fore.WHITE} 1. Checking SSH connection with: {ssh_address} ...")
+    click.echo(f"\n{Fore.WHITE} -> Checking SSH connection with: {ssh_address} ...")
     ssh_status = run_ssh_command(ssh_address, "echo 'SSH connection test'")
 
     if ssh_status:
@@ -54,7 +54,7 @@ def check_ssh_connection(ssh_address):
 
 def check_docker_daemon(docker_daemon_address):
     """Check if the Docker daemon is responding using python-on-whales."""
-    click.echo(f"\n{Fore.WHITE} 2. Checking Docker Daemon: {docker_daemon_address} ...")
+    click.echo(f"\n{Fore.WHITE} -> Checking Docker Daemon: {docker_daemon_address} ...")
 
     try:
         # Initialize DockerClient with the appropriate host
