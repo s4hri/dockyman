@@ -36,10 +36,7 @@ services:
     command: bash
 
     profiles:
-      - profileA
-
-    labels:
-      dockyman.node: local-node
+      - manager-node
 
     volumes:
       - type: bind
@@ -60,7 +57,4 @@ services:
       service: local
 
     profiles:
-      - profileB
-
-    labels:
-      dockyman.node: local-node
+      - other
