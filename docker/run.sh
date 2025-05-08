@@ -9,6 +9,7 @@ docker run --rm \
            -e DOCKER_BUILDKIT=1 \
            -e COMPOSE_DOCKER_CLI_BUILD=1 \
            -e DOCKER_GID=$(getent group docker | cut -d: -f3) \
+           -e DISPLAY="${DISPLAY}" \
            -v ${HOME}/.docker:/home/docky/.docker \
            -v ${HOME}/.ssh:/home/docky/.ssh \
            -v ${PWD}:${PWD} \
@@ -17,4 +18,3 @@ docker run --rm \
            --network host \
            --privileged \
            -it --entrypoint /bin/bash $DOCKYMAN_IMAGE_NAME:$DOCKYMAN_VER
-

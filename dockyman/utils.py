@@ -2,8 +2,8 @@ import click
 import os
 import paramiko
 import yaml
-from urllib.parse import urlparse
 import re
+from urllib.parse import urlparse
 from dockyman.config import LOCAL_UID, LOCAL_GID
 from colorama import Fore
 
@@ -91,31 +91,97 @@ class SwarmConfig:
             # If no node is found with the given ID, return None
             return None
 
-def get_swarm(file_path="nodes.yaml"):
-    """Load nodes configuration from a YAML file and parse into objects."""
+def get_swarm(file_path=None):
+    """
+    Load swarm configuration from dockyman.yaml and return SwarmConfig object.
+    """
+    if file_path is None:
+        file_path = os.path.join(os.path.dirname(__file__), "model", "dockyman.yaml")
+
     with open(file_path, 'r') as file:
-        data = yaml.safe_load(file)
+        config = yaml.safe_load(file)
 
-    # Create the SwarmConfig object from the parsed YAML data
-    swarm_config = SwarmConfig.from_dict(data)
-
-    return swarm_config
+    return SwarmConfig.from_dict(config)
 
 def get_dockyman_version():
-    """Reads the version from the dockyman.env file."""
-    version = None
-    env_file_path = os.path.join(os.path.dirname(__file__), 'model', 'dockyman.env')
+    """
+    Reads the dockyman_version from the dockyman.yaml file.
+    """
+    yaml_path = os.path.join(os.path.dirname(__file__), 'model', 'dockyman.yaml')
+
     try:
-        with open(env_file_path, 'r') as file:
-            for line in file:
-                if line.startswith("DOCKYMAN_VER="):
-                    version = line.split('=')[1].strip()
-                    break
+        with open(yaml_path, 'r') as file:
+            config = yaml.safe_load(file)
+            return config.get("project", {}).get("dockyman_version", "Unknown")
     except FileNotFoundError:
-        version = "Unknown (dockyman.env not found)"
-    if not version:
-        version = "Unknown"
-    return version
+        return "Unknown (dockyman.yaml not found)"
+    except Exception as e:
+        return f"Unknown (error reading dockyman.yaml: {e})"
+
+def get_dockyman_base_config(config_filepath):
+    """
+    Parses the build.env YAML file and returns absolute paths
+    for the base build compose_file and env_file.
+
+    Args:
+        config_filepath (str): Path to the dockyman.env YAML file.
+
+    Returns:
+        (str, str): Tuple of (compose_file_path, env_file_path)
+    """
+    with open(config_filepath, "r") as f:
+        config = yaml.safe_load(f)
+
+    try:
+        base_config = config["project"]["build"]["base"]
+        compose_path = os.path.normpath(os.path.join(os.path.dirname(config_filepath), base_config["compose_file"]))
+        env_path = os.path.normpath(os.path.join(os.path.dirname(config_filepath), base_config["env_file"]))
+        return compose_path, env_path
+    except KeyError as e:
+        raise ValueError(f"Missing expected key in dockyman.env: {e}")
+
+def get_dockyman_local_config(config_filepath):
+    """
+    Parses the dockyman.yaml YAML file and returns absolute paths
+    for the local build compose_file and env_file.
+
+    Args:
+        config_filepath (str): Path to the dockyman.env YAML file.
+
+    Returns:
+        (str, str): Tuple of (compose_file_path, env_file_path)
+    """
+    with open(config_filepath, "r") as f:
+        config = yaml.safe_load(f)
+
+    try:
+        local_config = config["project"]["build"]["local"]
+        compose_path = os.path.normpath(os.path.join(os.path.dirname(config_filepath), local_config["compose_file"]))
+        return compose_path
+    except KeyError as e:
+        raise ValueError(f"Missing expected key in dockyman.env: {e}")
+
+def get_dockyman_runtime_config(config_filepath):
+    """
+    Parses the dockyman.yaml YAML file and returns absolute paths
+    for the runtime compose_file and env_file.
+
+    Args:
+        config_filepath (str): Path to the dockyman.env YAML file.
+
+    Returns:
+        (str, str): Tuple of (compose_file_path, env_file_path)
+    """
+    with open(config_filepath, "r") as f:
+        config = yaml.safe_load(f)
+
+    try:
+        runtime_config = config["project"]["runtime"]
+        compose_path = os.path.normpath(os.path.join(os.path.dirname(config_filepath), runtime_config["compose_file"]))
+        env_path = os.path.normpath(os.path.join(os.path.dirname(config_filepath), runtime_config["env_file"]))
+        return compose_path, env_path
+    except KeyError as e:
+        raise ValueError(f"Missing expected key in dockyman.env: {e}")
 
 def run_ssh_command(ssh_address, command):
     try:
@@ -126,35 +192,35 @@ def run_ssh_command(ssh_address, command):
         username = url.username
         port = url.port if url.port else 22  # Default to port 22 if not specified
 
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Connecting to {hostname} as {username} on port {port} ...")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX}[.] Connecting to {hostname} as {username} on port {port} ...")
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=hostname, username=username, port=port, allow_agent=False)
 
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Executing command: {command}")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX}[.] Executing command: {command}")
 
         stdin, stdout, stderr = ssh.exec_command(command)
         result = stdout.read().decode().strip()
         exit_status = stdout.channel.recv_exit_status()
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX}[.] Executing command: {command} {Fore.LIGHTBLACK_EX} Exit status: {exit_status} Command output: {Fore.WHITE} {result}")
         if exit_status != 0:
             error_message = stderr.read().decode().strip()
-            click.echo(f"\t{Fore.YELLOW} [.] Command failed on {hostname}: Error message: {error_message}")
+            click.echo(f"\t{Fore.YELLOW}[.] Command failed on {hostname}: Error message: {error_message}")
             return False
         ssh.close()
         return result
     except paramiko.ssh_exception.NoValidConnectionsError as e:
-        click.echo(f"\t{Fore.RED} [x] Connection failed to {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED}[x] Connection failed to {ssh_address}: {str(e)}")
         return False
     except paramiko.ssh_exception.AuthenticationException as e:
-        click.echo(f"\t{Fore.RED} [x] Authentication failed for {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED}[x] Authentication failed for {ssh_address}: {str(e)}")
         return False
     except paramiko.ssh_exception.SSHException as e:
-        click.echo(f"\t{Fore.RED} [x] SSH error occurred while connecting to {ssh_address}: {str(e)}")
+        click.echo(f"\t{Fore.RED}[x] SSH error occurred while connecting to {ssh_address}: {str(e)}")
         return False
     except Exception as e:
-        click.echo(f"\t{Fore.YELLOW} [!]  {str(e)}")
+        click.echo(f"\t{Fore.YELLOW}[!]  {str(e)}")
         return False
 
 def load_env_variables(env_file):
@@ -180,28 +246,29 @@ def load_compose_file(compose_file_path):
 
 def services_for_nodes(compose_file, swarm, env_file=None):
     services = {}
+    print(compose_file, swarm, env_file)
 
     for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
-        target_node = swarm.manager
-        labels = service_data.get('labels', {})
-        node_label = labels.get('dockyman.node')
         service_profiles = service_data.get("profiles", [])
-        if node_label:
-            node = swarm.get_node_from_id(node_id=node_label)
-            if node:
-                if node != swarm.manager:
-                    target_node = node
+        env_profiles = get_docker_profiles(env_file)
 
-        if env_file:
-            profiles = get_docker_profiles(env_file)
+        # Check if the service has profiles
+        if service_profiles:
+            # Check if any of the service profiles match the active profiles
+            if any(profile in env_profiles for profile in service_profiles):
+
+                for profile in service_profiles:
+                    # if profile corresponds to a node id then add the serviece to the node
+                    node = swarm.get_node_from_id(node_id=profile)
+                    if node:
+                        target_node = node
+                        if target_node not in services.keys():
+                            services[target_node] = []
+                        services[target_node].append(service_name)
         else:
-            profiles = service_profiles
-
-        if not service_profiles or any(profile in profiles for profile in service_profiles):
-            if target_node in services.keys():
-                services[target_node].append(service_name)
-            else:
-                services[target_node] = [service_name]
+            if target_node not in services.keys():
+                services[target_node] = []
+            services[target_node].append(service_name)
     return services
 
 def services_in_profiles(compose_file, active_profiles):

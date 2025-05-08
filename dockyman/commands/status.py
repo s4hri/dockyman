@@ -7,70 +7,71 @@ from dockyman.utils import get_swarm, run_ssh_command, Node
 
 
 @click.command()
-@click.argument('nodes_file', required=False, default='nodes.yaml')
-@click.option('--ssh_address', required=False)
-@click.option('--docker_daemon_address', required=False)
-def status_command(nodes_file, ssh_address, docker_daemon_address):
-    """Check the status of the Docker Swarm nodes defined in the config file."""
-
+@click.argument('config_file', required=False, default='dockyman.yaml')
+@click.option('--ssh_address', help='Directly test an SSH address', required=False)
+@click.option('--docker_daemon_address', help='Directly test a Docker daemon address', required=False)
+def status_command(config_file, ssh_address, docker_daemon_address):
+    """
+    Check the status of Docker Swarm nodes defined in the dockyman.yaml config,
+    or test specific addresses directly using --ssh_address / --docker_daemon_address.
+    """
     if ssh_address or docker_daemon_address:
         if ssh_address:
             check_ssh_connection(ssh_address)
         if docker_daemon_address:
             check_docker_daemon(docker_daemon_address)
     else:
-        try:
-            nodes_file_path = os.path.join(PREFIX_TARGET, nodes_file)
-            swarm = get_swarm(nodes_file_path)
+        config_path = os.path.join(PREFIX_TARGET, config_file)
 
-            # Check the manager node
+        try:
+            swarm = get_swarm(config_path)
+
             click.echo(f"{Fore.CYAN}*** Checking Manager Node: {swarm.manager.id} ***")
             check_node(swarm.manager)
 
-            # Check the worker nodes
             for worker in swarm.workers:
                 click.echo(f"{Fore.CYAN}*** Checking Worker Node: {worker.id} ***")
                 check_node(worker)
+
         except Exception as e:
-            click.echo(f"{Fore.RED} Please provide a valid nodes file path or options.")
+            click.echo(f"{Fore.RED}[x] Error: {e}")
+            click.echo(f"{Fore.RED}[x] Could not load or parse config file: {config_path}")
 
 
 def check_node(node: Node):
-    """Check the SSH connection and Docker daemon for a given node."""
+    """Run full check (SSH + Docker) for a single node."""
     check_ssh_connection(node.ssh_address)
     check_docker_daemon(node.docker_daemon_address)
 
+
 def check_ssh_connection(ssh_address):
-    """Check if the SSH connection with the provided address is working."""
+    """Test SSH connectivity to a node."""
     click.echo(f"\n{Fore.WHITE} -> Checking SSH connection with: {ssh_address} ...")
     ssh_status = run_ssh_command(ssh_address, "echo 'SSH connection test'")
 
     if ssh_status:
-        click.echo(f"\t{Fore.GREEN} [✓] SSH connection to {ssh_address} is successful!")
+        click.echo(f"\t{Fore.GREEN}[✓] SSH connection to {ssh_address} successful!")
         return True
     else:
-        click.echo(f"\t{Fore.RED} [x] Failed to connect via SSH to {ssh_address}.")
+        click.echo(f"\t{Fore.RED}[x] SSH connection to {ssh_address} failed.")
         return False
 
+
 def check_docker_daemon(docker_daemon_address):
-    """Check if the Docker daemon is responding using python-on-whales."""
+    """Test Docker daemon accessibility via python-on-whales."""
     click.echo(f"\n{Fore.WHITE} -> Checking Docker Daemon: {docker_daemon_address} ...")
 
     try:
-        # Initialize DockerClient with the appropriate host
         docker = DockerClient(host=docker_daemon_address)
-
-        # Retrieve Docker version to verify the connection
         version_info = docker.version()
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Docker Version in your system: {version_info.server.version}")
-        click.echo(f"\t{Fore.LIGHTBLACK_EX} [.] Docker Version in current Dockyman: {version_info.client.version}")
-        click.echo(f"\t{Fore.GREEN} [✓] Docker daemon at {docker_daemon_address} is responding!")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX}[.] Host Docker version: {version_info.server.version}")
+        click.echo(f"\t{Fore.LIGHTBLACK_EX}[.] Client Docker version: {version_info.client.version}")
+        click.echo(f"\t{Fore.GREEN}[✓] Docker daemon at {docker_daemon_address} is responding!")
         return True
-
     except Exception as e:
-        click.echo(f"\t{Fore.RED} [x] Docker Daemon Error: {str(e)}")
-        click.echo(f"\t{Fore.RED} [x] Failed to connect to Docker daemon at {docker_daemon_address}.")
+        click.echo(f"\t{Fore.RED}[x] Docker Daemon Error: {str(e)}")
         return False
+
 
 if __name__ == '__main__':
     status_command()

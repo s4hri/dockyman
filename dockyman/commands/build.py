@@ -3,47 +3,53 @@ import os
 
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.utils import run_ssh_command, get_swarm, load_env_variables, generate_env_file, get_docker_profiles, services_for_nodes
 from dockyman.commands.setup import has_nvidia_hardware
 from dockyman.config import PREFIX_TARGET, DISPLAY
-
+from dockyman.utils import (
+    run_ssh_command, 
+    get_swarm, 
+    load_env_variables, 
+    generate_env_file,
+    services_for_nodes, 
+    get_dockyman_base_config,
+    get_dockyman_local_config
+)
 
 # Future work: Consider buildx to build multi-platform images
 # https://docs.docker.com/buildx/working-with-buildx/
 
 @click.command(help="Build Docker containers using Docker Compose.")
 @click.argument('target', required=False, default='both')
-@click.argument('nodes_file', required=False, default='nodes.yaml')
-def build_command(target, nodes_file):
+@click.argument('config_file', required=False, default='dockyman.yaml')
+def build_command(config_file, target):
     """Build Docker containers using Docker Compose for 'base' and/or 'local' configurations."""
 
     swarm = None
     try:
-        nodes_file_path = os.path.join(PREFIX_TARGET, nodes_file)
-        swarm = get_swarm(nodes_file_path)
+        config_filepath = os.path.join(PREFIX_TARGET, config_file)
+        swarm = get_swarm(config_filepath)
+        compose_base_filepath, env_base_filepath = get_dockyman_base_config(config_filepath)
+        compose_local_filepath = get_dockyman_local_config(config_filepath)
+
     except FileNotFoundError:
-        click.echo(f"\n{Fore.RED}Error: Nodes configuration file not found.")
+        click.echo(f"\n{Fore.RED}[x] Error: Could not load or parse config file: {config_filepath}")
         raise click.Abort()
 
     if target == 'base' or target == 'both':
         click.echo(f"\n{Fore.CYAN}*** Building BASE images ***")
-        build_base(swarm)
+        build_base(swarm, compose_base_filepath, env_base_filepath)
 
     if target == 'local' or target == 'both':
         click.echo(f"\n{Fore.CYAN}*** Building LOCAL images ***")
-        build_local(swarm)
+        build_local(swarm, compose_local_filepath, env_base_filepath)
 
-def build_base(swarm):
+def build_base(swarm, compose_filepath, env_filepath):
     """Build base containers using Docker Compose."""
-    compose_file = os.path.join(PREFIX_TARGET, 'base/compose.yaml')
-    env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-    build_docker_base(compose_file, env_file, swarm)
+    build_docker_base(compose_filepath, env_filepath, swarm)
 
-def build_local(swarm):
+def build_local(swarm, compose_filepath, env_filepath):
     """Build local containers using Docker Compose."""
-    compose_file = os.path.join(PREFIX_TARGET, 'local/compose.yaml')
-    env_file = os.path.join(PREFIX_TARGET, 'dockyman.env')
-    build_docker_local(compose_file, swarm, env_file)
+    build_docker_local(compose_filepath, env_filepath, swarm)
 
 
 def generate_local_env_file_for_node(node, env_file, local_env_file):
@@ -86,24 +92,24 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
 def build_docker_base(compose_file, env_file, swarm):
     services = services_for_nodes(compose_file, swarm, env_file)
     for target_node, service_names in services.items():
-        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building BASE services {service_names} defined in the compose file: {Fore.WHITE}{compose_file} (env_file: {env_file})")
         build_docker_compose_service(compose_file, env_file, target_node, service_names)
 
 
-def build_docker_local(compose_file, swarm, env_file):
-    services = services_for_nodes(compose_file, swarm, env_file)
+def build_docker_local(compose_file, base_env_file, swarm):
+    services = services_for_nodes(compose_file, swarm, base_env_file)
     for target_node, service_names in services.items():
         if target_node == swarm.manager:
             local_env_file = os.path.join(PREFIX_TARGET, '.env')
         else:
             local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-        generate_local_env_file_for_node(target_node, env_file, local_env_file)
-        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building LOCAL services {service_names} defined in the compose file: {Fore.WHITE}{compose_file}")
+        generate_local_env_file_for_node(target_node, base_env_file, local_env_file)
+        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building LOCAL services {service_names} defined in the compose file: {Fore.WHITE}{compose_file} (env_file: {local_env_file})")
         build_docker_compose_service(compose_file, local_env_file, target_node, service_names)
 
 
 
-def build_docker_compose_service(compose_file, env_file, node, services=None):
+def build_docker_compose_service(compose_file, env_file, node, services):
     try:
         docker = DockerClient(host=node.docker_daemon_address, compose_files=[compose_file], compose_env_files=[env_file])
 
@@ -111,7 +117,8 @@ def build_docker_compose_service(compose_file, env_file, node, services=None):
         project_config = docker.compose.config()
         images = []
         for service_name, service in project_config.services.items():
-            images.append(service.image)
+            if service_name in services:
+                images.append(service.image)
 
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building image(s) {images} in the node: {Fore.WHITE}{node.id}")
 
