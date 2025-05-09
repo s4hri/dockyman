@@ -36,14 +36,14 @@ services:
     profiles:
       - manager-node
 
-  project.aux:
-    image: ${BASE_IMAGE_NAME:?err}-aux
+  # project.aux:
+  #   image: ${BASE_IMAGE_NAME:?err}-aux
 
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
     
-    profiles:
-      - worker-node
+  #   profiles:
+  #     - worker-node

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2024 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -48,13 +48,13 @@ services:
         target: /var/dockyman/scripts
 
 
-  aux:
-    image: ${LOCAL_IMAGE_NAME:?err}
-    container_name: ${PROJECT_NAME:?err}_${VERSION:?err}_auxiliary
+  # aux:
+  #   image: ${LOCAL_IMAGE_NAME:?err}
+  #   container_name: ${PROJECT_NAME:?err}_${VERSION:?err}_auxiliary
 
-    extends:
-      file: profiles/local.yaml
-      service: local
+  #   extends:
+  #     file: profiles/local.yaml
+  #     service: local
 
-    profiles:
-      - other
+  #   profiles:
+  #     - worker-node

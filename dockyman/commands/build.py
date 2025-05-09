@@ -1,3 +1,27 @@
+# MIT License
+#
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
+#                    Author: Davide De Tommaso (davide.detommaso@iit.it)
+#                    Project: Dockyman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import click
 import os
 
@@ -12,7 +36,8 @@ from dockyman.utils import (
     generate_env_file,
     services_for_nodes, 
     get_dockyman_base_config,
-    get_dockyman_local_config
+    get_dockyman_local_config,
+    load_extra_env_vars_from_dockyman
 )
 
 # Future work: Consider buildx to build multi-platform images
@@ -28,6 +53,7 @@ def build_command(config_file, target):
     try:
         config_filepath = os.path.join(PREFIX_TARGET, config_file)
         swarm = get_swarm(config_filepath)
+        extra_env_vars = load_extra_env_vars_from_dockyman(config_filepath)
         compose_base_filepath, env_base_filepath = get_dockyman_base_config(config_filepath)
         compose_local_filepath = get_dockyman_local_config(config_filepath)
 
@@ -41,26 +67,26 @@ def build_command(config_file, target):
 
     if target == 'local' or target == 'both':
         click.echo(f"\n{Fore.CYAN}*** Building LOCAL images ***")
-        build_local(swarm, compose_local_filepath, env_base_filepath)
+        build_local(swarm, compose_local_filepath, env_base_filepath, extra_env_vars)
 
 def build_base(swarm, compose_filepath, env_filepath):
     """Build base containers using Docker Compose."""
     build_docker_base(compose_filepath, env_filepath, swarm)
 
-def build_local(swarm, compose_filepath, env_filepath):
+def build_local(swarm, compose_filepath, env_filepath, extra_env_vars):
     """Build local containers using Docker Compose."""
-    build_docker_local(compose_filepath, env_filepath, swarm)
+    build_docker_local(compose_filepath, env_filepath, swarm, extra_env_vars)
 
 
-def generate_local_env_file_for_node(node, env_file, local_env_file):
+def generate_local_env_file_for_node(node, env_file, local_env_file, extra_env_vars=None):
     try:
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Generating env file for node: {Fore.WHITE}{node.id}")
         user_uid = run_ssh_command(node.ssh_address, "id -u").strip()
         user_gid = run_ssh_command(node.ssh_address, "id -g").strip()
         xdg_runtime_dir = run_ssh_command(node.ssh_address, "echo $XDG_RUNTIME_DIR").strip()
 
-        # Load all variables from dockyman.env
         env_vars = load_env_variables(env_file)
+        env_vars.update(extra_env_vars)
 
         local_groups = env_vars["LOCAL_IMAGE_GROUPS"].strip()
         group_names = [group.strip() for group in local_groups.split(",") if group.strip()]
@@ -74,20 +100,19 @@ def generate_local_env_file_for_node(node, env_file, local_env_file):
 
         group_ids = ",".join(group_ids_list)
 
-        env_vars["USER_UID"] = user_uid
-        env_vars["USER_GID"] = user_gid
-        env_vars["GROUP_IDS"] = group_ids
-        env_vars["XDG_RUNTIME_DIR"] = xdg_runtime_dir
-        env_vars["DISPLAY"] = DISPLAY
+        env_vars.update({
+            "USER_UID": user_uid,
+            "USER_GID": user_gid,
+            "GROUP_IDS": group_ids,
+            "XDG_RUNTIME_DIR": xdg_runtime_dir,
+            "DISPLAY": DISPLAY,
+            "GPU_PROFILE": 'nvidia-gpu' if has_nvidia_hardware(node.ssh_address) else 'no-gpu',
+        })
 
-        # Determine GPU_PROFILE
-        if has_nvidia_hardware(node.ssh_address):
-            env_vars["GPU_PROFILE"] = 'nvidia-gpu'
-        else:
-            env_vars["GPU_PROFILE"] = 'no-gpu'
         generate_env_file(local_env_file, env_vars)
     except Exception as e:
-        click.echo(f"\t{Fore.RED} [x] Error generating env file for service for node {node.id} process: {e}")
+        click.echo(f"\t{Fore.RED} [x] Error generating env file for node {node.id}: {e}")
+
 
 def build_docker_base(compose_file, env_file, swarm):
     services = services_for_nodes(compose_file, swarm, env_file)
@@ -96,14 +121,14 @@ def build_docker_base(compose_file, env_file, swarm):
         build_docker_compose_service(compose_file, env_file, target_node, service_names)
 
 
-def build_docker_local(compose_file, base_env_file, swarm):
+def build_docker_local(compose_file, base_env_file, swarm, extra_env_vars):
     services = services_for_nodes(compose_file, swarm, base_env_file)
     for target_node, service_names in services.items():
         if target_node == swarm.manager:
             local_env_file = os.path.join(PREFIX_TARGET, '.env')
         else:
             local_env_file = os.path.join(PREFIX_TARGET, '.env-' + target_node.id)
-        generate_local_env_file_for_node(target_node, base_env_file, local_env_file)
+        generate_local_env_file_for_node(target_node, base_env_file, local_env_file, extra_env_vars)
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building LOCAL services {service_names} defined in the compose file: {Fore.WHITE}{compose_file} (env_file: {local_env_file})")
         build_docker_compose_service(compose_file, local_env_file, target_node, service_names)
 

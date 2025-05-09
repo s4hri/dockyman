@@ -1,3 +1,27 @@
+# MIT License
+#
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
+#                    Author: Davide De Tommaso (davide.detommaso@iit.it)
+#                    Project: Dockyman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import click
 import os
 import paramiko
@@ -246,8 +270,7 @@ def load_compose_file(compose_file_path):
 
 def services_for_nodes(compose_file, swarm, env_file=None):
     services = {}
-    print(compose_file, swarm, env_file)
-
+    
     for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
         service_profiles = service_data.get("profiles", [])
         env_profiles = get_docker_profiles(env_file)
@@ -288,3 +311,27 @@ def get_docker_profiles(env_file):
     if "COMPOSE_PROFILES" in env_vars.keys():
         profiles = env_vars["COMPOSE_PROFILES"].split(',')
     return profiles
+
+
+def load_extra_env_vars_from_dockyman(config_path):
+    """
+    Load extra environment variables from 'environments_extra' in dockyman.yaml.
+
+    Returns:
+        dict: {VAR: VALUE} parsed from list of 'KEY=VALUE' strings.
+    """
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        extras = config.get("environments_extra", [])
+        extra_vars = {}
+
+        for item in extras:
+            if '=' in item:
+                key, value = item.split('=', 1)
+                extra_vars[key.strip()] = value.strip()
+
+        return extra_vars
+    except Exception as e:
+        raise RuntimeError(f"Failed to parse environments_extra: {e}")

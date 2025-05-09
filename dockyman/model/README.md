@@ -1,5 +1,4 @@
-
-# Dockyman v2.4 Documentation
+# Dockyman v3.0 Documentation
 
 Dockyman is designed to streamline building and deploying Docker containers across multiple nodes. It is particularly suited for scenarios that require mirroring local devices and user/group permissions between the container and the host machine. Dockyman makes it easy to manage containers in a distributed system, ensuring that your applications run with the necessary permissions and access to host resources.
 
@@ -13,23 +12,16 @@ Dockyman is designed to streamline building and deploying Docker containers acro
    - [Setting up Your Environment](#setting-up-your-environment)
    - [Setting Up SSH Access (Passwordless) for Dockyman Nodes](#setting-up-ssh-access-passwordless-for-dockyman-nodes)
 5. [Configuration](#configuration)
-   - [dockyman.env](#customizing-dockymanenv)
-   - [nodes.yaml](#customizing-nodesyaml)
-   - [compose.yaml](#customizing-composeyaml)
-   - [base/compose.yaml](#customizing-basecomposeyaml)
-   - [local/compose.yaml](#customizing-localcomposeyaml)
+   - [dockyman.yaml](#dockymanyaml)
+   - [build.env](#buildenv)
 6. [Commands](#commands)
-   - [Status](#status-command)
-   - [Setup](#setup-command)
    - [Build](#build-command)
    - [Pull](#pull-command)
    - [Push](#push-command)
    - [Run](#run-command)
    - [Stop](#stop-command)
+   - [Clean](#clean-command)
 7. [Best Practices](#best-practices)
-   - [Security Considerations](#security-considerations)
-   - [Managing Node Configurations](#managing-node-configurations)
-   - [Logging and Error Handling](#logging-and-error-handling)
 8. [Contributing](#contributing)
 9. [Support](#support)
 10. [License](#license)
@@ -52,136 +44,74 @@ Dockyman is designed for managing Docker environments across multiple nodes with
 
 ## Folder Structure
 
-- **`dockyman.env`**: Contains environment variables used throughout the Dockyman configuration.
-- **`nodes.yaml`**: Defines the Docker Swarm configuration, including manager and worker nodes.
-- **`compose.yaml`**: Main Docker Compose file orchestrating services across nodes.
-- **`base/compose.yaml`**: Docker Compose file for building the base Docker image(s).
-- **`local/compose.yaml`**: Docker Compose file for building the local Docker image(s).
-- **`base/Dockerfile`** and **`local/Dockerfile`**: Define the Dockerfiles for building base and local images.
+- **`dockyman.yaml`**: Central configuration file for project build and runtime.
+- **`build.env`**: Environment variables used during the image build process.
+- **`compose.yaml`**: Main Docker Compose file for runtime.
+- **`base/compose.yaml`**: Compose file for base image builds.
+- **`local/compose.yaml`**: Compose file for local image builds.
 
 ---
 
 ## Installation
 
-To install Dockyman, run the following commands:
-
 ```bash
 git clone https://github.com/s4hri/dockyman
-git checkout v2.x
+git checkout v3.0
 cd dockyman
 cd dockyman/model/.dockyman_installer
 bash install.sh
-```
-
-Alternatively, use the script: (NOT YET AVAILABLE!)
-
-```bash
-sh -c 'curl -O https://raw.githubusercontent.com/s4hri/dockyman/v2.0/dockyman/model/.dockyman_installer/dockyman.sh && sudo mv dockyman.sh /usr/local/bin/dockyman'
 ```
 
 ---
 
 ## Getting Started
 
-### Setting Up SSH Access (Passwordless) for Dockyman Nodes
-
-Before starting with Dockyman, it is essential to configure SSH access without a password between the host machine and all machines defined in `nodes.yaml`. This is required for Dockyman to manage nodes seamlessly.
-
-Follow these steps to set up passwordless SSH access:
-
-1. **Generate an SSH Key Pair** (if you don’t already have one):
-
-   ```bash
-   ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-   ```
-
-   - When prompted, press Enter to accept the default file location (`~/.ssh/id_rsa`).
-   - Leave the passphrase empty for passwordless access.
-
-2. **Copy the Public Key to Each Node**:
-
-   For each machine defined in `nodes.yaml`, copy the public key to the authorized keys list using `ssh-copy-id`:
-
-   ```bash
-   ssh-copy-id user@node-ip-address
-   ```
-
-   Replace `user` with the SSH username and `node-ip-address` with the machine’s IP address defined in `nodes.yaml`.
-
-3. **Verify Passwordless Access**:
-
-   Test the connection to ensure that you can access each machine without being prompted for a password:
-
-   ```bash
-   ssh user@node-ip-address
-   ```
-
-   If you are not prompted for a password, the setup is complete.
-
----
-
-### Note:
-- Ensure the same SSH key is used for all nodes.
-- Avoid exposing private keys to public repositories.
-- If `ssh-copy-id` is not available, manually append the contents of your `~/.ssh/id_rsa.pub` to the `~/.ssh/authorized_keys` file on each node.
-
----
-
 ### Initialize Dockyman Template
-
-From the directory of your repository, run:
+As first entrypoint, you can start initializing the template into a specific folder `test`:
 
 ```bash
+mkdir test
+cd test
 dockyman init .
 ```
 
 ### Setting up Your Environment
 
-1. **Set Up Environment Variables**: Customize the `dockyman.env` file to match your environment’s needs.
-2. **Configure Nodes**: Define the manager and worker nodes in the `nodes.yaml` file.
-3. **Prepare Docker Compose Files**: Edit `compose.yaml`, `base/compose.yaml`, and `local/compose.yaml` to configure your services.
+1. Edit `dockyman.yaml` to set up project-specific build/runtime files and configuring the nodes.
+2. Define environment variables in `build.env`.
+
+---
+
+### Setting Up SSH Access (Passwordless) for Dockyman Nodes
+
+Follow standard SSH key generation and `ssh-copy-id` process to ensure passwordless SSH access between manager and worker nodes.
+
+---
 
 ## Configuration
 
-### dockyman.env
+### dockyman.yaml
 
-Customize this file to set environment variables such as base image sources, user/group configurations, and project names.
+Main configuration file for:
+- Build config (base/local)
+- Runtime config
+- Swarm nodes
+- Additional environments
 
-### nodes.yaml
+### build.env
 
-Defines the network configuration for manager and worker nodes.
-
-### compose.yaml
-
-Main Docker Compose file orchestrating services across nodes.
-
-### base/compose.yaml and local/compose.yaml
-
-Customize these files for building base and local Docker images during the building process.
+Used during builds. Includes:
+- Image tags
+- User/group settings
+- Profiles for compose
 
 ---
 
 ## Commands
 
-### Status Command
-
-Check the status of nodes and SSH connections:
-
-```bash
-dockyman status
-```
-
-### Setup Command
-
-Check, install, or uninstall required software:
-
-```bash
-dockyman setup check
-```
-
 ### Build Command
 
-Build the base and local Docker images:
+Build base and local images:
 
 ```bash
 dockyman build
@@ -189,7 +119,7 @@ dockyman build
 
 ### Pull Command
 
-Pull Docker base images:
+Pull base images:
 
 ```bash
 dockyman pull
@@ -197,7 +127,7 @@ dockyman pull
 
 ### Push Command
 
-Push Docker base images to a registry:
+Push base images:
 
 ```bash
 dockyman push
@@ -205,7 +135,7 @@ dockyman push
 
 ### Run Command
 
-Deploy the local images:
+Run services on the swarm nodes:
 
 ```bash
 dockyman run
@@ -213,51 +143,42 @@ dockyman run
 
 ### Stop Command
 
-Stop running services:
+Stop and bring down services:
 
 ```bash
 dockyman stop
+```
+
+### Clean Command
+
+Remove containers and images:
+
+```bash
+dockyman clean
 ```
 
 ---
 
 ## Best Practices
 
-### Security Considerations
-
-- Use Docker secrets for sensitive data.
-- Ensure Docker containers run with correct user permissions.
-
-### Managing Node Configurations
-
-- Regularly test SSH and Docker daemon connectivity.
-- Consider dynamic configuration automation if your environment is highly dynamic.
-
-### Logging and Error Handling
-
-- Implement centralized logging for easier monitoring.
-- Set up alerts for critical errors during Docker operations.
+- Use `.env` files carefully and securely.
+- SSH into nodes to test permissions and Docker socket access.
+- Use `DOCKER_LOGS=true` in your env file to enable automatic log streaming.
 
 ---
 
 ## Contributing
 
-We welcome contributions! Follow these steps to contribute:
-
-1. Fork the repository.
-2. Clone your fork.
-3. Create a new branch.
-4. Make changes and test them.
-5. Push your changes and submit a pull request.
+Feel free to fork, branch, and submit pull requests!
 
 ---
 
 ## Support
 
-If you encounter issues, refer to the [GitHub repository](https://github.com/s4hri/dockyman) to open an issue or browse the documentation.
+For help, submit an issue via the [GitHub repository](https://github.com/s4hri/dockyman/issues).
 
 ---
 
 ## License
 
-Dockyman is licensed under the [MIT License](https://github.com/s4hri/dockyman/LICENSE).
+Licensed under the [MIT License](https://github.com/s4hri/dockyman/blob/main/LICENSE).
