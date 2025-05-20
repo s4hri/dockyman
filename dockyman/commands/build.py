@@ -28,7 +28,7 @@ import os
 from python_on_whales import DockerClient
 from colorama import Fore
 from dockyman.commands.setup import has_nvidia_hardware
-from dockyman.config import PREFIX_TARGET, DISPLAY
+from dockyman.config import PREFIX_TARGET, DISPLAY, LOCALHOST_USER
 from dockyman.utils import (
     run_ssh_command, 
     get_swarm, 
@@ -106,6 +106,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file, extra_env_v
             "GROUP_IDS": group_ids,
             "XDG_RUNTIME_DIR": xdg_runtime_dir,
             "DISPLAY": DISPLAY,
+            "USER": LOCALHOST_USER,
             "GPU_PROFILE": 'nvidia-gpu' if has_nvidia_hardware(node.ssh_address) else 'no-gpu',
         })
 
