@@ -51,6 +51,10 @@ services:
         target: /tmp/.X11-unix
 
       - type: bind
+        source: /home/${USER}/.config/pulse/cookie
+        target: /run/pulse/cookie
+      
+      - type: bind
         source: ${XDG_RUNTIME_DIR:?err}/pulse
         target: ${XDG_RUNTIME_DIR:?err}/pulse
 
