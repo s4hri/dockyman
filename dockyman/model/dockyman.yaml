@@ -25,10 +25,10 @@ swarm:
   workers: []
 
     # - id: worker-node
-    #   host: 192.168.0.2
+    #   host: 192.168.1.1
     #   user: myuser
     #   ssh_port: 22
-    #   docker_daemon_address: ssh://myuser@192.168.0.2
+    #   docker_daemon_address: ssh://myuser@192.168.1.1
 
 environments_extra:
-  - DOCKER_LOGS=false
+  - DOCKER_LOGS=true

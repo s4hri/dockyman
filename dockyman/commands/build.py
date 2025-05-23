@@ -83,6 +83,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file, extra_env_v
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Generating env file for node: {Fore.WHITE}{node.id}")
         user_uid = run_ssh_command(node.ssh_address, "id -u").strip()
         user_gid = run_ssh_command(node.ssh_address, "id -g").strip()
+        user_name = run_ssh_command(node.ssh_address, "id -un").strip()
         xdg_runtime_dir = run_ssh_command(node.ssh_address, "echo $XDG_RUNTIME_DIR").strip()
 
         env_vars = load_env_variables(env_file)
@@ -106,7 +107,7 @@ def generate_local_env_file_for_node(node, env_file, local_env_file, extra_env_v
             "GROUP_IDS": group_ids,
             "XDG_RUNTIME_DIR": xdg_runtime_dir,
             "DISPLAY": DISPLAY,
-            "USER": LOCALHOST_USER,
+            "USER": user_name,
             "GPU_PROFILE": 'nvidia-gpu' if has_nvidia_hardware(node.ssh_address) else 'no-gpu',
         })
 

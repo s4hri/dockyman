@@ -270,28 +270,28 @@ def load_compose_file(compose_file_path):
 
 def services_for_nodes(compose_file, swarm, env_file=None):
     services = {}
-    
+
     for service_name, service_data in load_compose_file(compose_file).get('services', {}).items():
+        target_node = swarm.manager
+        labels = service_data.get('labels', {})
+        node_label = labels.get('dockyman.node')
         service_profiles = service_data.get("profiles", [])
-        env_profiles = get_docker_profiles(env_file)
+        if node_label:
+            node = swarm.get_node_from_id(node_id=node_label)
+            if node:
+                if node != swarm.manager:
+                    target_node = node
 
-        # Check if the service has profiles
-        if service_profiles:
-            # Check if any of the service profiles match the active profiles
-            if any(profile in env_profiles for profile in service_profiles):
-
-                for profile in service_profiles:
-                    # if profile corresponds to a node id then add the serviece to the node
-                    node = swarm.get_node_from_id(node_id=profile)
-                    if node:
-                        target_node = node
-                        if target_node not in services.keys():
-                            services[target_node] = []
-                        services[target_node].append(service_name)
+        if env_file:
+            profiles = get_docker_profiles(env_file)
         else:
-            if target_node not in services.keys():
-                services[target_node] = []
-            services[target_node].append(service_name)
+            profiles = service_profiles
+
+        if not service_profiles or any(profile in profiles for profile in service_profiles):
+            if target_node in services.keys():
+                services[target_node].append(service_name)
+            else:
+                services[target_node] = [service_name]
     return services
 
 def services_in_profiles(compose_file, active_profiles):

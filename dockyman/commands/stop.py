@@ -68,13 +68,13 @@ def stop_docker_compose_for_all(swarm, compose_file, default_env_file):
                 continue
 
             click.echo(f"\n{Fore.WHITE}-> Preparing to stop services on {role} node: {Fore.CYAN}{node.id}")
-            stop_docker_compose_for_node(compose_file, node, env_file)
+            stop_docker_compose_for_node(compose_file, node, env_file, services[node])
 
     except Exception as e:
         click.echo(f"\t{Fore.RED} [x] Error during stop sequence: {e}")
 
 
-def stop_docker_compose_for_node(compose_file, node, env_file):
+def stop_docker_compose_for_node(compose_file, node, env_file, services):
     """Stop and remove services for a single node."""
     env_vars = load_env_variables(env_file)
     profiles = env_vars.get("COMPOSE_PROFILES", "").split(",") if "COMPOSE_PROFILES" in env_vars else []
@@ -86,7 +86,7 @@ def stop_docker_compose_for_node(compose_file, node, env_file):
         compose_profiles=profiles
     )
 
-    services = services_in_profiles(compose_file, profiles)
+    #services = services_in_profiles(compose_file, profiles)
     if services:
         click.echo(f"{Fore.LIGHTBLACK_EX}[.] Stopping services: {services}")
 

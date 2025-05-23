@@ -2,32 +2,6 @@
 
 Dockyman is designed to streamline building and deploying Docker containers across multiple nodes. It is particularly suited for scenarios that require mirroring local devices and user/group permissions between the container and the host machine. Dockyman makes it easy to manage containers in a distributed system, ensuring that your applications run with the necessary permissions and access to host resources.
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Folder Structure](#folder-structure)
-3. [Installation](#installation)
-4. [Getting Started](#getting-started)
-   - [Initialize Dockyman Template](#initialize-dockyman-template)
-   - [Setting up Your Environment](#setting-up-your-environment)
-   - [Setting Up SSH Access (Passwordless) for Dockyman Nodes](#setting-up-ssh-access-passwordless-for-dockyman-nodes)
-5. [Configuration](#configuration)
-   - [dockyman.yaml](#dockymanyaml)
-   - [build.env](#buildenv)
-6. [Commands](#commands)
-   - [Build](#build-command)
-   - [Pull](#pull-command)
-   - [Push](#push-command)
-   - [Run](#run-command)
-   - [Stop](#stop-command)
-   - [Clean](#clean-command)
-7. [Best Practices](#best-practices)
-8. [Contributing](#contributing)
-9. [Support](#support)
-10. [License](#license)
-
----
-
 ## Overview
 
 Dockyman is designed for managing Docker environments across multiple nodes with ease. It provides a simple way to build and deploy containers, especially for setups requiring specific user permissions, graphical applications, or audio processing. Dockyman is ideal for distributed systems where containers must interact closely with the host machine.

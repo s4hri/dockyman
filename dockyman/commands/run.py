@@ -75,7 +75,7 @@ def run_docker_compose_up_for_all(swarm, compose_file, default_env_file, detach)
                     continue
 
                 click.echo(f"\n{Fore.WHITE} -> Running services on {node_label} node: {Fore.CYAN}{node.id}")
-                run_docker_compose_for_node(compose_file, node, local_env_file, detach)
+                run_docker_compose_for_node(compose_file, node, local_env_file, services[node], detach)
 
         if detach:
             click.echo(f"\n{Fore.WHITE} -> Services are running in detached mode.")
@@ -88,12 +88,10 @@ def run_docker_compose_up_for_all(swarm, compose_file, default_env_file, detach)
         click.echo(f"\t{Fore.RED} [x] Error running services: {e}")
 
 
-def run_docker_compose_for_node(compose_file, node, env_file, detach=False):
+def run_docker_compose_for_node(compose_file, node, env_file, services, detach=False):
     """Run Docker Compose for a single node."""
     profiles = get_docker_profiles(env_file)
     click.echo(f"{Fore.LIGHTBLACK_EX} [.] Docker profiles: {profiles}")
-
-    services = services_in_profiles(compose_file, profiles)
     click.echo(f"{Fore.LIGHTBLACK_EX} [.] Services to run: {services}")
 
     docker = DockerClient(
@@ -104,7 +102,7 @@ def run_docker_compose_for_node(compose_file, node, env_file, detach=False):
     )
 
     try:
-        docker.compose.up(detach=detach, remove_orphans=True)
+        docker.compose.up(services, detach=detach, remove_orphans=True)
         if detach:
             click.echo(f"{Fore.GREEN} [✓] Services started for node {node.id}.")
 

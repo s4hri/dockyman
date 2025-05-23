@@ -35,8 +35,11 @@ services:
     entrypoint: /var/dockyman/scripts/initContainer.sh
     command: bash
 
+    labels:
+      dockyman.node: manager-node
+
     profiles:
-      - manager-node
+      - base
 
     volumes:
       - type: bind
@@ -55,9 +58,15 @@ services:
   #   image: ${LOCAL_IMAGE_NAME:?err}
   #   container_name: ${PROJECT_NAME:?err}_${VERSION:?err}_auxiliary
 
+  #   entrypoint: sleep infinity
+  #   command: bash
+
   #   extends:
   #     file: profiles/local.yaml
   #     service: local
 
+  #   labels:
+  #     dockyman.node: worker-node
+
   #   profiles:
-  #     - worker-node
+  #     - aux

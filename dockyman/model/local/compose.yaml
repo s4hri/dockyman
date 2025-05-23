@@ -38,5 +38,28 @@ services:
         USER_GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
         GROUP_IDS: ${GROUP_IDS:?err}
 
+    labels:
+      dockyman.node: manager-node
+
     profiles:
-      - manager-node
+      - base
+
+  # project-aux.local:
+  #   image: ${LOCAL_IMAGE_NAME:?err}
+
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       DOCKER_SRC: ${BASE_IMAGE_NAME:?err}
+  #       USERNAME: ${LOCAL_IMAGE_USERNAME:?err}
+  #       USER_UID: ${USER_UID:?err}
+  #       USER_GID: ${USER_GID:?err}
+  #       USER_GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
+  #       GROUP_IDS: ${GROUP_IDS:?err}
+
+  #   labels:
+  #     dockyman.node: worker-node
+
+  #   profiles:
+  #     - aux

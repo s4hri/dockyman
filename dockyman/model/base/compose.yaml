@@ -33,8 +33,11 @@ services:
       args:
         DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
 
+    labels:
+      dockyman.node: manager-node
+    
     profiles:
-      - manager-node
+      - base
 
   # project.aux:
   #   image: ${BASE_IMAGE_NAME:?err}-aux
@@ -44,6 +47,9 @@ services:
   #     dockerfile: Dockerfile
   #     args:
   #       DOCKER_SRC: ${BASE_IMAGE_SRC:?err}
-    
+
+  #   labels:
+  #     dockyman.node: worker-node
+
   #   profiles:
-  #     - worker-node
+  #     - aux
