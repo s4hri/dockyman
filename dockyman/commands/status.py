@@ -22,51 +22,52 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
 import click
 from python_on_whales import DockerClient
 from colorama import Fore
-from dockyman.config import PREFIX_TARGET
-from dockyman.utils import get_swarm, run_ssh_command, Node
-
+from dockyman.utils import get_swarm, run_ssh_command, get_local_version, Node
+from dockyman.config import DEFAULT_CONFIG_FILE
 
 @click.command()
-@click.argument('config_file', required=False, default='dockyman.yaml')
 @click.option('--ssh_address', help='Directly test an SSH address', required=False)
 @click.option('--docker_daemon_address', help='Directly test a Docker daemon address', required=False)
-def status_command(config_file, ssh_address, docker_daemon_address):
+@click.pass_context
+def status_command(ctx, ssh_address, docker_daemon_address):
     """
     Check the status of Docker Swarm nodes defined in the dockyman.yaml config,
     or test specific addresses directly using --ssh_address / --docker_daemon_address.
     """
+    config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
+
     if ssh_address or docker_daemon_address:
         if ssh_address:
             check_ssh_connection(ssh_address)
         if docker_daemon_address:
             check_docker_daemon(docker_daemon_address)
     else:
-        config_path = os.path.join(PREFIX_TARGET, config_file)
-
         try:
-            swarm = get_swarm(config_path)
+            local_version = get_local_version(config_file)
+            click.echo(f"{Fore.LIGHTBLACK_EX}Config file: {config_file} (Version: {local_version})\n")    
 
+            swarm = get_swarm(config_file)
             click.echo(f"{Fore.CYAN}*** Checking Manager Node: {swarm.manager.id} ***")
             check_node(swarm.manager)
 
             for worker in swarm.workers:
                 click.echo(f"{Fore.CYAN}*** Checking Worker Node: {worker.id} ***")
                 check_node(worker)
+        
+        except FileNotFoundError:
+            click.echo(f"{Fore.RED}[x] Error: Config file not found: {config_file}")
+            click.echo(f"{Fore.RED}[x] Please ensure the file exists and is accessible.")
 
         except Exception as e:
             click.echo(f"{Fore.RED}[x] Error: {e}")
-            click.echo(f"{Fore.RED}[x] Could not load or parse config file: {config_path}")
-
 
 def check_node(node: Node):
     """Run full check (SSH + Docker) for a single node."""
     check_ssh_connection(node.ssh_address)
     check_docker_daemon(node.docker_daemon_address)
-
 
 def check_ssh_connection(ssh_address):
     """Test SSH connectivity to a node."""
@@ -79,7 +80,6 @@ def check_ssh_connection(ssh_address):
     else:
         click.echo(f"\t{Fore.RED}[x] SSH connection to {ssh_address} failed.")
         return False
-
 
 def check_docker_daemon(docker_daemon_address):
     """Test Docker daemon accessibility via python-on-whales."""
@@ -95,7 +95,6 @@ def check_docker_daemon(docker_daemon_address):
     except Exception as e:
         click.echo(f"\t{Fore.RED}[x] Docker Daemon Error: {str(e)}")
         return False
-
 
 if __name__ == '__main__':
     status_command()

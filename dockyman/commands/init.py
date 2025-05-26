@@ -26,44 +26,37 @@
 import os
 import shutil
 import click
-from dockyman.config import PREFIX_TARGET, LOCAL_GID, LOCAL_UID
 from colorama import Fore
+from dockyman.config import DEFAULT_TARGET_DIR
 
-@click.command()
-@click.argument('target_directory')
-def init_command(target_directory):
-    """Copies a set of template files to a target directory."""
+@click.command(help="Copy Dockyman template files to a target directory.")
+@click.argument('target_path', required=True, default=DEFAULT_TARGET_DIR)
+def init_command(target_path):
+    """Copies the Dockyman template files to the specified target directory."""
 
-    click.echo(f"{Fore.LIGHTBLACK_EX} Coping template files to {target_directory} ...")
-    target_directory = os.path.join(PREFIX_TARGET, target_directory)
-    
-    # Define the source directory inside the Docker container
-    model_dir = os.path.join(os.path.dirname(__file__), '..', 'model')
-    
-    # Ensure the target directory exists
-    if not os.path.exists(target_directory):
-        os.makedirs(target_directory)
-    
-    # Copy the model directory to the target location
-    for item in os.listdir(model_dir):
-        s = os.path.join(model_dir, item)
-        d = os.path.join(target_directory, item)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, dirs_exist_ok=True)
-        else:
-            shutil.copy2(s, d)
-    
-    # Change ownership to the local user
-    click.echo(f"{Fore.LIGHTBLACK_EX} Changing ownership to UID: {LOCAL_UID} and GID: {LOCAL_GID}")
+    source_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
 
-    os.chown(target_directory, LOCAL_UID, LOCAL_GID)
-    for root, dirs, files in os.walk(target_directory):
-        for dir_ in dirs:
-            os.chown(os.path.join(root, dir_), LOCAL_UID, LOCAL_GID)
-        for file_ in files:
-            os.chown(os.path.join(root, file_), LOCAL_UID, LOCAL_GID)
+    click.echo(f"{Fore.LIGHTBLACK_EX} -> Copying template files from {source_path} to {target_path}...")
 
-    click.echo(f'{Fore.GREEN} Dockyman template files copied with ownership changed to UID:{LOCAL_UID} and GID:{LOCAL_GID}')
+    try:
+        # Ensure target directory exists
+        os.makedirs(target_path, exist_ok=True)
+
+        # Copy files (overwrite if exists)
+        for item in os.listdir(source_path):
+            src_item = os.path.join(source_path, item)
+            dest_item = os.path.join(target_path, item)
+            if os.path.isdir(src_item):
+                shutil.copytree(src_item, dest_item, dirs_exist_ok=True)
+            else:
+                shutil.copy2(src_item, dest_item)
+
+        click.echo(f"{Fore.GREEN} [✓] Template files copied successfully to {target_path}")
+
+    except Exception as e:
+        click.echo(f"{Fore.RED} [x] Error copying template files: {e}")
+        raise click.Abort()
+
 
 if __name__ == "__main__":
     init_command()

@@ -22,35 +22,88 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import click
-import config
+import os
+import subprocess
+import sys
+import venv
 
 from colorama import Fore
-from dockyman.commands import init, help, setup, build, clean, status, pull, push, run, stop
-from dockyman.utils import get_dockyman_version
+from dockyman.commands import (
+    status, init, setup, build, clean, push, pull, run, stop
+)
+from dockyman.utils import get_system_version, get_local_version
+from dockyman.config import DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_NAME
+
+DEFAULT_VENV_NAME = ".dockyman-venv"
+
+def check_and_delegate_version(config_file, command_name):
+    # Skip version check for init
+    if command_name == "init":
+        return
+
+    system_version = get_system_version()
+    try:
+        local_version = get_local_version(config_file)
+    except FileNotFoundError:
+        click.echo(f"{Fore.RED}[x] Config file not found: {config_file}")
+        sys.exit(1)
+
+    project_dir = os.path.dirname(os.path.abspath(config_file))
+    venv_dir = os.path.join(project_dir, DEFAULT_VENV_NAME)
+    dockyman_bin = os.path.join(venv_dir, "bin", "dockyman")
+
+    if system_version != local_version:
+        if os.path.exists(dockyman_bin):
+            # Transparent delegation
+            subprocess.run([dockyman_bin] + sys.argv[1:])
+            sys.exit(0)
+        else:
+            click.echo(f"{Fore.YELLOW}[!] Version mismatch: Config requires v{local_version}, but system has v{system_version}.")
+            if click.confirm(f"Do you want to install dockyman=={local_version} locally in {venv_dir}?"):
+                create_venv_and_install(venv_dir, local_version)
+                subprocess.run([dockyman_bin] + sys.argv[1:])
+                sys.exit(0)
+            else:
+                click.echo(f"{Fore.RED}[x] Aborting due to version mismatch.")
+                sys.exit(1)
+
+def create_venv_and_install(venv_dir, version):
+    click.echo(f"{Fore.LIGHTBLACK_EX}Creating virtual environment in {venv_dir}...")
+    venv.create(venv_dir, with_pip=True)
+
+    pip_exe = os.path.join(venv_dir, "bin", "pip")
+    subprocess.check_call([pip_exe, "install", "--upgrade", "pip"])
+    subprocess.check_call([pip_exe, "install", f"dockyman=={version}"])
+    click.echo(f"{Fore.GREEN}[✓] dockyman=={version} installed in {venv_dir}")
 
 @click.group()
-def cli():
-    pass
+@click.option('--config', '-c', default=DEFAULT_CONFIG_FILE, help=f'Path to {DEFAULT_CONFIG_FILE_NAME} config file')
+@click.pass_context
+def cli(ctx, config):
+    ctx.obj = {'config': config}
 
+    # Determine which command is being run (first argument after 'dockyman')
+    command_name = next((arg for arg in sys.argv[1:] if not arg.startswith("-")), None)
+    if command_name:
+        check_and_delegate_version(config, command_name)
 
-cli.add_command(status.status_command, 'status')
+    system_version = get_system_version()
+    click.echo(f"\n{Fore.YELLOW}Dockyman CLI - Docker Management Tool (Version: {system_version})\n")
+
+# Register commands
 cli.add_command(init.init_command, 'init')
 cli.add_command(setup.setup_command, 'setup')
+cli.add_command(status.status_command, 'status')
 cli.add_command(build.build_command, 'build')
 cli.add_command(clean.clean_command, 'clean')
 cli.add_command(push.push_command, 'push')
 cli.add_command(pull.pull_command, 'pull')
 cli.add_command(run.run_command, 'run')
 cli.add_command(stop.stop_command, 'stop')
-cli.add_command(help.help_command, 'help')
-
 
 def main():
     cli()
 
 if __name__ == '__main__':
-    version = get_dockyman_version()
-    click.echo(f'\n{Fore.YELLOW}Dockyman CLI - Docker Management Tool (Version: {version})\n')
     main()

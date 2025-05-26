@@ -22,8 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import click
 import os
+import click
 from python_on_whales import DockerClient
 from colorama import Fore
 
@@ -31,23 +31,23 @@ from dockyman.utils import (
     get_swarm,
     get_dockyman_runtime_config,
     services_for_nodes,
-    services_in_profiles,
     load_env_variables
 )
 from dockyman.config import PREFIX_TARGET
+
 
 @click.command(help="Stop and remove Docker containers using Docker Compose.")
 @click.argument('config_file', required=False, default='dockyman.yaml')
 def stop_command(config_file):
     """Stop and remove Docker Compose services for all swarm nodes."""
     try:
-        config_filepath = os.path.join(PREFIX_TARGET, config_file)
-        swarm = get_swarm(config_filepath)
-        compose_file, env_file = get_dockyman_runtime_config(config_filepath)
+        config_path = os.path.join(PREFIX_TARGET, config_file)
+        swarm = get_swarm(config_path)
+        compose_file, env_file = get_dockyman_runtime_config(config_path)
     except Exception as e:
-        click.echo(f"\t{Fore.RED} [x] Error loading config: {e}")
+        click.echo(f"{Fore.RED}[x] Error loading config: {e}")
         raise click.Abort()
-    
+
     stop_docker_compose_for_all(swarm, compose_file, env_file)
 
 
@@ -56,22 +56,24 @@ def stop_docker_compose_for_all(swarm, compose_file, default_env_file):
     try:
         for node in swarm.workers + [swarm.manager]:
             role = "manager" if node == swarm.manager else "worker"
-            env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}') \
-                if node != swarm.manager else default_env_file
+            env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}') if node != swarm.manager else default_env_file
 
             if not os.path.isfile(env_file):
                 env_file = default_env_file
 
-            # Skip nodes with no services
-            services = services_for_nodes(compose_file, swarm, env_file)
-            if services and node not in services:
+            # Determine services mapped to this node
+            services_map = services_for_nodes(compose_file, swarm, env_file)
+            node_services = services_map.get(node, [])
+
+            if not node_services:
+                click.echo(f"{Fore.YELLOW}[!] No services to stop for node {node.id}. Skipping.")
                 continue
 
-            click.echo(f"\n{Fore.WHITE}-> Preparing to stop services on {role} node: {Fore.CYAN}{node.id}")
-            stop_docker_compose_for_node(compose_file, node, env_file, services[node])
+            click.echo(f"\n{Fore.WHITE}-> Stopping services on {role} node: {Fore.CYAN}{node.id}")
+            stop_docker_compose_for_node(compose_file, node, env_file, node_services)
 
     except Exception as e:
-        click.echo(f"\t{Fore.RED} [x] Error during stop sequence: {e}")
+        click.echo(f"{Fore.RED}[x] Error during stop sequence: {e}")
 
 
 def stop_docker_compose_for_node(compose_file, node, env_file, services):
@@ -86,11 +88,12 @@ def stop_docker_compose_for_node(compose_file, node, env_file, services):
         compose_profiles=profiles
     )
 
-    #services = services_in_profiles(compose_file, profiles)
-    if services:
-        click.echo(f"{Fore.LIGHTBLACK_EX}[.] Stopping services: {services}")
-
     try:
+        if services:
+            click.echo(f"{Fore.LIGHTBLACK_EX}[.] Stopping services: {services}")
+        else:
+            click.echo(f"{Fore.YELLOW}[!] No services specified for node {node.id}.")
+
         docker.compose.stop(services=services or None)
         docker.compose.down(remove_orphans=True)
         click.echo(f"{Fore.GREEN}[✓] Services stopped and removed successfully for node {node.id}.")

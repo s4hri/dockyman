@@ -39,23 +39,30 @@ from dockyman.utils import (
 @click.argument('config_file', required=False, default='dockyman.yaml')
 def pull_command(config_file):
     """Pull Docker base images on manager and worker nodes."""
+    config_path = os.path.join(PREFIX_TARGET, config_file)
 
     try:
-        config_path = os.path.join(PREFIX_TARGET, config_file)
         swarm = get_swarm(config_path)
         compose_file, env_file = get_dockyman_base_config(config_path)
-    except Exception as e:
-        click.echo(f"{Fore.RED}[x] Error loading configuration: {e}")
+
+        click.echo(f"{Fore.LIGHTBLACK_EX} -> Loaded configuration from: {config_path}")
+        pull_images_for_all_nodes(swarm, compose_file, env_file)
+
+    except FileNotFoundError:
+        click.echo(f"{Fore.RED}[x] Config file not found: {config_path}")
         raise click.Abort()
 
-    pull_images_for_all_nodes(swarm, compose_file, env_file)
+    except Exception as e:
+        click.echo(f"{Fore.RED}[x] Error: {e}")
+        raise click.Abort()
 
 
 def pull_images_for_all_nodes(swarm, compose_file, env_file):
     """Pull services for all nodes defined in the swarm."""
     services = services_for_nodes(compose_file, swarm, env_file)
+
     for node, service_names in services.items():
-        click.echo(f"{Fore.CYAN}*** Pulling base services {service_names} on node {node.id} ***")
+        click.echo(f"\n{Fore.CYAN}*** Pulling BASE services {service_names} on node {Fore.WHITE}{node.id} ***")
         pull_docker_images(compose_file, env_file, node, service_names)
 
 
@@ -65,11 +72,21 @@ def pull_docker_images(compose_file, env_file, node, services=None):
         compose_files=[compose_file],
         compose_env_files=[env_file]
     )
+
     try:
-        docker.compose.pull(services=services)
-        click.echo(f"{Fore.GREEN}[✓] Pulled images successfully on {node.id}.")
+        for log_type, log_message in docker.compose.pull(services=services, stream_logs=True):
+            if isinstance(log_message, tuple):
+                log_message = log_message[1]
+            msg = log_message.decode('utf-8').strip()
+            if "server: error reading preface from client" in msg:
+                continue
+            color = Fore.LIGHTBLACK_EX if log_type == "stdout" else Fore.RED
+            click.echo(f"\t{color}{msg}", err=(log_type == "stderr"))
+
+        click.echo(f"\t{Fore.GREEN}[✓] Pulled images successfully on {node.id}.")
+
     except Exception as e:
-        click.echo(f"{Fore.RED}[x] Error pulling images on node {node.id}: {e}")
+        click.echo(f"\t{Fore.RED}[x] Error pulling images on {node.id}: {e}")
 
 
 if __name__ == "__main__":

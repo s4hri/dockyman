@@ -22,11 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
 import click
 from colorama import Fore
 from dockyman.utils import get_swarm, run_ssh_command
-from dockyman.config import PREFIX_TARGET
+from dockyman.config import DEFAULT_CONFIG_FILE
 from dockyman.commands.status import check_ssh_connection
 
 
@@ -36,92 +35,87 @@ from dockyman.commands.status import check_ssh_connection
 @click.argument('action', type=click.Choice(['install', 'uninstall', 'check']), required=True)
 @click.argument('config_file', required=False, default='dockyman.yaml')
 @click.option('--ssh_address', help='Target SSH address (optional)')
-def setup_command(action, config_file, ssh_address):
+@click.pass_context
+def setup_command(ctx, action, config_file, ssh_address):
+    """Main entry point for setup command."""
     if ssh_address:
-        if check_ssh_connection(ssh_address):
-            perform_action(action, ssh_address)
+        handle_node(action, ssh_address)
     else:
+        config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
         try:
-            config_path = os.path.join(PREFIX_TARGET, config_file)
-            swarm = get_swarm(config_path)
-
-            click.echo(f"\n{Fore.CYAN}*** Manager Node: {swarm.manager.id} ***")
-            if check_ssh_connection(swarm.manager.ssh_address):
-                perform_action(action, swarm.manager.ssh_address)
-
+            swarm = get_swarm(config_file)
+            process_node(action, swarm.manager, "Manager")
             for worker in swarm.workers:
-                click.echo(f"\n{Fore.CYAN}*** Worker Node: {worker.id} ***")
-                if check_ssh_connection(worker.ssh_address):
-                    perform_action(action, worker.ssh_address)
+                process_node(action, worker, "Worker")
         except Exception as e:
             click.echo(f"{Fore.RED}[x] Error loading config: {e}")
 
 
+def process_node(action, node, label="Node"):
+    click.echo(f"\n{Fore.CYAN}*** {label}: {node.id} ***")
+    if check_ssh_connection(node.ssh_address):
+        perform_action(action, node.ssh_address)
+
+
+def handle_node(action, ssh_address):
+    if check_ssh_connection(ssh_address):
+        perform_action(action, ssh_address)
+
+
 def perform_action(action, ssh_address):
-    """Run the specified setup action (install, uninstall, check)."""
-    if action == 'install':
-        install_stack(ssh_address)
-    elif action == 'uninstall':
-        uninstall_stack(ssh_address)
-    elif action == 'check':
-        check_stack(ssh_address)
+    actions = {
+        'install': install_stack,
+        'uninstall': uninstall_stack,
+        'check': check_stack
+    }
+    actions[action](ssh_address)
 
 
 # ------------------------------
-# Action Helpers
+# Stack Management
 # ------------------------------
 
 def install_stack(ssh):
-    click.echo(f"\n{Fore.CYAN}*** Docker ***")
-    if not check_docker_installed(ssh):
-        if click.confirm(f"{Fore.WHITE}Install Docker on {ssh}?"):
-            install_docker(ssh)
-
-    click.echo(f"\n{Fore.CYAN}*** Docker Compose ***")
-    if not check_docker_compose_installed(ssh):
-        if click.confirm(f"{Fore.WHITE}Install Docker Compose on {ssh}?"):
-            install_docker_compose(ssh)
-
+    click.echo(f"\n{Fore.CYAN}*** Installing Components ***")
+    install_or_skip("Docker", check_docker_installed, install_docker, ssh)
+    install_or_skip("Docker Compose", check_docker_compose_installed, install_docker_compose, ssh)
     if check_nvidia_hardware(ssh):
-        click.echo(f"\n{Fore.CYAN}*** NVIDIA Docker ***")
-        if not check_nvidia_docker_installed(ssh):
-            if click.confirm(f"{Fore.WHITE}Install NVIDIA Docker on {ssh}?"):
-                install_nvidia_docker(ssh)
-
+        install_or_skip("NVIDIA Docker", check_nvidia_docker_installed, install_nvidia_docker, ssh)
     click.echo(f"\n{Fore.GREEN}✓ Installation completed on {ssh}")
 
 
 def uninstall_stack(ssh):
-    click.echo(f"\n{Fore.CYAN}*** Uninstalling on {ssh} ***")
-
-    if check_docker_installed(ssh) and click.confirm(f"{Fore.WHITE}Uninstall Docker?"):
-        uninstall_docker(ssh)
-
-    if check_docker_compose_installed(ssh) and click.confirm(f"{Fore.WHITE}Uninstall Docker Compose?"):
-        uninstall_docker_compose(ssh)
-
-    if check_nvidia_hardware(ssh) and check_nvidia_docker_installed(ssh):
-        if click.confirm(f"{Fore.WHITE}Uninstall NVIDIA Docker?"):
-            uninstall_nvidia_docker(ssh)
-
+    click.echo(f"\n{Fore.CYAN}*** Uninstalling Components ***")
+    uninstall_if_present("Docker", check_docker_installed, uninstall_docker, ssh)
+    uninstall_if_present("Docker Compose", check_docker_compose_installed, uninstall_docker_compose, ssh)
+    if check_nvidia_hardware(ssh):
+        uninstall_if_present("NVIDIA Docker", check_nvidia_docker_installed, uninstall_nvidia_docker, ssh)
     click.echo(f"\n{Fore.GREEN}✓ Uninstallation completed on {ssh}")
 
 
 def check_stack(ssh):
-    click.echo(f"\n{Fore.CYAN}*** Checking Docker ***")
+    click.echo(f"\n{Fore.CYAN}*** Checking Stack ***")
     check_docker_installed(ssh)
-
-    click.echo(f"\n{Fore.CYAN}*** Checking Docker Compose ***")
     check_docker_compose_installed(ssh)
-
     if check_nvidia_hardware(ssh):
-        click.echo(f"\n{Fore.CYAN}*** Checking NVIDIA Docker ***")
         check_nvidia_docker_installed(ssh)
 
 
 # ------------------------------
-# Check Utilities
+# Helpers
 # ------------------------------
+
+def install_or_skip(name, checker, installer, ssh):
+    if not checker(ssh):
+        if click.confirm(f"{Fore.WHITE}Install {name} on {ssh}?"):
+            installer(ssh)
+
+
+def uninstall_if_present(name, checker, uninstaller, ssh):
+    if checker(ssh):
+        if click.confirm(f"{Fore.WHITE}Uninstall {name} from {ssh}?"):
+            uninstaller(ssh)
+
 
 def check_docker_installed(ssh): return _check_tool(ssh, 'docker --version', "Docker")
 def check_docker_compose_installed(ssh): return _check_tool(ssh, 'docker-compose --version', "Docker Compose")
@@ -129,16 +123,11 @@ def check_nvidia_docker_installed(ssh): return _check_tool(ssh, 'nvidia-ctk --ve
 
 
 def check_nvidia_hardware(ssh):
-    click.echo(f"\n{Fore.CYAN}*** Checking NVIDIA Hardware ***")
+    click.echo(f"{Fore.CYAN}*** Checking NVIDIA Hardware ***")
     result = run_ssh_command(ssh, 'lspci | grep -i nvidia')
-    msg = "NVIDIA hardware detected." if result else "No NVIDIA hardware detected."
-    color = Fore.GREEN if result else Fore.YELLOW
-    click.echo(f"{color} {msg}")
+    click.echo(f"{Fore.GREEN if result else Fore.YELLOW} {'NVIDIA hardware detected.' if result else 'No NVIDIA hardware found.'}")
     return result
 
-def has_nvidia_hardware(ssh_address):
-    """Alias for check_nvidia_hardware() for semantic clarity."""
-    return check_nvidia_hardware(ssh_address)
 
 def _check_tool(ssh, command, name):
     result = run_ssh_command(ssh, command)
@@ -150,7 +139,7 @@ def _check_tool(ssh, command, name):
 
 
 # ------------------------------
-# Install / Uninstall Commands
+# Install/Uninstall Commands
 # ------------------------------
 
 def install_docker(ssh):
@@ -184,51 +173,30 @@ def uninstall_docker_compose(ssh):
 
 
 def install_nvidia_docker(ssh):
-    install_nvidia_container_toolkit(ssh)
-    configure_nvidia_runtime(ssh)
+    _run_commands(ssh, [
+        "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --batch --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg",
+        "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list",
+        "sudo apt-get update",
+        "sudo apt-get install -y nvidia-container-toolkit",
+        "sudo nvidia-ctk runtime configure --runtime=docker",
+        "sudo systemctl restart docker"
+    ])
 
 
 def uninstall_nvidia_docker(ssh):
-    commands = [
+    _run_commands(ssh, [
         "sudo apt-get -y remove --purge nvidia-docker2 nvidia-container-toolkit",
         "sudo apt-get -y autoremove",
         "sudo rm -f /etc/systemd/system/docker.service.d/10-nvidia-docker.conf",
         "sudo rm -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg",
         "sudo rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list",
-        "sudo systemctl daemon-reload",
         "sudo rm -f /usr/bin/nvidia-ctk",
         "sudo rm -f /usr/bin/nvidia-container-runtime",
         "sudo rm -f /usr/bin/nvidia-container-toolkit",
-        "sudo rm -rf /var/lib/nvidia-docker"
-    ]
-    _run_commands(ssh, commands)
-    if is_docker_service_present(ssh):
-        try:
-            run_ssh_command(ssh, "sudo systemctl restart docker")
-        except Exception as e:
-            click.echo(f"{Fore.YELLOW} Warning: Could not restart Docker service: {e}")
-
-
-def install_nvidia_container_toolkit(ssh):
-    commands = [
-        "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor --batch --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg",
-        "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list",
-        "sudo apt-get update",
-        "sudo apt-get install -y nvidia-container-toolkit"
-    ]
-    _run_commands(ssh, commands)
-
-
-def configure_nvidia_runtime(ssh):
-    commands = [
-        "sudo nvidia-ctk runtime configure --runtime=docker",
-        "sudo systemctl restart docker"
-    ]
-    _run_commands(ssh, commands)
-
-
-def is_docker_service_present(ssh):
-    return run_ssh_command(ssh, 'systemctl status docker.service')
+        "sudo rm -rf /var/lib/nvidia-docker",
+        "sudo systemctl daemon-reload",
+        "sudo systemctl restart docker || true"
+    ])
 
 
 def _run_commands(ssh, commands):
