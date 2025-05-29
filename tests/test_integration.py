@@ -11,10 +11,11 @@ def temp_project_dir():
     yaml_data = {
         "project": {
             "dockyman_version": "3.0",
+            "context": "./.dockyman",  # Added context for your updated logic
             "build": {
-                "base": {"compose_file": "./base/compose.yaml", "env_file": "./build.env"},
-                "local": {"compose_file": "./local/compose.yaml", "env_file": "./.env"},
-                "runtime": {"compose_file": "./compose.yaml", "env_file": "./.env"},
+                "base": {"compose_file": "base/compose.yaml", "env_file": "build.env"},
+                "local": {"compose_file": "local/compose.yaml", "env_file": ".env"},
+                "runtime": {"compose_file": "compose.yaml", "env_file": ".env"},
             }
         },
         "swarm": {
@@ -40,8 +41,10 @@ def test_dispatcher_integration(temp_project_dir):
     project_dir = temp_project_dir
     config_file = os.path.join(project_dir, "dockyman.yaml")
 
+    # Run the dispatcher CLI, simulating user input "y"
     result = subprocess.run(
         [os.path.abspath(".venv/bin/dockyman"), "--config", config_file, "status"],
+        input="y\n",  # Auto-accept version install prompt
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

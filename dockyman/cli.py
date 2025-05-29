@@ -35,11 +35,16 @@ from dockyman.commands import (
 from dockyman.utils import get_system_version, get_local_version
 from dockyman.config import DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_NAME
 
-DEFAULT_VENV_NAME = ".dockyman-venv"
+DEFAULT_VENV_NAME = ".venv"
+DISPATCHER_BYPASS_ENV = "DOCKYMAN_DISPATCHER_BYPASS"
 
 def check_and_delegate_version(config_file, command_name):
     # Skip version check for init
     if command_name == "init":
+        return
+
+    # Skip if already dispatched
+    if os.environ.get(DISPATCHER_BYPASS_ENV) == "1":
         return
 
     system_version = get_system_version()
@@ -52,17 +57,23 @@ def check_and_delegate_version(config_file, command_name):
     project_dir = os.path.dirname(os.path.abspath(config_file))
     venv_dir = os.path.join(project_dir, DEFAULT_VENV_NAME)
     dockyman_bin = os.path.join(venv_dir, "bin", "dockyman")
+    
+    print("COMPARE: ", system_version, local_version)
 
     if system_version != local_version:
         if os.path.exists(dockyman_bin):
             # Transparent delegation
-            subprocess.run([dockyman_bin] + sys.argv[1:])
+            new_env = os.environ.copy()
+            new_env[DISPATCHER_BYPASS_ENV] = "1"
+            subprocess.run([dockyman_bin] + sys.argv[1:], env=new_env)
             sys.exit(0)
         else:
             click.echo(f"{Fore.YELLOW}[!] Version mismatch: Config requires v{local_version}, but system has v{system_version}.")
             if click.confirm(f"Do you want to install dockyman=={local_version} locally in {venv_dir}?"):
                 create_venv_and_install(venv_dir, local_version)
-                subprocess.run([dockyman_bin] + sys.argv[1:])
+                new_env = os.environ.copy()
+                new_env[DISPATCHER_BYPASS_ENV] = "1"
+                subprocess.run([dockyman_bin] + sys.argv[1:], env=new_env)
                 sys.exit(0)
             else:
                 click.echo(f"{Fore.RED}[x] Aborting due to version mismatch.")
@@ -83,7 +94,6 @@ def create_venv_and_install(venv_dir, version):
 def cli(ctx, config):
     ctx.obj = {'config': config}
 
-    # Determine which command is being run (first argument after 'dockyman')
     command_name = next((arg for arg in sys.argv[1:] if not arg.startswith("-")), None)
     if command_name:
         check_and_delegate_version(config, command_name)

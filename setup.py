@@ -1,18 +1,18 @@
 from setuptools import setup, find_packages
-
-version = "3.0"
+from dockyman._version import __version__
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 setup(
     name='dockyman',
-    version=version,
+    version=__version__,
     packages=find_packages(),
     install_requires=requirements,
     include_package_data=True,
     package_data={
         'dockyman_cli': ['model/*.yaml', 'model/base/*', 'model/local/*'],
+        'dockyman': ['VERSION']
     },
     entry_points={
         'console_scripts': [

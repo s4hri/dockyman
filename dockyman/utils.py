@@ -28,7 +28,8 @@ import paramiko
 import yaml
 import re
 from urllib.parse import urlparse
-from dockyman.config import DEFAULT_CONFIG_FILE_NAME
+from dockyman._version import __version__
+
 from colorama import Fore
 
 def resolve_nodes_value(value):
@@ -100,28 +101,26 @@ def get_swarm(config_file):
     return SwarmConfig.from_dict(config)
 
 def get_system_version():
-    """Get the Dockyman version from the default YAML configuration file."""
-    yaml_path = os.path.join(os.path.dirname(__file__), 'model', DEFAULT_CONFIG_FILE_NAME)
-    with open(yaml_path, 'r') as file:
-        config = yaml.safe_load(file)
-        return config.get("project", {}).get("dockyman_version", "Unknown")
+    return float(__version__)
 
 def get_local_version(config_file):
     """Get the Dockyman version from the provided configuration file."""
     config = load_yaml(config_file)
-    return config.get("project", {}).get("dockyman_version", "Unknown")
+    return float(config.get("project", {}).get("dockyman_version", "Unknown"))
 
 def get_compose_paths(config_file, target="base"):
     config = load_yaml(config_file)
-    try:
-        target_config = config["project"]["build"][target]
-        base_path = os.path.dirname(config_file)
-        compose_file = os.path.normpath(os.path.join(base_path, target_config["compose_file"]))
-        env_file = target_config.get("env_file")
-        env_file = os.path.normpath(os.path.join(base_path, env_file)) if env_file else None
-        return compose_file, env_file
-    except KeyError as e:
-        raise ValueError(f"Missing key in config: {e}")
+    project = config.get("project", {})
+    context_dir = project.get("context", os.path.dirname(config_file))
+
+    target_config = project["build"][target]
+    base_path = os.path.dirname(config_file)
+
+    compose_file = os.path.normpath(os.path.join(base_path, context_dir, target_config["compose_file"]))
+    env_file = target_config.get("env_file")
+    env_file = os.path.normpath(os.path.join(base_path, context_dir, env_file)) if env_file else None
+
+    return compose_file, env_file
 
 def get_dockyman_base_config(config_file):
     return get_compose_paths(config_file, target="base")

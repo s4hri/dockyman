@@ -1,6 +1,6 @@
 PYTHON=python3
 VERSION=3.0
-VENV_DIR=.dockyman-${VERSION}
+VENV_DIR=.venv
 
 install-venv:
 	$(PYTHON) -m venv $(VENV_DIR)

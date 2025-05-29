@@ -1,5 +1,5 @@
 python-on-whales==0.76.1
-pyyaml==6.0
+pyyaml>=6.0.1
 paramiko==2.11.0
 click==8.0.3
 pydantic<3

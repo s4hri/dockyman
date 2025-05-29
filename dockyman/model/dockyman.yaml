@@ -1,7 +1,7 @@
 project:
   dockyman_version: 3.0
 
-  context: ./dockyman
+  context: ./.dockyman
 
   build:
     base:
