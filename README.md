@@ -30,10 +30,20 @@ Dockyman is designed for managing Docker environments across multiple nodes with
 
 ```bash
 git clone https://github.com/s4hri/dockyman
-git checkout v3.0
 cd dockyman
-cd dockyman/model/.dockyman_installer
-bash install.sh
+make setup 
+make install
+```
+
+Additionally, you can install dockyman using virtual environments:
+
+```bash
+make install-venv
+```
+
+Optionally, you can also select a specific target directory different than `.`
+```bash
+make install-venv TARGET_DIR=~/mycustomdir
 ```
 
 ---

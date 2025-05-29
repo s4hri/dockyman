@@ -57,8 +57,6 @@ def check_and_delegate_version(config_file, command_name):
     project_dir = os.path.dirname(os.path.abspath(config_file))
     venv_dir = os.path.join(project_dir, DEFAULT_VENV_NAME)
     dockyman_bin = os.path.join(venv_dir, "bin", "dockyman")
-    
-    print("COMPARE: ", system_version, local_version)
 
     if system_version != local_version:
         if os.path.exists(dockyman_bin):
