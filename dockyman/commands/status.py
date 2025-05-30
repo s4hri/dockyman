@@ -23,10 +23,11 @@
 # SOFTWARE.
 
 import click
+import os
 from python_on_whales import DockerClient
 from colorama import Fore
 from dockyman.utils import get_swarm, run_ssh_command, get_local_version, Node
-from dockyman.config import DEFAULT_CONFIG_FILE
+from dockyman.config import DEFAULT_TARGET_DIR, DEFAULT_CONFIG_FILE_NAME, DEFAULT_CONFIG_FILE
 
 @click.command()
 @click.option('--ssh_address', help='Directly test an SSH address', required=False)

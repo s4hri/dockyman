@@ -33,12 +33,13 @@ from dockyman.commands import (
     status, init, setup, build, clean, push, pull, run, stop
 )
 from dockyman.utils import get_system_version, get_local_version
-from dockyman.config import DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_NAME
+from dockyman.config import DEFAULT_TARGET_DIR, DEFAULT_CONFIG_FILE_NAME, DEFAULT_CONFIG_FILE
 
 DEFAULT_VENV_NAME = ".venv"
 DISPATCHER_BYPASS_ENV = "DOCKYMAN_DISPATCHER_BYPASS"
 
 def check_and_delegate_version(config_file, command_name):
+
     # Skip version check for init
     if command_name == "init":
         return
@@ -87,7 +88,7 @@ def create_venv_and_install(venv_dir, version):
     click.echo(f"{Fore.GREEN}[✓] dockyman=={version} installed in {venv_dir}")
 
 @click.group()
-@click.option('--config', '-c', default=DEFAULT_CONFIG_FILE, help=f'Path to {DEFAULT_CONFIG_FILE_NAME} config file')
+@click.option('--config', '-c', default=DEFAULT_CONFIG_FILE, help=f'Path to {DEFAULT_CONFIG_FILE} config filename')
 @click.pass_context
 def cli(ctx, config):
     ctx.obj = {'config': config}

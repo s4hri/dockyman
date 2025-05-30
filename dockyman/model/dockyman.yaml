@@ -33,4 +33,4 @@ swarm:
     #   docker_daemon_address: ssh://myuser@192.168.1.1
 
 environments_extra:
-  - DOCKER_LOGS=true
+  - DOCKER_LOGS=false

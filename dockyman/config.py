@@ -30,7 +30,7 @@ from colorama import init as colorama_init
 colorama_init(autoreset=True, strip=False, convert=False)
 
 DISPLAY = str(os.getenv('DISPLAY'))
+DEFAULT_TARGET_DIR = os.getcwd()
 PREFIX_TARGET = os.getcwd()
-DEFAULT_TARGET_DIR = os.path.join(PREFIX_TARGET,'')
 DEFAULT_CONFIG_FILE_NAME = "dockyman.yaml"
 DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_TARGET_DIR, DEFAULT_CONFIG_FILE_NAME)

@@ -27,12 +27,12 @@ import click
 from python_on_whales import DockerClient
 from colorama import Fore
 
-from dockyman.config import PREFIX_TARGET
 from dockyman.utils import (
     get_swarm,
     services_for_nodes,
     get_dockyman_base_config,
-    get_dockyman_local_config
+    get_dockyman_local_config,
+    get_context_dir
 )
 
 
@@ -49,26 +49,30 @@ def clean_command(ctx, target):
         click.echo(f"{Fore.RED}[x] Error: Config file not found: {config_file}")
         raise click.Abort()
 
+    _, context_dir = get_context_dir(config_file)
+    project_dir = os.path.dirname(os.path.abspath(config_file))
+    target_dir = os.path.join(project_dir, context_dir)
+
     if target in ('base', 'both'):
         click.echo(f"\n{Fore.CYAN}*** Cleaning BASE containers and images ***")
         compose_file, env_file = get_dockyman_base_config(config_file)
-        clean_target(swarm, compose_file, env_file, context='base')
+        clean_target(swarm, compose_file, env_file, context='base', target_dir='.')
 
     if target in ('local', 'both'):
         click.echo(f"\n{Fore.CYAN}*** Cleaning LOCAL containers and images ***")
         compose_file = get_dockyman_local_config(config_file)
-        env_file = os.path.join(PREFIX_TARGET, '.env')
-        clean_target(swarm, compose_file, env_file, context='local')
+        env_file = os.path.join(target_dir, '.env')
+        clean_target(swarm, compose_file, env_file, context='local', target_dir='.')
 
 
-def clean_target(swarm, compose_file, base_env_file, context):
+def clean_target(swarm, compose_file, base_env_file, context, target_dir):
     """Clean containers and images for a given context (base/local)."""
     services = services_for_nodes(compose_file, swarm, base_env_file)
 
     for node, service_names in services.items():
         env_file = base_env_file
         if context == 'local':
-            custom_env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}')
+            custom_env_file = os.path.join(target_dir, f'.env-{node.id}')
             if os.path.isfile(custom_env_file):
                 env_file = custom_env_file
 

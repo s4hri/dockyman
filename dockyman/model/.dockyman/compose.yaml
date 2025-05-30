@@ -33,7 +33,6 @@ services:
       service: local
 
     entrypoint: /var/dockyman/scripts/initContainer.sh
-    command: bash
 
     labels:
       dockyman.node: manager-node

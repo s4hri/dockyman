@@ -33,53 +33,56 @@ from dockyman.utils import (
     services_for_nodes,
     get_docker_profiles,
     load_env_variables,
-    get_dockyman_runtime_config,
+    get_dockyman_runtime_config
 )
+from dockyman.config import DEFAULT_CONFIG_FILE
 from dockyman.commands.stop import stop_docker_compose_for_all
-from dockyman.config import PREFIX_TARGET
 
 
 @click.command(help="Run Docker containers using Docker Compose.")
-@click.argument('config_file', required=False, default='dockyman.yaml')
 @click.option('--no_detach', is_flag=True, default=False, help='Run containers in the foreground.')
-def run_command(config_file, no_detach):
+@click.pass_context
+def run_command(ctx, no_detach):
     """Run Docker Compose services for manager and workers defined in the swarm."""
+    config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
+
     try:
-        config_path = os.path.join(PREFIX_TARGET, config_file)
-        swarm = get_swarm(config_path)
-        compose_file, env_file = get_dockyman_runtime_config(config_path)
+        project_dir = os.path.dirname(os.path.abspath(config_file))
+
+        swarm = get_swarm(config_file)
+        compose_file, env_file = get_dockyman_runtime_config(config_file)
     except Exception as e:
         click.echo(f"{Fore.RED}[x] Error loading config: {e}")
         raise click.Abort()
 
     detach = not no_detach
-    run_services_for_all_nodes(swarm, compose_file, env_file, detach)
+    run_services_for_all_nodes(swarm, compose_file, env_file, detach, project_dir)
 
 
-def run_services_for_all_nodes(swarm, compose_file, default_env_file, detach):
+def run_services_for_all_nodes(swarm, compose_file, default_env_file, detach, target_dir):
     try:
         for node in swarm.workers + [swarm.manager]:
-            local_env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}') if node != swarm.manager else default_env_file
+            local_env_file = os.path.join(target_dir, f'.env-{node.id}') if node != swarm.manager else default_env_file
             if not os.path.isfile(local_env_file):
                 local_env_file = default_env_file
 
             services = services_for_nodes(compose_file, swarm, local_env_file)
             if node in services:
                 click.echo(f"{Fore.WHITE} -> Running services on node: {Fore.CYAN}{node.id}")
-                run_services_for_node(compose_file, node, local_env_file, services[node], detach)
+                run_services_for_node(compose_file, node, local_env_file, services[node], detach, target_dir)
 
         if detach:
             click.echo(f"{Fore.WHITE} -> Services are running in detached mode.")
             click.echo(f"\t{Fore.YELLOW}Press Enter to stop all services...")
             click.get_text_stream('stdout').flush()
             click.get_text_stream('stdin').readline()
-            stop_docker_compose_for_all(swarm, compose_file, default_env_file)
+            stop_docker_compose_for_all(swarm, compose_file, default_env_file, target_dir)
 
     except Exception as e:
         click.echo(f"{Fore.RED}[x] Error running services: {e}")
 
 
-def run_services_for_node(compose_file, node, env_file, services, detach=False):
+def run_services_for_node(compose_file, node, env_file, services, detach=False, target_dir='.'):
     profiles = get_docker_profiles(env_file)
     click.echo(f"{Fore.LIGHTBLACK_EX} [.] Docker profiles: {profiles}")
     click.echo(f"{Fore.LIGHTBLACK_EX} [.] Services to run: {services}")
@@ -96,7 +99,7 @@ def run_services_for_node(compose_file, node, env_file, services, detach=False):
         if detach:
             click.echo(f"{Fore.GREEN} [✓] Services started for node {node.id}.")
             if should_stream_logs(env_file):
-                stream_logs_for_node(docker, node)
+                stream_logs_for_node(docker, node, target_dir)
     except Exception as e:
         click.echo(f"{Fore.RED} [x] Error running on node {node.id}: {e}")
 
@@ -106,8 +109,8 @@ def should_stream_logs(env_file):
     return env_vars.get("DOCKER_LOGS", "false").lower() == "true"
 
 
-def stream_logs_for_node(docker, node):
-    logs_dir = os.path.join(PREFIX_TARGET, "logs")
+def stream_logs_for_node(docker, node, target_dir):
+    logs_dir = os.path.join(target_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
 
     for container in docker.compose.ps():

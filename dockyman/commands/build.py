@@ -27,7 +27,7 @@ import click
 from python_on_whales import DockerClient
 from colorama import Fore
 from dockyman.commands.setup import check_nvidia_hardware
-from dockyman.config import DEFAULT_CONFIG_FILE, DISPLAY, PREFIX_TARGET
+from dockyman.config import DEFAULT_TARGET_DIR, DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE_NAME, DISPLAY
 from dockyman.utils import (
     run_ssh_command,
     get_swarm,
@@ -36,7 +36,8 @@ from dockyman.utils import (
     services_for_nodes,
     get_dockyman_base_config,
     get_dockyman_local_config,
-    load_extra_env_vars_from_dockyman
+    load_extra_env_vars_from_dockyman,
+    get_context_dir
 )
 
 @click.command(help="Build Docker containers using Docker Compose.")
@@ -48,6 +49,9 @@ def build_command(ctx, target):
 
     try:
         swarm = get_swarm(config_file)
+        _, context_dir = get_context_dir(config_file)
+        project_dir = os.path.dirname(os.path.abspath(config_file))
+        target_dir = os.path.join(project_dir, context_dir)
         extra_env_vars = load_extra_env_vars_from_dockyman(config_file)
         compose_base, env_base = get_dockyman_base_config(config_file)
         compose_local = get_dockyman_local_config(config_file)
@@ -64,7 +68,7 @@ def build_command(ctx, target):
 
     if target in ('local', 'both'):
         click.echo(f"\n{Fore.CYAN}*** Building LOCAL images ***")
-        build_local(swarm, compose_local, env_base, extra_env_vars)
+        build_local(swarm, compose_local, env_base, extra_env_vars, target_dir)
 
 def build_base(swarm, compose_file, env_file):
     services = services_for_nodes(compose_file, swarm, env_file)
@@ -72,10 +76,10 @@ def build_base(swarm, compose_file, env_file):
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building BASE services {service_names} on node {node.id}")
         build_docker_compose_service(compose_file, env_file, node, service_names)
 
-def build_local(swarm, compose_file, base_env_file, extra_env_vars):
+def build_local(swarm, compose_file, base_env_file, extra_env_vars, target_dir):
     services = services_for_nodes(compose_file, swarm, base_env_file)
     for node, service_names in services.items():
-        local_env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}' if node != swarm.manager else '.env')
+        local_env_file = os.path.join(target_dir, f'.env-{node.id}' if node != swarm.manager else '.env')
         generate_local_env_file(node, base_env_file, local_env_file, extra_env_vars)
         click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Building LOCAL services {service_names} on node {node.id}")
         build_docker_compose_service(compose_file, local_env_file, node, service_names)

@@ -31,32 +31,37 @@ from dockyman.utils import (
     get_swarm,
     get_dockyman_runtime_config,
     services_for_nodes,
-    load_env_variables
+    load_env_variables,
+    get_context_dir
 )
-from dockyman.config import PREFIX_TARGET
+from dockyman.config import DEFAULT_CONFIG_FILE
 
 
 @click.command(help="Stop and remove Docker containers using Docker Compose.")
-@click.argument('config_file', required=False, default='dockyman.yaml')
-def stop_command(config_file):
-    """Stop and remove Docker Compose services for all swarm nodes."""
+@click.pass_context
+def stop_command(ctx):
+    """Build Docker containers for 'base' and/or 'local' targets."""
+    config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
+    _, context_dir = get_context_dir(config_file)
+    project_dir = os.path.dirname(os.path.abspath(config_file))
+    target_dir = os.path.join(project_dir, context_dir)
+
     try:
-        config_path = os.path.join(PREFIX_TARGET, config_file)
-        swarm = get_swarm(config_path)
-        compose_file, env_file = get_dockyman_runtime_config(config_path)
+        swarm = get_swarm(config_file)
+        compose_file, env_file = get_dockyman_runtime_config(config_file)
     except Exception as e:
         click.echo(f"{Fore.RED}[x] Error loading config: {e}")
         raise click.Abort()
 
-    stop_docker_compose_for_all(swarm, compose_file, env_file)
+    stop_docker_compose_for_all(swarm, compose_file, env_file, target_dir)
 
 
-def stop_docker_compose_for_all(swarm, compose_file, default_env_file):
+def stop_docker_compose_for_all(swarm, compose_file, default_env_file, target_dir):
     """Iterate over all nodes and stop/remove services."""
     try:
         for node in swarm.workers + [swarm.manager]:
             role = "manager" if node == swarm.manager else "worker"
-            env_file = os.path.join(PREFIX_TARGET, f'.env-{node.id}') if node != swarm.manager else default_env_file
+            env_file = os.path.join(target_dir, f'.env-{node.id}') if node != swarm.manager else default_env_file
 
             if not os.path.isfile(env_file):
                 env_file = default_env_file

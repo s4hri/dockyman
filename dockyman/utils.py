@@ -108,29 +108,39 @@ def get_local_version(config_file):
     config = load_yaml(config_file)
     return float(config.get("project", {}).get("dockyman_version", "Unknown"))
 
-def get_compose_paths(config_file, target="base"):
+def get_context_dir(config_file):
     config = load_yaml(config_file)
     project = config.get("project", {})
     context_dir = project.get("context", os.path.dirname(config_file))
+    return project, context_dir
 
+def get_compose_build_paths(config_file, target="base"):
+    project, context_dir = get_context_dir(config_file)
     target_config = project["build"][target]
     base_path = os.path.dirname(config_file)
-
     compose_file = os.path.normpath(os.path.join(base_path, context_dir, target_config["compose_file"]))
     env_file = target_config.get("env_file")
     env_file = os.path.normpath(os.path.join(base_path, context_dir, env_file)) if env_file else None
+    return compose_file, env_file
 
+def get_compose_runtime_paths(config_file):
+    project, context_dir = get_context_dir(config_file)
+    target_config = project["runtime"]
+    base_path = os.path.dirname(config_file)
+    compose_file = os.path.normpath(os.path.join(base_path, context_dir, target_config["compose_file"]))
+    env_file = target_config.get("env_file")
+    env_file = os.path.normpath(os.path.join(base_path, context_dir, env_file)) if env_file else None
     return compose_file, env_file
 
 def get_dockyman_base_config(config_file):
-    return get_compose_paths(config_file, target="base")
+    return get_compose_build_paths(config_file, target="base")
 
 def get_dockyman_local_config(config_file):
-    compose, _ = get_compose_paths(config_file, target="local")
+    compose, _ = get_compose_build_paths(config_file, target="local")
     return compose
 
 def get_dockyman_runtime_config(config_file):
-    return get_compose_paths(config_file, target="runtime")
+    return get_compose_runtime_paths(config_file)
 
 def run_ssh_command(ssh_address, command):
     try:

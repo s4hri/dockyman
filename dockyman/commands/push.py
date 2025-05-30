@@ -23,11 +23,10 @@
 # SOFTWARE.
 
 import click
-import os
 from python_on_whales import DockerClient
 from colorama import Fore
 
-from dockyman.config import PREFIX_TARGET
+from dockyman.config import DEFAULT_CONFIG_FILE
 from dockyman.utils import (
     get_swarm,
     services_for_nodes,
@@ -36,20 +35,19 @@ from dockyman.utils import (
 
 
 @click.command(help="Push Docker base images for all swarm nodes.")
-@click.argument('config_file', required=False, default='dockyman.yaml')
-def push_command(config_file):
+def push_command(ctx):
     """Push Docker base images on manager and worker nodes."""
-    config_path = os.path.join(PREFIX_TARGET, config_file)
+    config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
 
     try:
-        swarm = get_swarm(config_path)
-        compose_file, env_file = get_dockyman_base_config(config_path)
+        swarm = get_swarm(config_file)
+        compose_file, env_file = get_dockyman_base_config(config_file)
 
-        click.echo(f"{Fore.LIGHTBLACK_EX} -> Loaded configuration from: {config_path}")
+        click.echo(f"{Fore.LIGHTBLACK_EX} -> Loaded configuration from: {config_file}")
         push_images_for_all_nodes(swarm, compose_file, env_file)
 
     except FileNotFoundError:
-        click.echo(f"{Fore.RED}[x] Config file not found: {config_path}")
+        click.echo(f"{Fore.RED}[x] Config file not found: {config_file}")
         raise click.Abort()
 
     except Exception as e:
