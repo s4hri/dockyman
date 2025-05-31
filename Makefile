@@ -25,7 +25,7 @@ uninstall-system:
 	$(PYTHON) -m pip uninstall -y dockyman
 
 # Run tests in venv
-test: install-venv
+test: install
 	$(VENV_DIR)/bin/pytest tests -s
 
 clean:

@@ -27,18 +27,22 @@ services:
   local:
     environment:
         - DISPLAY=${DISPLAY:?err}
+        - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:?err}
+        - XDG_DATA_DIRS=${XDG_DATA_DIRS:-/usr/local/share:/usr/share}
         - PULSE_SERVER=unix:${XDG_RUNTIME_DIR:?err}/pulse/native
         - PULSE_COOKIE=/run/pulse/cookie
-        - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:?err}
         - QT_X11_NO_MITSHM=1
         - NO_AT_BRIDGE=1
         - LIBGL_ALWAYS_SOFTWARE=false
+        - SSH_AUTH_SOCK=/ssh-agent
 
     extends:
       file: gpus.yaml
       service: ${GPU_PROFILE:-no-gpu}
 
     working_dir: /workdir
+
+    entrypoint: /workdir/scripts/initContainer.sh
 
     privileged: true
     stdin_open: true
@@ -51,7 +55,7 @@ services:
         target: /tmp/.X11-unix
 
       - type: bind
-        source: /home/${USER}/.config/pulse/cookie
+        source: ~/.config/pulse/cookie
         target: /run/pulse/cookie
       
       - type: bind
@@ -59,5 +63,37 @@ services:
         target: ${XDG_RUNTIME_DIR:?err}/pulse
 
       - type: bind
+        source: ../config/asound.conf
+        target: /etc/asound.conf
+      
+      - type: bind
+        source: ../config/pulse-client.conf
+        target: /etc/pulse/client.conf
+        
+      - type: bind
         source: ${XDG_RUNTIME_DIR:?err}/dconf
         target: ${XDG_RUNTIME_DIR:?err}/dconf
+
+      - type: bind
+        source: ../scripts
+        target: /workdir/scripts
+
+      - type: bind
+        source: ~/.gitconfig
+        target: /home/${LOCAL_IMAGE_USERNAME}/.gitconfig
+        read_only: true
+
+      - type: bind
+        source: ${HOME}/.config
+        target: /home/${LOCAL_IMAGE_USERNAME}/.config
+        read_only: true
+
+      - type: bind
+        source: ${HOME}/.ssh
+        target: /home/${LOCAL_IMAGE_USERNAME}/.ssh
+        read_only: true
+
+      - type: bind
+        source: ${SSH_AUTH_SOCK:-/dev/null}
+        target: /ssh-agent
+        read_only: true

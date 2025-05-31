@@ -132,6 +132,11 @@ def get_compose_runtime_paths(config_file):
     env_file = os.path.normpath(os.path.join(base_path, context_dir, env_file)) if env_file else None
     return compose_file, env_file
 
+def get_manager_entrypoint(config_file):
+    project, _ = get_context_dir(config_file)
+    target_config = project["runtime"]
+    return target_config.get("manager_entrypoint")
+
 def get_dockyman_base_config(config_file):
     return get_compose_build_paths(config_file, target="base")
 

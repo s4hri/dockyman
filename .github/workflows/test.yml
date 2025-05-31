@@ -1,0 +1,40 @@
+name: Dockyman CI
+
+on:
+  push:
+    branches:
+      - v3.x_pip  # Adjust this if your default branch is not 'main'
+  
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04  # Use 22.04 for stable compatibility
+
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+
+    - name: Install Python dependencies
+      run: |
+        make install
+
+    - name: Run tests
+      run: |
+        make test

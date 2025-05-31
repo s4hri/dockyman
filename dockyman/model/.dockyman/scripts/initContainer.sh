@@ -33,3 +33,12 @@ else
 fi
 
 echo "Container initialization complete. All systems checked."
+
+if [ $# -eq 0 ]; then
+    echo "No command provided. Closing container."
+    exit 0
+else
+    echo "Executing command: $*"
+fi
+
+exec "$@"
