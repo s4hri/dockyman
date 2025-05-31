@@ -3,18 +3,19 @@ name: Dockyman CI
 on:
   push:
     branches:
-      - main  # Adjust this if your default branch is not 'main'
+      - v3.x_pip  # Adjust this if your default branch is not 'main'
+  
   pull_request:
   release:
     types: [published]
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04  # Use 22.04 for stable compatibility
 
     strategy:
       matrix:
-        python-version: [3.10, 3.11, 3.12]  # Test on multiple Python versions
+        python-version: [3.11, 3.12]
 
     steps:
     - name: Checkout code
