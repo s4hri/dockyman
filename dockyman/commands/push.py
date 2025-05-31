@@ -35,6 +35,7 @@ from dockyman.utils import (
 
 
 @click.command(help="Push Docker base images for all swarm nodes.")
+@click.pass_context
 def push_command(ctx):
     """Push Docker base images on manager and worker nodes."""
     config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)

@@ -29,10 +29,10 @@ services:
     container_name: ${PROJECT_NAME:?err}_${VERSION:?err}
 
     extends:
-      file: profiles/local.yaml
+      file: .dockyman/profiles/local.yaml
       service: local
 
-    entrypoint: /var/dockyman/scripts/initContainer.sh
+    command: ["sleep", "infinity"]
 
     labels:
       dockyman.node: manager-node
@@ -44,14 +44,6 @@ services:
       - type: bind
         source: ./workdir
         target: /workdir
-
-      - type: bind
-        source: ./scripts
-        target: /var/dockyman/scripts
-
-      - type: bind
-        source: /home/${USER}/.ssh # Do not use ~, but provide the full path using $USER
-        target: /home/docky/.ssh
 
   # aux:
   #   image: ${LOCAL_IMAGE_NAME:?err}

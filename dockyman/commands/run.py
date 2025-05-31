@@ -23,8 +23,10 @@
 # SOFTWARE.
 
 import os
+import sys
 import threading
 import click
+import subprocess
 from python_on_whales import DockerClient
 from colorama import Fore
 
@@ -33,7 +35,9 @@ from dockyman.utils import (
     services_for_nodes,
     get_docker_profiles,
     load_env_variables,
-    get_dockyman_runtime_config
+    get_dockyman_runtime_config,
+    get_manager_entrypoint,
+    get_context_dir
 )
 from dockyman.config import DEFAULT_CONFIG_FILE
 from dockyman.commands.stop import stop_docker_compose_for_all
@@ -45,6 +49,9 @@ from dockyman.commands.stop import stop_docker_compose_for_all
 def run_command(ctx, no_detach):
     """Run Docker Compose services for manager and workers defined in the swarm."""
     config_file = ctx.obj.get('config', DEFAULT_CONFIG_FILE)
+    _, context_dir = get_context_dir(config_file)
+    project_dir = os.path.dirname(os.path.abspath(config_file))
+    target_dir = os.path.join(project_dir, context_dir)
 
     try:
         project_dir = os.path.dirname(os.path.abspath(config_file))
@@ -56,6 +63,8 @@ def run_command(ctx, no_detach):
         raise click.Abort()
 
     detach = not no_detach
+    script = get_manager_entrypoint(config_file)
+    subprocess.run([os.path.join(target_dir, script)] + sys.argv[1:], check=True)
     run_services_for_all_nodes(swarm, compose_file, env_file, detach, project_dir)
 
 
@@ -68,7 +77,7 @@ def run_services_for_all_nodes(swarm, compose_file, default_env_file, detach, ta
 
             services = services_for_nodes(compose_file, swarm, local_env_file)
             if node in services:
-                click.echo(f"{Fore.WHITE} -> Running services on node: {Fore.CYAN}{node.id}")
+                click.echo(f"\n{Fore.WHITE} -> Running services on node: {Fore.CYAN}{node.id}")
                 run_services_for_node(compose_file, node, local_env_file, services[node], detach, target_dir)
 
         if detach:
@@ -110,6 +119,7 @@ def should_stream_logs(env_file):
 
 
 def stream_logs_for_node(docker, node, target_dir):
+    click.echo(f"{Fore.LIGHTBLACK_EX} [.] Streaming logs for node {node.id}...")
     logs_dir = os.path.join(target_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
 
