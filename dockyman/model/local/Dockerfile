@@ -28,12 +28,15 @@ ARG USER_UID
 ARG USER_GID
 ARG USER_GROUPS
 ARG GROUP_IDS
+ARG XDG_RUNTIME_DIR
+
 
 ENV USERNAME=$USERNAME
 ENV USER_UID=$USER_UID
 ENV USER_GID=$USER_GID
 ENV USER_GROUPS=$USER_GROUPS
 ENV GROUP_IDS=$GROUP_IDS
+ENV XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
 
 SHELL ["/bin/bash", "-c"]
 
@@ -125,9 +128,18 @@ RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 RUN echo "Fixing permissions for /home/$USERNAME"; \
     chown -R "$USER_UID:$USER_GID" "/home/$USERNAME"
 
-# Step 8: Optional X11 support
+# Step 8: Ensure the XDG_RUNTIME_DIR directory has the correct permissions
+RUN if [ -n "$XDG_RUNTIME_DIR" ]; then \
+        mkdir -p "$XDG_RUNTIME_DIR"; \
+        chmod 0700 "$XDG_RUNTIME_DIR"; \
+        chown "$USER_UID:$USER_GID" "$XDG_RUNTIME_DIR"; \
+    else \
+        echo "XDG_RUNTIME_DIR is not set, skipping"; \
+    fi
+
+# Step 9: Optional X11 support
 RUN touch /.Xauthority && chmod 600 /.Xauthority
 
-# Step 9: Set environment and switch to user
+# Step 10: Set environment and switch to user
 ENV PATH=${PATH}:/home/${USERNAME}/.local/bin:/workdir
 USER $USERNAME

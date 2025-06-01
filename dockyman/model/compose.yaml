@@ -32,6 +32,8 @@ services:
       file: .dockyman/profiles/local.yaml
       service: local
 
+    entrypoint: /workdir/scripts/initContainer.sh
+    
     command: ["sleep", "infinity"]
 
     labels:
@@ -44,6 +46,10 @@ services:
       - type: bind
         source: ./workdir
         target: /workdir
+
+      - type: bind
+        source: .dockyman/scripts
+        target: /workdir/scripts
 
   # aux:
   #   image: ${LOCAL_IMAGE_NAME:?err}

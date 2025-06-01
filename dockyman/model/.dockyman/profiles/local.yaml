@@ -40,10 +40,6 @@ services:
       file: gpus.yaml
       service: ${GPU_PROFILE:-no-gpu}
 
-    working_dir: /workdir
-
-    entrypoint: /workdir/scripts/initContainer.sh
-
     privileged: true
     stdin_open: true
     tty: true
@@ -73,25 +69,6 @@ services:
       - type: bind
         source: ${XDG_RUNTIME_DIR:?err}/dconf
         target: ${XDG_RUNTIME_DIR:?err}/dconf
-
-      - type: bind
-        source: ../scripts
-        target: /workdir/scripts
-
-      - type: bind
-        source: ~/.gitconfig
-        target: /home/${LOCAL_IMAGE_USERNAME}/.gitconfig
-        read_only: true
-
-      - type: bind
-        source: ${HOME}/.config
-        target: /home/${LOCAL_IMAGE_USERNAME}/.config
-        read_only: true
-
-      - type: bind
-        source: ${HOME}/.ssh
-        target: /home/${LOCAL_IMAGE_USERNAME}/.ssh
-        read_only: true
 
       - type: bind
         source: ${SSH_AUTH_SOCK:-/dev/null}
