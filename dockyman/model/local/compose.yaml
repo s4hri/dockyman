@@ -37,6 +37,7 @@ services:
         USER_GID: ${USER_GID:?err}
         USER_GROUPS: ${LOCAL_IMAGE_GROUPS:?err}
         GROUP_IDS: ${GROUP_IDS:?err}
+        XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR:?err}
 
     labels:
       dockyman.node: manager-node
