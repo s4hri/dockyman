@@ -38,12 +38,12 @@ make install
 Additionally, you can install dockyman using virtual environments:
 
 ```bash
-make install-venv
+make install
 ```
 
 Optionally, you can also select a specific target directory different than `.`
 ```bash
-make install-venv TARGET_DIR=~/mycustomdir
+make install TARGET_DIR=~/mycustomdir
 ```
 
 ---
