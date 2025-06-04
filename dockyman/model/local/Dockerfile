@@ -1,3 +1,27 @@
+# MIT License
+#
+# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
+#                    Author: Davide De Tommaso (davide.detommaso@iit.it)
+#                    Project: Dockyman
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 ARG DOCKER_SRC=ubuntu:latest
 FROM ${DOCKER_SRC}
 
@@ -90,24 +114,33 @@ RUN existing_group_info=$(getent group "$USERNAME"); \
 
 
 # Step 3: Modify the existing user (from UID 1000) to match local UID/GID
-RUN if id "$USERNAME" >/dev/null 2>&1; then \
+RUN existing_user_by_uid=$(getent passwd "$USER_UID" | cut -d: -f1 || true); \
+    if id "$USERNAME" >/dev/null 2>&1; then \
+        echo "User '$USERNAME' already exists."; \
         current_uid=$(id -u "$USERNAME"); \
         current_gid=$(id -g "$USERNAME"); \
         if [ "$current_uid" != "$USER_UID" ]; then \
-            echo "Updating UID of user '$USERNAME' from $current_uid to $USER_UID"; \
+            echo "Updating UID of '$USERNAME' from $current_uid to $USER_UID"; \
             usermod -u "$USER_UID" "$USERNAME"; \
         fi; \
         if [ "$current_gid" != "$USER_GID" ]; then \
-            echo "Updating GID of user '$USERNAME' from $current_gid to $USER_GID"; \
+            echo "Updating GID of '$USERNAME' from $current_gid to $USER_GID"; \
             usermod -g "$USER_GID" "$USERNAME"; \
         fi; \
         usermod -d "/home/$USERNAME" -m -s /bin/bash "$USERNAME"; \
         passwd -d "$USERNAME"; \
+    elif [ -n "$existing_user_by_uid" ]; then \
+        echo "Found existing user with UID=$USER_UID: '$existing_user_by_uid'"; \
+        usermod -l "$USERNAME" "$existing_user_by_uid"; \
+        usermod -d "/home/$USERNAME" -m -s /bin/bash "$USERNAME"; \
+        groupmod -n "$USERNAME" "$existing_user_by_uid"; \
+        passwd -d "$USERNAME"; \
     else \
-        echo "User '$USERNAME' not found. Creating..."; \
+        echo "Creating new user '$USERNAME' with UID=$USER_UID and GID=$USER_GID"; \
         useradd --no-log-init -m -d "/home/$USERNAME" -u "$USER_UID" -g "$USER_GID" -s /bin/bash "$USERNAME"; \
         passwd -d "$USERNAME"; \
     fi
+
 
 # Step 4: Add the user to the specified groups
 RUN IFS=',' read -ra group_names <<< "$USER_GROUPS"; \
