@@ -1,7 +1,7 @@
 project:
   dockyman_version: 3.0
 
-  context: ./ # Path to the project context, relative to the dockyman.yaml file
+  context: . # Path to the project context, relative to the dockyman.yaml file
 
   build:
     base:

@@ -67,18 +67,20 @@ def clean_command(ctx, target):
 
 def clean_target(swarm, compose_file, base_env_file, context, target_dir):
     """Clean containers and images for a given context (base/local)."""
-    services = services_for_nodes(compose_file, swarm, base_env_file)
+    try:
+        services = services_for_nodes(compose_file, swarm, base_env_file)
 
-    for node, service_names in services.items():
-        env_file = base_env_file
-        if context == 'local':
-            custom_env_file = os.path.join(target_dir, f'.env-{node.id}')
-            if os.path.isfile(custom_env_file):
-                env_file = custom_env_file
+        for node, service_names in services.items():
+            env_file = base_env_file
+            if context == 'local':
+                custom_env_file = os.path.join(target_dir, f'.env-{node.id}')
+                if os.path.isfile(custom_env_file):
+                    env_file = custom_env_file
 
-        click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Cleaning {context.upper()} services {service_names} for node: {Fore.WHITE}{node.id}")
-        remove_docker_resources(compose_file, env_file, node, service_names)
-
+            click.echo(f"\n{Fore.LIGHTBLACK_EX} -> Cleaning {context.upper()} services {service_names} for node: {Fore.WHITE}{node.id}")
+            remove_docker_resources(compose_file, env_file, node, service_names)
+    except Exception as e:
+        click.echo(f"{Fore.RED}[x] Error during cleanup for {context} context: {e}")
 
 def remove_docker_resources(compose_file, env_file, node, services):
     try:
