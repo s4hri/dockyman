@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2025 Istituto Italiano di Tecnologia (IIT)
+# Copyright (c) 2025 Istituto Italiano di Tecnoogia
 #                    Author: Davide De Tommaso (davide.detommaso@iit.it)
 #                    Project: Dockyman
 #
@@ -21,6 +21,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 
 ARG DOCKER_SRC=ubuntu:latest
 FROM ${DOCKER_SRC}
@@ -63,6 +64,9 @@ ENV GROUP_IDS=$GROUP_IDS
 ENV XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
 
 SHELL ["/bin/bash", "-c"]
+
+# Create workdir if it doesn't exist
+RUN mkdir -p /workdir
 
 # Step 1: Ensure all secondary groups exist (with specified GIDs)
 RUN IFS=',' read -ra group_names <<< "$USER_GROUPS"; \
@@ -157,9 +161,9 @@ RUN if echo "$USER_GROUPS" | grep -qw "sudo"; then \
 # Step 6: Clean logs
 RUN rm -f /var/log/lastlog /var/log/faillog /var/log/dpkg.log
 
-# Step 7: Fix ownership of home directory
-RUN echo "Fixing permissions for /home/$USERNAME"; \
-    chown -R "$USER_UID:$USER_GID" "/home/$USERNAME"
+# Step 7: Fix ownership of home directory and workdir
+RUN chown -R "$USER_UID:$USER_GID" "/home/$USERNAME" && \
+    chown -R "$USER_UID:$USER_GID" "/workdir"
 
 # Step 8: Ensure the XDG_RUNTIME_DIR directory has the correct permissions
 RUN if [ -n "$XDG_RUNTIME_DIR" ]; then \
@@ -176,3 +180,5 @@ RUN touch /.Xauthority && chmod 600 /.Xauthority
 # Step 10: Set environment and switch to user
 ENV PATH=${PATH}:/home/${USERNAME}/.local/bin:/workdir
 USER $USERNAME
+
+RUN pip install markdown
