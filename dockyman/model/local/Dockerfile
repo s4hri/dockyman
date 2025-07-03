@@ -65,9 +65,6 @@ ENV XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR
 
 SHELL ["/bin/bash", "-c"]
 
-# Create workdir if it doesn't exist
-RUN mkdir -p /workdir
-
 # Step 1: Ensure all secondary groups exist (with specified GIDs)
 RUN IFS=',' read -ra group_names <<< "$USER_GROUPS"; \
     IFS=',' read -ra group_ids <<< "$GROUP_IDS"; \
