@@ -22,16 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-FROM node:20.4.0-alpine
+FROM node:20-alpine
 
 ENV TZ=Europe/Rome
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apk add docker docker-compose python3 make g++ bash openssh rsync
+RUN apk add docker python3 make g++ bash openssh rsync
 
 ARG DOCKYMAN_VER
 
-ENV DOCKYMAN_VER $DOCKYMAN_VER
+ENV DOCKYMAN_VER=$DOCKYMAN_VER
 
 ADD local /workdir/local
 ADD template /workdir/template

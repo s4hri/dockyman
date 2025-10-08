@@ -50,7 +50,6 @@ ENV_BUILD := --env-file ${ENV_FILE_BUILD}
 
 UNAME := $(shell uname)
 DOCKER_INSTALLED := $(shell command -v docker 2> /dev/null)
-DOCKER_COMPOSE_INSTALLED := $(shell command -v docker-compose 2> /dev/null)
 NVIDIA_DOCKER_INSTALLED := $(shell command -v nvidia-container-toolkit 2> /dev/null)
 HAS_NVIDIA_GPU := $(shell lspci | grep -i nvidia)
 HAS_DOCKER_GROUP := $(shell groups $(USER) | grep -o '\bdocker\b')
@@ -59,7 +58,6 @@ ifeq ($(UNAME), Linux)
     ifeq ($(shell lsb_release -is), Ubuntu)
         PACKAGE_MANAGER := apt-get
         DOCKER_INSTALL_CMD := curl -fsSL https://get.docker.com | sh 
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := \
 		                            curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg ; \
 	                                curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -72,7 +70,6 @@ ifeq ($(UNAME), Linux)
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), centos)
         PACKAGE_MANAGER := yum
         DOCKER_INSTALL_CMD := sudo yum install -y docker-ce
-        DOCKER_COMPOSE_INSTALL_CMD := sudo curl -L "https://github.com/docker/compose/releases/download/2.34.0/docker-compose-$(shell uname -s)-$(shell uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
 		                             sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo ; \
 									 sudo yum-config-manager --enable nvidia-container-toolkit-experimental ; \
@@ -81,12 +78,10 @@ ifeq ($(UNAME), Linux)
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), arch)
         PACKAGE_MANAGER := pacman
         DOCKER_INSTALL_CMD := sudo pacman -S --noconfirm docker
-        DOCKER_COMPOSE_INSTALL_CMD := sudo pacman -S --noconfirm docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := sudo pacman -S --noconfirm nvidia-docker
     else ifeq ($(shell cat /etc/os-release | grep '^ID=' | cut -d= -f2), alpine)
         PACKAGE_MANAGER := apk
         DOCKER_INSTALL_CMD := apk add --no-cache docker
-        DOCKER_COMPOSE_INSTALL_CMD := apk add --no-cache docker-compose
         NVIDIA_DOCKER_INSTALL_CMD := echo "Alpine Linux does not support NVIDIA Docker by default." ; \
                                      echo "Please refer to the NVIDIA Docker documentation for Alpine-based images: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#alpine"
     else
@@ -99,7 +94,7 @@ endif
 ifeq ($(DOCKER_INSTALLED),)
 all: install-all
 else
-DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
+DOCKER_COMPOSE := docker compose
 
 DOCKYMAN_BASE_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_BASE} ${ENV_BUILD}
 DOCKYMAN_LOCAL_COMMAND := ${DOCKER_COMPOSE} ${COMPOSE_LOCAL} ${ENV_BUILD}
@@ -130,18 +125,6 @@ install-docker:
 	else \
 		echo "Docker is already installed."; \
 	fi
-
-.PHONY: install-docker-compose
-install-docker-compose:
-	@if [ -z "$(DOCKER_COMPOSE_INSTALLED)" ]; then \
-        read -p "Docker Compose is not installed. Do you want to install it? (y/N) " choice; \
-        case "$$choice" in \
-            y|Y) $(DOCKER_COMPOSE_INSTALL_CMD) ;; \
-            *) echo "Aborting Docker Compose installation." ;; \
-        esac \
-    else \
-        echo "Docker Compose is already installed." ; \
-    fi
 
 .PHONY: install-nvidia-docker
 install-nvidia-docker:
@@ -179,7 +162,7 @@ reboot:
     esac
 
 .PHONY: install-all
-install-all: install-docker install-docker-compose install-nvidia-docker
+install-all: install-docker install-nvidia-docker
 	@echo "Installation and configuration completed."
 
 
@@ -211,11 +194,6 @@ uninstall-docker:
 			echo "Removing Docker configuration and data..." ; \
 			sudo rm -rf /etc/docker; \
 			sudo rm -rf /var/lib/docker; \
-			\
-			echo "Removing Docker Compose (if installed)..." ; \
-			if [ -x /usr/local/bin/docker-compose ]; then \
-				sudo rm /usr/local/bin/docker-compose; \
-			fi; \
 			\
 			echo "Removing Docker user and group (if present)..." ; \
 			if getent group docker >/dev/null; then \
@@ -255,12 +233,11 @@ uninstall-nvidia-docker:
 help:
 	@echo "Available targets:"
 	@echo "  install-docker             Install Docker"
-	@echo "  install-docker-compose     Install Docker Compose"
 	@echo "  install-nvidia-docker      Install NVIDIA Docker"
 	@echo "  add-docker-group           Add current user to the 'docker' group"
 	@echo "  reboot                     Reboot the machine"
-	@echo "  install-all                Install Docker, Docker Compose, NVIDIA Docker, add user to 'docker' group, and reboot"
-	@echo "  uninstall-docker           Uninstall Docker, Docker Compose"
+	@echo "  install-all                Install Docker, NVIDIA Docker, add user to 'docker' group, and reboot"
+	@echo "  uninstall-docker           Uninstall Docker"
 	@echo "  uninstall-nvidia-docker    Uninstall NVIDIA Docker"
 	@echo "  help                       Display this help message"
 
