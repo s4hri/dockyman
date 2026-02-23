@@ -1,0 +1,66 @@
+project:
+  name: my_project
+  dockyman_version: v4.0.0
+
+  # Save container logs to files in this directory (one file per node).
+  # Leave empty or omit to print logs to stdout.
+  # Can be overridden with: dockyman run --log-output <dir>
+  log_dir: logs
+
+  swarm:
+
+    # ── Local node ────────────────────────────────────────────────────────
+    - node_id: manager
+
+      # Path to docker files, relative to this yaml file
+      docker_context: .
+      compose_file: compose.yaml
+
+      # Docker daemon socket (use ssh://user@host for remote nodes)
+      docker_host: unix:///var/run/docker.sock
+
+      # Compose env file, relative to docker_context
+      env_file: .env
+
+      # ── Build settings ─────────────────────────────────────────────────
+      # Shell env vars prepended to the build command
+      build_env_vars: "PUID=$(id -u) PGID=$(id -g)"
+      # Compose profiles to activate during build
+      # build_profiles: ["build"]
+      # Extra docker compose CLI args for build (optional)
+      # build_args: ""
+
+      # ── Run settings (also used by down and config) ────────────────────
+      # Shell env vars prepended to run/down/config commands (optional)
+      run_env_vars: "PUID=$(id -u) PGID=$(id -g)"
+      # Compose profiles to activate during run/down/config (optional)
+      # run_profiles: []
+      # Extra docker compose CLI args for run/down/config (optional)
+      run_args: "--remove-orphans"
+
+      # ── Hardware settings (applied by `dockyman setup`) ────────────────
+      # X11 DISPLAY value (needed for remote nodes, e.g. ":0")
+      # display: ":0"
+      # Xrandr arguments (auto-detect if empty)
+      # display_args: "--output HDMI-1 --mode 1920x1080"
+      # Audio output volume 0-100 (skip if omitted)
+      audio_volume: 75
+      # Audio output sink (default if empty)
+      # audio_card: ""
+      # Audio input volume 0-100 (skip if omitted)
+      # audio_input_volume: 75
+      # Audio input source (default if empty)
+      # audio_input_card: ""
+
+    # ── Remote node (example) ─────────────────────────────────────────────
+    # - node_id: worker
+    #   docker_context: docker
+    #   compose_file: compose.yaml
+    #   docker_host: ssh://user@hostname
+    #   env_file: .env
+    #   build_env_vars: "PUID=$(ssh user@hostname id -u) PGID=$(ssh user@hostname id -g)"
+    #   build_profiles: ["build"]
+    #   display: ":1"
+    #   display_args: "--output DP-1-2 --mode 1920x1200"
+    #   audio_volume: 80
+    #   audio_card: ""

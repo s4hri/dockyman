@@ -1,0 +1,17 @@
+services:
+  x11-audio-demo:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        - PUID=${PUID}
+        - PGID=${PGID}
+    container_name: ${PROJECT_NAME}
+    environment:
+      - DISPLAY=${DISPLAY}
+      - PULSE_SERVER=unix:/run/user/${PUID}/pulse/native
+    devices:
+      - /dev/snd
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/${PUID}/pulse:/run/user/${PUID}/pulse

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dockyman"
+version = "v4.0.0"
+description = "Orchestrate Docker Compose services across multiple machines."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+dockyman = "dockyman.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dockyman*"]
