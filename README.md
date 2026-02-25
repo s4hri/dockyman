@@ -45,8 +45,9 @@ Dockyman reads a `dockyman.yaml` that describes a **swarm** of nodes (local or r
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:s4hri/dockyman.git
 cd dockyman
+git checkout v4.x
 make install          # creates .venv and installs dockyman
 source .venv/bin/activate
 ```
@@ -218,65 +219,6 @@ Each entry in `swarm` describes one node.
 | `run_profiles` | | List of Compose profiles activated during `run`, `down`, and `config`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up` and `down` (e.g. `--remove-orphans`). |
 | `setup_script` | | Multi-line shell script executed directly on the node (locally or via SSH). Run interactively by `dockyman setup`; run silently before containers start by `dockyman run`. |
-
-### Minimal example
-
-```yaml
-project:
-  name: my_project
-  dockyman_version: v4.0.0
-  swarm:
-    - node_id: manager
-      compose_files: [compose.yaml]
-```
-
-### Full example
-
-```yaml
-project:
-  name: my_project
-  dockyman_version: v4.0.0
-  log_dir: ./logs
-
-  swarm:
-
-    # ── Local node ──────────────────────────────────────────────────────
-    - node_id: manager
-      docker_context: .
-      compose_files:
-        - compose.yaml
-        - compose.override.yaml
-      docker_host: unix:///var/run/docker.sock
-      env_files:
-        - .env
-        - .env.local
-
-      build_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
-      build_profiles: ["build"]
-      build_args: "--no-cache"
-
-      run_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
-      run_profiles: ["prod"]
-      run_args: "--remove-orphans"
-
-      setup_script: |
-        xrandr --auto
-        pactl set-sink-volume @DEFAULT_SINK@ 75%
-
-    # ── Remote node ─────────────────────────────────────────────────────
-    - node_id: worker
-      docker_context: docker
-      compose_files: [compose.yaml]
-      docker_host: ssh://user@hostname
-      env_files: [.env]
-      # Resolve values on the remote host using ssh subcommands
-      build_shell_prefix: "PUID=$(ssh user@hostname id -u) PGID=$(ssh user@hostname id -g)"
-      run_shell_prefix:   "PUID=$(ssh user@hostname id -u) PGID=$(ssh user@hostname id -g)"
-      run_args: "--remove-orphans"
-      setup_script: |
-        xrandr --output DP-1-2 --mode 1920x1200
-        pactl set-sink-volume @DEFAULT_SINK@ 80%
-```
 
 ## Logging
 
