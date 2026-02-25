@@ -87,6 +87,12 @@ def log_raw(text: str) -> None:
             fh.write(text + "\n")
 
 
+def saved(path: str) -> None:
+    """Print the path of a written log file, always (bypasses quiet mode)."""
+    print(f"{CYAN}  → config log: {path}{RESET}")
+    _write(f"  -> config log: {path}")
+
+
 def header(text: str) -> None:
     """Print a bold header to the console and log."""
     if not _quiet:

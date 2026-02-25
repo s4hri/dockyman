@@ -9,8 +9,6 @@ from . import __version__
 from .config import load_config
 from .executor import build, config, down, run, status
 from .hardware import detect_hardware, setup
-from .audio import list_audio, set_volume, set_input_volume, mute, test_audio
-from .display import list_displays, apply_display
 from . import logger
 
 
@@ -73,56 +71,7 @@ def main(argv: list[str] | None = None) -> None:
     _add_node_arg(info_parser)
 
     # -- setup -----------------------------------------------------------------
-    sub.add_parser("setup", help="Apply display and audio settings from dockyman.yaml.")
-
-    # -- audio -----------------------------------------------------------------
-    audio_parser = sub.add_parser("audio", help="Audio device management.")
-    audio_sub = audio_parser.add_subparsers(dest="audio_command", required=True)
-
-    #   audio list
-    audio_list = audio_sub.add_parser("list", help="List audio devices.")
-    _add_node_arg(audio_list)
-
-    #   audio volume <level>
-    audio_vol = audio_sub.add_parser("volume", help="Set output volume (0-100).")
-    audio_vol.add_argument("level", type=int, help="Volume level 0-100.")
-    audio_vol.add_argument("--card", default=None, help="Sink / card identifier.")
-    _add_node_arg(audio_vol)
-
-    #   audio input-volume <level>
-    audio_ivol = audio_sub.add_parser("input-volume", help="Set input (mic) volume (0-100).")
-    audio_ivol.add_argument("level", type=int, help="Volume level 0-100.")
-    audio_ivol.add_argument("--source", default=None, help="Source identifier.")
-    _add_node_arg(audio_ivol)
-
-    #   audio mute / unmute
-    audio_mute = audio_sub.add_parser("mute", help="Mute audio output.")
-    audio_mute.add_argument("--input", action="store_true", help="Mute input instead.")
-    audio_mute.add_argument("--device", default=None, help="Sink/source identifier.")
-    _add_node_arg(audio_mute)
-
-    audio_unmute = audio_sub.add_parser("unmute", help="Unmute audio output.")
-    audio_unmute.add_argument("--input", action="store_true", help="Unmute input instead.")
-    audio_unmute.add_argument("--device", default=None, help="Sink/source identifier.")
-    _add_node_arg(audio_unmute)
-
-    #   audio test
-    audio_test = audio_sub.add_parser("test", help="Run a short speaker test.")
-    audio_test.add_argument("--card", default=None, help="ALSA card identifier.")
-    _add_node_arg(audio_test)
-
-    # -- display ---------------------------------------------------------------
-    disp_parser = sub.add_parser("display", help="Display / xrandr management.")
-    disp_sub = disp_parser.add_subparsers(dest="display_command", required=True)
-
-    #   display list
-    disp_list = disp_sub.add_parser("list", help="List connected displays.")
-    _add_node_arg(disp_list)
-
-    #   display apply [XRANDR_ARGS]
-    disp_apply = disp_sub.add_parser("apply", help="Apply xrandr configuration (auto-detect if omitted).")
-    disp_apply.add_argument("xrandr_args", nargs="?", default=None, help="Custom xrandr arguments.")
-    _add_node_arg(disp_apply)
+    sub.add_parser("setup", help="Run setup_script on each node (display, audio, environment, etc.).")
 
     # ── Parse & dispatch ─────────────────────────────────────────────────────
     args = parser.parse_args(argv)
@@ -158,33 +107,9 @@ def main(argv: list[str] | None = None) -> None:
         case "info":
             ok = detect_hardware(project, dry_run=dry)
 
-        # hardware setup (display + audio from yaml)
+        # hardware setup
         case "setup":
             ok = setup(project, dry_run=dry)
-
-        # audio
-        case "audio":
-            match args.audio_command:
-                case "list":
-                    ok = list_audio(project, dry_run=dry)
-                case "volume":
-                    ok = set_volume(project, args.level, args.card, node_id=getattr(args, "node", None), dry_run=dry)
-                case "input-volume":
-                    ok = set_input_volume(project, args.level, args.source, node_id=getattr(args, "node", None), dry_run=dry)
-                case "mute":
-                    ok = mute(project, "mute", is_input=args.input, device=args.device, node_id=getattr(args, "node", None), dry_run=dry)
-                case "unmute":
-                    ok = mute(project, "unmute", is_input=args.input, device=args.device, node_id=getattr(args, "node", None), dry_run=dry)
-                case "test":
-                    ok = test_audio(project, args.card, node_id=getattr(args, "node", None), dry_run=dry)
-
-        # display
-        case "display":
-            match args.display_command:
-                case "list":
-                    ok = list_displays(project, node_id=getattr(args, "node", None), dry_run=dry)
-                case "apply":
-                    ok = apply_display(project, args.xrandr_args, node_id=getattr(args, "node", None), dry_run=dry)
 
     sys.exit(0 if ok else 1)
 

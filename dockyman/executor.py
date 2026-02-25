@@ -14,6 +14,26 @@ from . import logger
 # ── Shell helpers ────────────────────────────────────────────────────────────
 
 
+def _expand_for_log(cmd: str) -> str:
+    """Return *cmd* with shell subexpressions expanded, for display only.
+
+    Uses ``echo <cmd>`` so that ``$(...)`` tokens are resolved by the shell
+    without executing the actual command.  Falls back to the original string
+    on any error or timeout (e.g. when a remote-node prefix contains an
+    ``ssh ...`` subcommand that is slow or unreachable).
+    """
+    try:
+        result = subprocess.run(
+            f"echo {cmd}",
+            shell=True, capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return cmd
+
+
 def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False) -> int:
     """Run *cmd* through the shell, streaming output live.
 
@@ -21,11 +41,11 @@ def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False) -> in
     """
     if dry_run:
         if not logger._quiet:
-            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {cmd}")
+            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {_expand_for_log(cmd)}")
         return 0
 
     if not logger._quiet:
-        print(f"  {logger.BOLD}${logger.RESET} {cmd}")
+        print(f"  {logger.BOLD}${logger.RESET} {_expand_for_log(cmd)}")
     result = subprocess.run(cmd, shell=True, cwd=cwd)
     return result.returncode
 
@@ -34,14 +54,13 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
                        include_extra_args: bool = True) -> str:
     """Build the full shell command string for a node.
 
-    *command_type* selects env vars, profiles, and extra CLI args:
-    ``"build"`` → ``build_env_vars`` + ``build_profiles`` + ``build_args``,
-    ``"run"``   → ``run_env_vars``   + ``run_profiles``   + ``run_args``.
+    *command_type* selects the shell prefix, profiles, and extra CLI args:
+    ``"build"`` → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``   → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``.
 
     Set *include_extra_args* to False to include env vars and profiles
     but omit the extra CLI args (e.g. ``--remove-orphans``).
     """
-    compose_file = os.path.join(project.base_dir, node.docker_context, node.compose_file)
     env_prefix = node.get_env_prefix(command_type)
 
     # Select profiles and extra compose CLI args
@@ -59,12 +78,14 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     if env_prefix:
         cmd_parts.append(env_prefix)
 
-    compose = f"docker compose -f {compose_file}"
-    if node.env_file:
-        env_file_path = os.path.join(project.base_dir, node.docker_context, node.env_file)
-        compose += f" --env-file {env_file_path}"
+    compose_parts = ["docker compose"]
+    for cf in node.compose_files:
+        compose_parts.append(f"-f {os.path.join(project.base_dir, node.docker_context, cf)}")
+    for ef in node.env_files:
+        compose_parts.append(f"--env-file {os.path.join(project.base_dir, node.docker_context, ef)}")
     for profile in profiles:
-        compose += f" --profile {profile}"
+        compose_parts.append(f"--profile {profile}")
+    compose = " ".join(compose_parts)
 
     cmd_parts.append(compose)
     cmd_parts.append(action)
@@ -142,12 +163,12 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     logger.header(f"Running services for project '{project.name}' …")
     all_ok = True
 
-    # ── 0. Apply hardware setup + detect info (quiet – logs only) ────────
-    from .hardware import setup as hw_setup, detect_hardware
-    logger.info("Applying hardware settings and detecting node info …")
+    # ── 0. Hardware: run setup_script (quiet), then log config + hw info ─
+    from .hardware import setup as hw_setup, detect_hardware as hw_detect
     with logger.quiet_mode():
         hw_setup(project, dry_run=dry_run)
-        detect_hardware(project, dry_run=dry_run)
+    if project.log_dir:
+        hw_detect(project, dry_run=dry_run, _show_header=False)
 
     # ── 1. Start containers (always detached) ────────────────────────────
     for node in project.swarm:
@@ -172,6 +193,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     # ── 2. Stream / save container logs ──────────────────────────────────
     log_processes: list[subprocess.Popen] = []
     log_files: list = []
+    log_paths: list[str] = []
 
     for node in project.swarm:
         if log_dir:
@@ -199,9 +221,10 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
                 log_path = os.path.join(node_log_dir, f"{service}.log")
                 fh = open(log_path, "w")
                 log_files.append(fh)
+                log_paths.append(log_path)
                 cmd = _build_compose_cmd(project, node, f"logs -f {service}", command_type="run",
                                                 include_extra_args=False)
-                logger.info(f"[{node.node_id}] {service} → {log_path}")
+
                 proc = subprocess.Popen(cmd, shell=True, stdout=fh, stderr=subprocess.STDOUT)
                 log_processes.append(proc)
         else:
@@ -219,12 +242,14 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     for node in project.swarm:
         logger.info(f"  [{node.node_id}] up")
     if log_dir:
-        logger.info(f"  Logs → {os.path.abspath(log_dir)}/<node_id>/<service>.log")
+        for p in log_paths:
+            logger.info(f"  Log → {p}")
     print()
 
     if not dry_run:
         try:
             input(f"{logger.BOLD}Press ENTER to stop all containers …{logger.RESET}")
+            print()
         except (KeyboardInterrupt, EOFError):
             print()
 

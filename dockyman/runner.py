@@ -39,6 +39,7 @@ def run_on_node(
     cmd: str,
     *,
     capture: bool = False,
+    echo: bool = True,
     dry_run: bool = False,
 ) -> RunResult:
     """Execute *cmd* on the given node.
@@ -48,7 +49,7 @@ def run_on_node(
       ``ssh user@host '<cmd>'``.
 
     If *capture* is True the output is captured instead of streamed to the
-    terminal.
+    terminal.  Set *echo* to False to suppress the ``$ cmd`` console line.
 
     Returns a :class:`RunResult`.
     """
@@ -61,11 +62,11 @@ def run_on_node(
         full_cmd = cmd
 
     if dry_run:
-        if not logger._quiet:
+        if not logger._quiet and echo:
             print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {full_cmd}")
         return RunResult(0, "", "")
 
-    if not logger._quiet:
+    if not logger._quiet and echo:
         print(f"  {logger.BOLD}${logger.RESET} {full_cmd}")
 
     if capture:

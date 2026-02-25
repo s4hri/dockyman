@@ -5,200 +5,195 @@ Replaces the ``detect_hardware`` function from ``scripts/common.sh``.
 
 from __future__ import annotations
 
+import os
+
 from .config import Node, Project
-from .runner import run_on_node, command_exists_on_node
+from .runner import run_on_node
 from . import logger
 
 
-def _detect_node(node: Node, *, dry_run: bool = False) -> bool:
-    """Gather hardware info from a single node. Returns True on success."""
-    # Per-node hardware log file
-    from . import config
-    import os
+def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) -> bool:
+    """Gather hardware info from a single node. Returns True on success.
+
+    When *to_stdout* is True the command output is streamed live to the
+    console (used when no ``log_dir`` is configured).  When False the output
+    is captured silently and written to the log file.
+
+    Assumes the log file has already been initialised by the caller.
+    """
     project = getattr(node, '_project', None)
-    log_dir = getattr(project, 'log_dir', 'logs') if project else 'logs'
-    node_log_dir = os.path.join(log_dir, node.node_id)
-    os.makedirs(node_log_dir, exist_ok=True)
-    log_path = os.path.join(node_log_dir, "config.log")
-    from . import logger as _logger
-    _logger.init_log(log_path)
-    logger.node_header(node.node_id)
+
+    def _section(title: str) -> None:
+        if to_stdout:
+            print(f"\n{logger.BOLD}  ─── {title} ───{logger.RESET}")
+        else:
+            logger.section(title)
+
+    def _section_always(title: str) -> None:
+        """Print section header to console AND log, regardless of to_stdout."""
+        if not logger._quiet:
+            print(f"\n{logger.BOLD}  ─── {title} ───{logger.RESET}")
+        logger.section(title)
+
+    def _raw(text: str) -> None:
+        if to_stdout:
+            for line in text.splitlines():
+                print(f"  {line}")
+        else:
+            logger.log_raw(text)
+
+    def _info(text: str) -> None:
+        """Print to console AND log, regardless of to_stdout."""
+        if not logger._quiet:
+            for line in text.splitlines():
+                print(f"  {line}")
+        logger.log_raw(text)
+
+    def _run(cmd: str) -> None:
+        if to_stdout:
+            run_on_node(node, cmd, capture=False, echo=True, dry_run=dry_run)
+        else:
+            res = run_on_node(node, cmd, capture=True, echo=False, dry_run=dry_run)
+            if res.ok and res.stdout:
+                logger.log_raw(res.stdout)
 
     # ── Dockyman Configuration ───────────────────────────────────────────
     if project:
-        import os as _os
-        compose_file = _os.path.join(project.base_dir, node.docker_context, node.compose_file)
-        env_file = (
-            _os.path.join(project.base_dir, node.docker_context, node.env_file)
-            if node.env_file else ""
-        )
-        logger.section("Dockyman Configuration")
-        logger.log_raw(f"compose_file   : {compose_file}")
-        logger.log_raw(f"docker_host    : {node.docker_host or '(local)'}")
-        if env_file:
-            logger.log_raw(f"env_file       : {env_file}")
-        if node.build_env_vars:
-            logger.log_raw(f"build_env_vars : {node.build_env_vars}")
+        compose_files = [
+            os.path.join(project.base_dir, node.docker_context, cf)
+            for cf in node.compose_files
+        ]
+        env_files = [
+            os.path.join(project.base_dir, node.docker_context, ef)
+            for ef in node.env_files
+        ]
+        _section_always("Dockyman Configuration")
+        for cf in compose_files:
+            _info(f"compose_file   : {cf}")
+        _info(f"docker_host    : {node.docker_host or '(local)'}")
+        for ef in env_files:
+            _info(f"env_file       : {ef}")
+        if node.build_shell_prefix:
+            _info(f"build_shell_prefix : {node.build_shell_prefix}")
         if node.build_profiles:
-            logger.log_raw(f"build_profiles : {', '.join(node.build_profiles)}")
+            _info(f"build_profiles     : {', '.join(node.build_profiles)}")
         if node.build_args:
-            logger.log_raw(f"build_args     : {node.build_args}")
-        if node.run_env_vars:
-            logger.log_raw(f"run_env_vars   : {node.run_env_vars}")
+            _info(f"build_args         : {node.build_args}")
+        if node.run_shell_prefix:
+            _info(f"run_shell_prefix   : {node.run_shell_prefix}")
         if node.run_profiles:
-            logger.log_raw(f"run_profiles   : {', '.join(node.run_profiles)}")
+            _info(f"run_profiles   : {', '.join(node.run_profiles)}")
         if node.run_args:
-            logger.log_raw(f"run_args       : {node.run_args}")
-        if node.display:
-            logger.log_raw(f"display        : {node.display}")
-        if node.display_args:
-            logger.log_raw(f"display_args   : {node.display_args}")
-        if node.audio_volume is not None:
-            logger.log_raw(f"audio_volume   : {node.audio_volume}%")
-        if node.audio_card:
-            logger.log_raw(f"audio_card     : {node.audio_card}")
-        if node.audio_input_volume is not None:
-            logger.log_raw(f"audio_in_vol   : {node.audio_input_volume}%")
-        if node.audio_input_card:
-            logger.log_raw(f"audio_in_card  : {node.audio_input_card}")
+            _info(f"run_args       : {node.run_args}")
+        if node.setup_script:
+            _info("setup_script   :")
+            for line in node.setup_script.strip().splitlines():
+                _info(f"    {line}")
 
     # ── System / OS ──────────────────────────────────────────────────────
-    logger.section("System Information")
-    res = run_on_node(node, "hostnamectl 2>/dev/null || hostname", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "cat /etc/os-release 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "uname -a", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    _section("System Information")
+    _run("hostnamectl 2>/dev/null || hostname")
+    _run("cat /etc/os-release 2>/dev/null")
+    _run("uname -a")
 
     # ── CPU ──────────────────────────────────────────────────────────────
-    logger.section("CPU")
-    res = run_on_node(node, "lscpu 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    _section("CPU")
+    _run("lscpu 2>/dev/null")
 
     # ── Memory ───────────────────────────────────────────────────────────
-    logger.section("Memory")
-    res = run_on_node(node, "free -h", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    _section("Memory")
+    _run("free -h")
 
-    # ── GPU / Graphics ─────────────────────────────────────────────────--
-    logger.section("Graphics / GPU")
-    res = run_on_node(node, "lspci 2>/dev/null | grep -i -E 'vga|3d|display'", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "nvidia-smi -L 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "xrandr --query 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    # ── GPU / Graphics ───────────────────────────────────────────────────
+    _section("Graphics / GPU")
+    _run("lspci 2>/dev/null | grep -i -E 'vga|3d|display'")
+    _run("nvidia-smi -L 2>/dev/null")
+    _run("xrandr --query 2>/dev/null")
 
-    # (Display info now included above)
+    # ── Audio Cards ──────────────────────────────────────────────────────
+    _section("Audio Cards")
+    _run("pactl list short sinks 2>/dev/null")
+    _run("aplay -l 2>/dev/null")
 
-    # ── Audio Cards ─────────────────────────────────────────────────-----
-    logger.section("Audio Cards")
-    res = run_on_node(node, "pactl list short sinks 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "aplay -l 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    # ── Audio Input Devices ──────────────────────────────────────────────
+    _section("Audio Input Devices")
+    _run("pactl list short sources 2>/dev/null")
+    _run("arecord -l 2>/dev/null")
 
-    # ── Audio Input Devices ─────────────────────────────────────────-----
-    logger.section("Audio Input Devices")
-    res = run_on_node(node, "pactl list short sources 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "arecord -l 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    # ── USB Devices ──────────────────────────────────────────────────────
+    _section("USB Devices")
+    _run("lsusb 2>/dev/null")
 
-    # ── USB Devices ─────────────────────────────────────────────────-----
-    logger.section("USB Devices")
-    res = run_on_node(node, "lsusb 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    # ── Network Cards ────────────────────────────────────────────────────
+    _section("Network Cards")
+    _run("ip -br addr 2>/dev/null")
 
-    # ── Network Cards ─────────────────────────────────────────────────---
-    logger.section("Network Cards")
-    res = run_on_node(node, "ip -br addr 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-
-    # ── Disks ─────────────────────────────────────────────────────────---
-    logger.section("Disks")
-    res = run_on_node(node, "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL 2>/dev/null", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
-    res = run_on_node(node, "df -h", capture=True, dry_run=dry_run)
-    if res.ok and res.stdout:
-        logger.log_raw(res.stdout)
+    # ── Disks ────────────────────────────────────────────────────────────
+    _section("Disks")
+    _run("lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL 2>/dev/null")
+    _run("df -h")
 
     if not logger._quiet:
         print()
     return True
 
 
-def detect_hardware(project: Project, *, dry_run: bool = False) -> bool:
-    """Detect hardware on all nodes in the swarm."""
-    logger.header(f"Hardware information for project '{project.name}'")
+def detect_hardware(project: Project, *, dry_run: bool = False,
+                    _init_log: bool = True, _show_header: bool = True) -> bool:
+    """Detect hardware on all nodes in the swarm.
+
+    Output destination depends on ``project.log_dir``:
+
+    - Set     → config section printed to console; hardware scan captured to
+                ``config.log`` silently.
+    - Not set → everything streamed live to stdout.
+
+    *_show_header*: set False to suppress the "Hardware information" banner
+    (e.g. when called from ``dockyman run``).
+    """
+    if _show_header:
+        logger.header(f"Hardware information for project '{project.name}'")
     all_ok = True
     for node in project.swarm:
-        # Attach project to node for log_dir access
         node._project = project
-        if not _detect_node(node, dry_run=dry_run):
+        to_stdout = not project.log_dir
+        if project.log_dir and _init_log:
+            node_log_dir = os.path.join(project.log_dir, node.node_id)
+            os.makedirs(node_log_dir, exist_ok=True)
+            log_path = os.path.join(node_log_dir, "config.log")
+            logger.init_log(log_path)
+            logger.saved(log_path)
+        logger.node_header(node.node_id)
+        if not _detect_node(node, dry_run=dry_run, to_stdout=to_stdout):
             all_ok = False
     return all_ok
 
 
-# ── Setup (display + audio from yaml config) ────────────────────────────────
+# ── Setup (run setup_script on each node) ───────────────────────────────────
 
 
 def setup(project: Project, *, dry_run: bool = False) -> bool:
-    """Apply per-node display and audio settings from *dockyman.yaml*.
+    """Run ``setup_script`` on every node in the swarm.
 
-    Reads ``display_args``, ``audio_volume``, ``audio_card``,
-    ``audio_input_volume``, and ``audio_input_card`` from each node.
-    Failures are logged but do not abort the remaining nodes.
+    The script is executed locally or via SSH for remote nodes.  Use it for
+    anything that must be configured on the host before containers start:
+    display (xrandr), audio (pactl/amixer), environment exports, etc.
     """
-    from .display import _apply_display_node
-    from .audio import _set_volume_node, _set_input_volume_node
-
     logger.header(f"Hardware setup for project '{project.name}'")
     all_ok = True
 
     for node in project.swarm:
-        # Attach project to node for log_dir access
         node._project = project
-        # Per-node hardware log file
-        from . import logger as _logger
-        import os
-        log_dir = project.log_dir or 'logs'
-        node_log_dir = os.path.join(log_dir, node.node_id)
-        os.makedirs(node_log_dir, exist_ok=True)
-        log_path = os.path.join(node_log_dir, "config.log")
-        _logger.init_log(log_path)
-
-        # Log full hardware info at the start
-        _detect_node(node, dry_run=dry_run)
-
-        # Display
-        if not _apply_display_node(node, None, dry_run=dry_run):
-            all_ok = False
-
-        # Audio output
-        if node.audio_volume is not None:
-            if not _set_volume_node(node, node.audio_volume, None, dry_run=dry_run):
+        logger.node_header(node.node_id)
+        script = node.setup_script.strip()
+        if script:
+            res = run_on_node(node, script, dry_run=dry_run)
+            if res.ok:
+                logger.ok("setup done")
+            else:
+                logger.fail("setup script failed")
                 all_ok = False
-
-        # Audio input
-        if node.audio_input_volume is not None:
-            if not _set_input_volume_node(node, node.audio_input_volume, None, dry_run=dry_run):
-                all_ok = False
+        else:
+            logger.info("no setup_script defined – skipping")
 
     return all_ok

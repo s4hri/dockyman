@@ -24,4 +24,4 @@ USER docky
 
 ENV PATH=$PATH:/home/docky/.local/bin
 
-CMD ["bash", "-c",  "xeyes & play -n synth 1 sine 440"]
+CMD ["bash", "-c",  "xeyes & sleep 1 && play -n synth 1 sine 440"]
