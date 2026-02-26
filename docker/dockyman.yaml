@@ -49,7 +49,6 @@ project:
       # by `dockyman setup` (interactive) and silently by `dockyman run`.
       # Use this to configure display, audio, environment, etc.
       setup_script: |
-        xrandr --auto
         pactl set-sink-volume @DEFAULT_SINK@ 75%
 
     # ── Remote node (example) ─────────────────────────────────────────────
