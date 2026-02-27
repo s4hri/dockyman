@@ -56,7 +56,8 @@ class Project:
     """Top‑level project configuration."""
 
     name: str
-    dockyman_version: str
+    dockyman_repo: str
+    dockyman_ref: str
     swarm: List[Node]
     log_dir: str = ""
 
@@ -106,7 +107,8 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
 
     project = Project(
         name=proj_raw["name"],
-        dockyman_version=str(proj_raw["dockyman_version"]),
+        dockyman_repo=str(proj_raw["dockyman_repo"]),
+        dockyman_ref=str(proj_raw.get("dockyman_ref", "main")),
         swarm=nodes,
         log_dir=proj_raw.get("log_dir", ""),
     )

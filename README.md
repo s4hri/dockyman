@@ -186,7 +186,8 @@ All settings live in a single `dockyman.yaml`. Paths are resolved relative to th
 ```yaml
 project:
   name: <string>               # Project name (required)
-  dockyman_version: <string>   # e.g. v4.0.0 (required)
+  dockyman_repo: <url>         # GitHub repo URL (required)
+  dockyman_ref: <string>        # Tag or branch (optional, default: main)
   log_dir: <path>              # Log directory (optional, see below)
   swarm:
     - <node>
@@ -198,7 +199,8 @@ project:
 | Setting | Required | Description |
 |---|---|---|
 | `name` | ✓ | Project name. |
-| `dockyman_version` | ✓ | Expected dockyman version (informational). |
+| `dockyman_repo` | ✓ | GitHub repository URL for this dockyman project. |
+| `dockyman_ref` | | Git tag or branch to track (defaults to `main`). |
 | `log_dir` | | Directory for all log files, relative to `dockyman.yaml` or absolute. Omit or leave empty to disable file logging (container logs go to stdout, hardware info to stdout). |
 
 ### Node settings

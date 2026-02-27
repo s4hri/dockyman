@@ -69,7 +69,8 @@ class TestLoadConfig:
     MINIMAL_YAML = textwrap.dedent("""\
         project:
           name: test_project
-          dockyman_version: v4.0.0
+          dockyman_repo: https://github.com/youruser/dockyman
+          dockyman_ref: v4.0.0
           swarm:
             - node_id: manager
               compose_files: [compose.yaml]
@@ -78,7 +79,8 @@ class TestLoadConfig:
     FULL_YAML = textwrap.dedent("""\
         project:
           name: full_project
-          dockyman_version: v4.0.0
+          dockyman_repo: https://github.com/youruser/dockyman
+          dockyman_ref: v4.0.0
           log_dir: logs
           swarm:
             - node_id: local
@@ -107,7 +109,8 @@ class TestLoadConfig:
         f.write_text(self.MINIMAL_YAML)
         project = load_config(str(f))
         assert project.name == "test_project"
-        assert project.dockyman_version == "v4.0.0"
+        assert project.dockyman_repo == "https://github.com/youruser/dockyman"
+        assert project.dockyman_ref == "v4.0.0"
         assert len(project.swarm) == 1
         assert project.swarm[0].node_id == "manager"
 
@@ -163,7 +166,8 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: compat
-              dockyman_version: v4.0.0
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
                   compose_file: old.yaml
@@ -177,7 +181,8 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: compat
-              dockyman_version: v4.0.0
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
                   compose_files: [compose.yaml]
@@ -192,7 +197,8 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: multi
-              dockyman_version: v4.0.0
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
                   compose_files:
@@ -208,7 +214,8 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: multi
-              dockyman_version: v4.0.0
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
                   compose_files: [compose.yaml]

@@ -12,7 +12,8 @@ def _yaml(log_dir_line: str) -> str:
     return textwrap.dedent(f"""\
         project:
           name: test
-          dockyman_version: v4.0.0
+          dockyman_repo: https://github.com/youruser/dockyman
+          dockyman_ref: v4.0.0
           {log_dir_line}
           swarm:
             - node_id: manager

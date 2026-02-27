@@ -1,6 +1,7 @@
 project:
   name: my_project
-  dockyman_version: v4.0.0
+  dockyman_repo: https://github.com/s4hri/dockyman
+  dockyman_ref: v4.0.0
 
   # Directory for log files (relative to this yaml file, or absolute).
   # - Container logs: one file per service per node  → <log_dir>/<node_id>/<service>.log
