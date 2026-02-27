@@ -15,10 +15,9 @@
 
 # Dockyman
 
-[![Version](https://img.shields.io/badge/version-v4.0.0-blue?style=flat-square)](https://github.com/s4hri/dockyman/releases/latest)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.10-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/s4hri/dockyman/ci.yml?branch=v4.x&label=tests&logo=github&style=flat-square)](https://github.com/s4hri/dockyman/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/s4hri/dockyman/ci.yml?branch=master&label=tests&logo=github&style=flat-square)](https://github.com/s4hri/dockyman/actions/workflows/ci.yml)
 
 ![Dockyman](assets/logo.png?raw=true "Dockyman Logo")
 
@@ -47,7 +46,6 @@ Dockyman reads a `dockyman.yaml` that describes a **swarm** of nodes (local or r
 ```bash
 git clone git@github.com:s4hri/dockyman.git
 cd dockyman
-git checkout v4.x
 make install          # creates .venv and installs dockyman
 source .venv/bin/activate
 ```
