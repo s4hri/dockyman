@@ -59,7 +59,8 @@ class Project:
     dockyman_repo: str
     dockyman_ref: str
     swarm: List[Node]
-    log_dir: str = ""
+    container_log_dir: str = ""
+    config_log_dir: str = ""
 
     # Set after loading – absolute path to the dockyman.yaml directory.
     base_dir: str = ""
@@ -110,11 +111,23 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         dockyman_repo=str(proj_raw["dockyman_repo"]),
         dockyman_ref=str(proj_raw.get("dockyman_ref", "main")),
         swarm=nodes,
-        log_dir=proj_raw.get("log_dir", ""),
+        container_log_dir=proj_raw.get("container_log_dir", ""),
+        config_log_dir=proj_raw.get("config_log_dir", ""),
     )
     project.base_dir = str(Path(base_dir).resolve())
-    # Resolve log_dir relative to the config file location
-    if project.log_dir:
-        project.log_dir = str((Path(project.base_dir) / project.log_dir).resolve())
+    
+    # Backward compatibility: if old 'log_dir' is present, use it for both
+    if "log_dir" in proj_raw and proj_raw["log_dir"]:
+        old_log_dir = proj_raw["log_dir"]
+        if not project.container_log_dir:
+            project.container_log_dir = old_log_dir
+        if not project.config_log_dir:
+            project.config_log_dir = old_log_dir
+    
+    # Resolve log directories relative to the config file location
+    if project.container_log_dir:
+        project.container_log_dir = str((Path(project.base_dir) / project.container_log_dir).resolve())
+    if project.config_log_dir:
+        project.config_log_dir = str((Path(project.base_dir) / project.config_log_dir).resolve())
 
     return project

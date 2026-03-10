@@ -85,6 +85,18 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # Warn if the YAML-declared version doesn't match the installed one
+    # Normalize versions by stripping 'v' prefix for comparison
+    if __version__ != "unknown":
+        installed_norm = __version__.lstrip("v")
+        yaml_norm = project.dockyman_ref.lstrip("v")
+        if installed_norm != yaml_norm:
+            print(
+                f"\033[33mWARNING: dockyman.yaml declares dockyman_ref '{project.dockyman_ref}' "
+                f"but the installed version is '{__version__}'.\033[0m",
+                file=sys.stderr,
+            )
+
     dry = args.dry_run
     ok = True
 
@@ -95,7 +107,7 @@ def main(argv: list[str] | None = None) -> None:
         case "build":
             ok = build(project, dry_run=dry)
         case "run":
-            log_dir = args.log_output if args.log_output else (project.log_dir or None)
+            log_dir = args.log_output if args.log_output else (project.container_log_dir or None)
             ok = run(project, dry_run=dry, detach=args.detach,
                      log_dir=log_dir)
         case "down":

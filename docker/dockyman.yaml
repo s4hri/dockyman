@@ -1,14 +1,19 @@
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  dockyman_ref: v4.0.0
+  dockyman_ref: v4.1.0
 
-  # Directory for log files (relative to this yaml file, or absolute).
-  # - Container logs: one file per service per node  → <log_dir>/<node_id>/<service>.log
-  # - Hardware info:  one file per node              → <log_dir>/<node_id>/config.log
-  # Leave empty or omit to disable all file logging (container logs go to stdout).
+  # ── Logging configuration ──────────────────────────────────────────────
+  # All logging is OFF by default. Enable each type independently:
+
+  # Container logs: one file per service per node → <container_log_dir>/<node_id>/<service>.log
+  # Leave empty or omit to disable (container logs go to stdout).
   # Can be overridden at runtime with: dockyman run --log-output <dir>
-  log_dir: ./logs
+  # container_log_dir: ./logs/containers
+
+  # Hardware/config logs: one file per node → <config_log_dir>/<node_id>.log
+  # Leave empty or omit to disable (hardware info prints to stdout).
+  # config_log_dir: ./logs/config
 
   swarm:
 

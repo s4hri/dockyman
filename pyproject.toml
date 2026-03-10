@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dockyman"
-version = "v4.0.0"
+version = "v4.1.0"
 description = "Orchestrate Docker Compose services across multiple machines."
 readme = "README.md"
 license = "MIT"

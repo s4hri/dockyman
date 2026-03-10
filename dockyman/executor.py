@@ -167,7 +167,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     from .hardware import setup as hw_setup, detect_hardware as hw_detect
     with logger.quiet_mode():
         hw_setup(project, dry_run=dry_run)
-    if project.log_dir:
+    if project.config_log_dir:
         hw_detect(project, dry_run=dry_run, _show_header=False)
 
     # ── 1. Start containers (always detached) ────────────────────────────
