@@ -142,10 +142,10 @@ def detect_hardware(project: Project, *, dry_run: bool = False,
                     _init_log: bool = True, _show_header: bool = True) -> bool:
     """Detect hardware on all nodes in the swarm.
 
-    Output destination depends on ``project.log_dir``:
+    Output destination depends on ``project.config_log_dir``:
 
     - Set     → config section printed to console; hardware scan captured to
-                ``config.log`` silently.
+                ``<node_id>.log`` silently.
     - Not set → everything streamed live to stdout.
 
     *_show_header*: set False to suppress the "Hardware information" banner
@@ -156,11 +156,10 @@ def detect_hardware(project: Project, *, dry_run: bool = False,
     all_ok = True
     for node in project.swarm:
         node._project = project
-        to_stdout = not project.log_dir
-        if project.log_dir and _init_log:
-            node_log_dir = os.path.join(project.log_dir, node.node_id)
-            os.makedirs(node_log_dir, exist_ok=True)
-            log_path = os.path.join(node_log_dir, "config.log")
+        to_stdout = not project.config_log_dir
+        if project.config_log_dir and _init_log:
+            os.makedirs(project.config_log_dir, exist_ok=True)
+            log_path = os.path.join(project.config_log_dir, f"{node.node_id}.log")
             logger.init_log(log_path)
             logger.saved(log_path)
         logger.node_header(node.node_id)

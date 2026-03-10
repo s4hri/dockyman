@@ -125,7 +125,9 @@ class TestLoadConfig:
         f.write_text(self.FULL_YAML)
         project = load_config(str(f))
 
-        assert project.log_dir == str(tmp_path / "logs")
+        # Old log_dir backward-compat: should set both directories
+        assert project.container_log_dir == str(tmp_path / "logs")
+        assert project.config_log_dir == str(tmp_path / "logs")
         assert len(project.swarm) == 2
 
         local = project.swarm[0]

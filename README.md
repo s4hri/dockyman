@@ -32,7 +32,7 @@ Dockyman reads a `dockyman.yaml` that describes a **swarm** of nodes (local or r
 - **Multiple env files** — pass several `--env-file` paths per node.
 - **Per-node setup script** — run arbitrary shell commands on each node before containers start (xrandr, pactl, env exports, etc.).
 - **Hardware detection** — collect system, CPU, memory, GPU, audio, USB, network, and disk info per node; save to a log file or stream to stdout.
-- **Per-service container logs** — saved as `<log_dir>/<node_id>/<service>.log`.
+- **Per-service container logs** — saved as `<container_log_dir>/<node_id>/<service>.log`.
 - **Dry-run mode** — preview every command without executing (`--dry-run`).
 
 ## Requirements
@@ -110,9 +110,9 @@ dockyman build
 The main command. It performs the following steps in order:
 
 1. **Run `setup_script`** on each node (silently — output is not shown).
-2. **Log node configuration and hardware info** to `<log_dir>/<node_id>/config.log` (if `log_dir` is set). The node configuration (compose files, env files, shell prefixes, etc.) is also printed to the console.
+2. **Log node configuration and hardware info** to `<config_log_dir>/<node_id>.log` (if `config_log_dir` is set). The node configuration (compose files, env files, shell prefixes, etc.) is also printed to the console.
 3. **Start containers** (`docker compose up -d`) on each node.
-4. **Stream container logs** to stdout, or to `<log_dir>/<node_id>/<service>.log` files if logging is configured.
+4. **Stream container logs** to stdout, or to `<container_log_dir>/<node_id>/<service>.log` files if logging is configured.
 5. **Wait** for the user to press ENTER.
 6. **Stop containers** (`docker compose down`) on each node.
 
@@ -125,7 +125,7 @@ dockyman run --log-output ./logs # override log directory for this run
 | Option | Description |
 |---|---|
 | `-d`, `--detach` | Start containers in the background and exit immediately. |
-| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `log_dir` from `dockyman.yaml`. |
+| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `container_log_dir` from `dockyman.yaml`. |
 
 ---
 
@@ -153,8 +153,8 @@ dockyman config
 
 Collect and display hardware information for each node: system/OS, CPU, memory, GPU/display, audio, USB devices, network interfaces, and disks. Also prints the full node configuration (compose files, prefixes, setup script, etc.).
 
-- If `log_dir` is set: output is captured silently and saved to `<log_dir>/<node_id>/config.log`. The saved path is printed to the console.
-- If `log_dir` is empty: all output is streamed live to stdout.
+- If `config_log_dir` is set: output is captured silently and saved to `<config_log_dir>/<node_id>.log`. The saved path is printed to the console.
+- If `config_log_dir` is empty: all output is streamed live to stdout.
 
 ```bash
 dockyman info              # all nodes
@@ -186,7 +186,8 @@ project:
   name: <string>               # Project name (required)
   dockyman_repo: <url>         # GitHub repo URL (required)
   dockyman_ref: <string>        # Tag or branch (optional, default: main)
-  log_dir: <path>              # Log directory (optional, see below)
+  container_log_dir: <path>    # Container logs directory (optional, see below)
+  config_log_dir: <path>       # Hardware/config logs directory (optional, see below)
   swarm:
     - <node>
     - <node>
@@ -199,7 +200,9 @@ project:
 | `name` | ✓ | Project name. |
 | `dockyman_repo` | ✓ | GitHub repository URL for this dockyman project. |
 | `dockyman_ref` | | Git tag or branch to track (defaults to `main`). |
-| `log_dir` | | Directory for all log files, relative to `dockyman.yaml` or absolute. Omit or leave empty to disable file logging (container logs go to stdout, hardware info to stdout). |
+| `container_log_dir` | | Directory for container logs, relative to `dockyman.yaml` or absolute. Omit or leave empty (default) to stream container logs to stdout. |
+| `config_log_dir` | | Directory for hardware/config logs, relative to `dockyman.yaml` or absolute. Omit or leave empty (default) to stream hardware info to stdout. |
+| `log_dir` | | **Deprecated.** Use `container_log_dir` and `config_log_dir` instead. When present, sets both directories for backward compatibility. |
 
 ### Node settings
 
@@ -224,13 +227,13 @@ Each entry in `swarm` describes one node.
 
 | File | When written | Contents |
 |---|---|---|
-| `<log_dir>/<node_id>/config.log` | `dockyman info`, `dockyman run` | Node configuration (compose files, env files, shell prefixes, setup script) + full hardware scan (OS, CPU, memory, GPU, audio, USB, network, disks). |
-| `<log_dir>/<node_id>/<service>.log` | `dockyman run` (when `log_dir` is set) | Live container log output for that service. |
+| `<config_log_dir>/<node_id>.log` | `dockyman info`, `dockyman run` | Node configuration (compose files, env files, shell prefixes, setup script) + full hardware scan (OS, CPU, memory, GPU, audio, USB, network, disks). |
+| `<container_log_dir>/<node_id>/<service>.log` | `dockyman run` (when `container_log_dir` is set) | Live container log output for that service. |
 
-When `log_dir` is empty or omitted:
-- Container logs are streamed to stdout.
-- `dockyman info` streams hardware output to stdout.
-- No files are written.
+All logging is **OFF by default**:
+- When `container_log_dir` is empty or omitted: container logs are streamed to stdout.
+- When `config_log_dir` is empty or omitted: `dockyman info` streams hardware output to stdout.
+- You can enable each type of logging independently or disable both.
 
 ## Contributing
 
