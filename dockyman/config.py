@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 
 @dataclass
@@ -75,14 +76,30 @@ def _to_list(value) -> List[str]:
     return [str(value)]
 
 
-def load_config(config_path: str = "dockyman.yaml") -> Project:
-    """Load *dockyman.yaml* and return a :class:`Project`."""
+def render_config(config_path: str = "dockyman.yaml.j2") -> str:
     config_path = os.path.abspath(config_path)
     if not os.path.isfile(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
-    with open(config_path, "r") as fh:
-        raw = yaml.safe_load(fh)
+    config_path_obj = Path(config_path)
+
+    # 1. Tell Jinja where to look for files
+    env = Environment(loader=FileSystemLoader(config_path_obj.parent), undefined=StrictUndefined)
+
+    # 2. Load the main template
+    template = env.get_template(config_path_obj.name)
+
+    # 3. Render
+    # it can raise an exception
+    render = template.render()
+
+    return render
+
+def load_config(config_path: str = "dockyman.yaml.j2") -> Project:
+    """Load *dockyman.yaml.j2* and return a :class:`Project`."""
+
+    render = render_config(config_path)
+    raw = yaml.safe_load(render)
 
     proj_raw = raw["project"]
     base_dir = os.path.dirname(config_path)

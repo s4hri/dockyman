@@ -23,7 +23,7 @@
 
 Orchestrate Docker Compose services across multiple machines from a single configuration file.
 
-Dockyman reads a `dockyman.yaml` that describes a **swarm** of nodes (local or remote via SSH) and lets you build, run, and tear down containers on every node with one command. Before starting containers it can run a `setup_script` on each node to configure the environment (display, audio, env vars, etc.) and silently collect hardware information into a log file.
+Dockyman reads a `dockyman.yaml.j2` that describes a **swarm** of nodes (local or remote via SSH) and lets you build, run, and tear down containers on every node with one command. Before starting containers it can run a `setup_script` on each node to configure the environment (display, audio, env vars, etc.) and silently collect hardware information into a log file.
 
 ## Features
 
@@ -79,7 +79,7 @@ dockyman [-f FILE] [--dry-run] [-V] <command> [options]
 
 | Global flag | Description |
 |---|---|
-| `-f FILE`, `--file FILE` | Path to `dockyman.yaml` (default: `dockyman.yaml` in the current directory). |
+| `-f FILE`, `--file FILE` | Path to `dockyman.yaml.j2` (default: `dockyman.yaml.j2` in the current directory). |
 | `--dry-run` | Print every command that would be executed without running it. |
 | `-V`, `--version` | Print the version and exit. |
 
@@ -91,6 +91,16 @@ Check that the Docker daemon on every node is reachable.
 
 ```bash
 dockyman status
+```
+
+---
+
+### `dockyman render`
+
+Render and print the configuration file converted from Jinja to YAML.
+
+```bash
+dockyman render
 ```
 
 ---
