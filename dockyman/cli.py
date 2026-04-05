@@ -64,7 +64,12 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("down", help="Stop services on all nodes.")
 
     # -- config ----------------------------------------------------------------
-    sub.add_parser("config", help="Show resolved compose config on all nodes.")
+    config_parser = sub.add_parser("config", help="Show resolved compose config on all nodes.")
+    config_parser.add_argument(
+        "config_profile_type", 
+        choices=["build", "run"], 
+        help="The profile type to activate for `docker compose config`"
+    )
 
     # -- info ------------------------------------------------------------------
     info_parser = sub.add_parser("info", help="Detect hardware on all nodes.")
@@ -113,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
         case "down":
             ok = down(project, dry_run=dry)
         case "config":
-            ok = config(project, dry_run=dry)
+            ok = config(project, dry_run=dry, profile_type=args.config_profile_type)
 
         # hardware info
         case "info":

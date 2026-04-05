@@ -55,8 +55,10 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     """Build the full shell command string for a node.
 
     *command_type* selects the shell prefix, profiles, and extra CLI args:
-    ``"build"`` → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
-    ``"run"``   → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``.
+    ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
+    ``"config_build"`` → ``build_profiles``,
+    ``"config_run"``   → ``run_profiles``.
 
     Set *include_extra_args* to False to include env vars and profiles
     but omit the extra CLI args (e.g. ``--remove-orphans``).
@@ -70,6 +72,12 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     elif command_type == "run":
         profiles = node.run_profiles
         extra_args = node.run_args.strip()
+    elif command_type == "config_build":
+        profiles = node.build_profiles
+        extra_args = ""
+    elif command_type == "config_run":
+        profiles = node.run_profiles
+        extra_args = ""
     else:
         profiles = []
         extra_args = ""
@@ -287,8 +295,12 @@ def down(project: Project, dry_run: bool = False) -> bool:
     return all_ok
 
 
-def config(project: Project, dry_run: bool = False) -> bool:
+def config(project: Project, profile_type: str, dry_run: bool = False) -> bool:
     """Run ``docker compose config`` on every node to show resolved config.
+
+    Select profiles to activate using `profile_filter`:
+        - `profile_type`="build"     Activate only build profiles
+        - `profile_type`="run"       Activate only run profiles
 
     Returns True if all nodes resolved successfully.
     """
@@ -297,7 +309,7 @@ def config(project: Project, dry_run: bool = False) -> bool:
 
     for node in project.swarm:
         logger.node_header(node.node_id)
-        cmd = _build_compose_cmd(project, node, "config", command_type="run")
+        cmd = _build_compose_cmd(project, node, "config", command_type=f"config_{profile_type}")
         rc = _run_shell(cmd, dry_run=dry_run)
         if rc != 0:
             all_ok = False

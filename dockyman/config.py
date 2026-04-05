@@ -39,9 +39,10 @@ class Node:
         parts: list[str] = []
         if self.docker_host:
             parts.append(f"DOCKER_HOST={self.docker_host}")
-        if command_type == "build" and self.build_shell_prefix.strip():
+            
+        if command_type in ["build", "config_build"] and self.build_shell_prefix.strip():
             parts.append(self.build_shell_prefix.strip())
-        elif command_type == "run" and self.run_shell_prefix.strip():
+        elif command_type in ["run", "config_run"] and self.run_shell_prefix.strip():
             parts.append(self.run_shell_prefix.strip())
         return " ".join(parts)
 

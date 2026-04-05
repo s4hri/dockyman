@@ -144,7 +144,8 @@ dockyman down
 Print the resolved Compose configuration for each node (`docker compose config`).
 
 ```bash
-dockyman config
+dockyman config build      # activate only build profiles
+dockyman config run        # activate only run profiles
 ```
 
 ---
