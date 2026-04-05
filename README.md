@@ -6,7 +6,7 @@
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)
-- [dockyman.yaml Reference](#dockyamanyaml-reference)
+- [dockyman.yaml.j2 Reference](#dockyman-configuration-file-reference)
 - [Logging](#logging)
 - [Contributing](#contributing)
 - [License](#license)
@@ -135,7 +135,7 @@ dockyman run --log-output ./logs # override log directory for this run
 | Option | Description |
 |---|---|
 | `-d`, `--detach` | Start containers in the background and exit immediately. |
-| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `container_log_dir` from `dockyman.yaml`. |
+| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `container_log_dir` from `dockyman.yaml.j2`. |
 
 ---
 
@@ -187,9 +187,9 @@ dockyman setup
 
 ---
 
-## `dockyman.yaml` reference
+## Dockyman configuration file reference
 
-All settings live in a single `dockyman.yaml`. Paths are resolved relative to the location of this file unless noted otherwise.
+All settings live in a single `dockyman.yaml.j2` configuration file. Paths are resolved relative to the location of this file unless noted otherwise.
 
 ```yaml
 project:
@@ -210,8 +210,8 @@ project:
 | `name` | ✓ | Project name. |
 | `dockyman_repo` | ✓ | GitHub repository URL for this dockyman project. |
 | `dockyman_ref` | | Git tag or branch to track (defaults to `main`). |
-| `container_log_dir` | | Directory for container logs, relative to `dockyman.yaml` or absolute. Omit or leave empty (default) to stream container logs to stdout. |
-| `config_log_dir` | | Directory for hardware/config logs, relative to `dockyman.yaml` or absolute. Omit or leave empty (default) to stream hardware info to stdout. |
+| `container_log_dir` | | Directory for container logs, relative to `dockyman.yaml.j2` or absolute. Omit or leave empty (default) to stream container logs to stdout. |
+| `config_log_dir` | | Directory for hardware/config logs, relative to `dockyman.yaml.j2` or absolute. Omit or leave empty (default) to stream hardware info to stdout. |
 | `log_dir` | | **Deprecated.** Use `container_log_dir` and `config_log_dir` instead. When present, sets both directories for backward compatibility. |
 
 ### Node settings
@@ -222,7 +222,7 @@ Each entry in `swarm` describes one node.
 |---|---|---|
 | `node_id` | ✓ | Unique identifier used in log paths and console output. |
 | `compose_files` | ✓ | List of Compose files to merge, relative to `docker_context`. Passed as `-f file1 -f file2 …`. A single string is also accepted. |
-| `docker_context` | | Base directory for Docker files, relative to `dockyman.yaml`. Defaults to `""` (same directory as the yaml file). |
+| `docker_context` | | Base directory for Docker files, relative to `dockyman.yaml.j2`. Defaults to `""` (same directory as the yaml file). |
 | `docker_host` | | Docker daemon socket. Use `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. Injected as `DOCKER_HOST=…` in every command. |
 | `env_files` | | List of env files passed to Compose with `--env-file`, relative to `docker_context`. A single string is also accepted. |
 | `build_shell_prefix` | | Shell expression prepended to `docker compose build` (e.g. `PUID=$(id -u) PGID=$(id -g)`). |
@@ -279,7 +279,7 @@ Contributions are welcome! Please follow these steps:
 Please open a GitHub issue including:
 - dockyman version (`dockyman -V`)
 - OS and Python version
-- Minimal `dockyman.yaml` that reproduces the problem
+- Minimal `dockyman.yaml.j2` that reproduces the problem
 - Full error output
 
 ---
