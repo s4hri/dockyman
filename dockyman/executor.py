@@ -57,8 +57,8 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     *command_type* selects the shell prefix, profiles, and extra CLI args:
     ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
     ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
-    ``"config_build"`` → ``build_shell_prefix`` +``build_profiles``,
-    ``"config_run"``   → ``run_shell_prefix``   +``run_profiles``.
+    ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
+    ``"config_run"``   → ``run_shell_prefix``   + ``run_profiles``.
 
     Set *include_extra_args* to False to include env vars and profiles
     but omit the extra CLI args (e.g. ``--remove-orphans``).
