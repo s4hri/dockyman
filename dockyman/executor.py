@@ -298,9 +298,9 @@ def down(project: Project, dry_run: bool = False) -> bool:
 def config(project: Project, profile_type: str, dry_run: bool = False) -> bool:
     """Run ``docker compose config`` on every node to show resolved config.
 
-    Select profiles to activate using `profile_filter`:
-        - `profile_type`="build"     Activate only build profiles
-        - `profile_type`="run"       Activate only run profiles
+    Select profiles to activate using ``profile_type``:
+        - ``profile_type="build"``   Activate only build profiles
+        - ``profile_type="run"``     Activate only run profiles
 
     Returns True if all nodes resolved successfully.
     """
