@@ -34,18 +34,23 @@ def _expand_for_log(cmd: str) -> str:
     return cmd
 
 
-def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False) -> int:
+def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False, show_no_expand: bool = False) -> int:
     """Run *cmd* through the shell, streaming output live.
 
     Returns the process exit code.
     """
-    if dry_run:
-        if not logger._quiet:
-            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {_expand_for_log(cmd)}")
-        return 0
-
     if not logger._quiet:
-        print(f"  {logger.BOLD}${logger.RESET} {_expand_for_log(cmd)}")
+        if show_no_expand:
+            cmd_to_print = cmd
+        else:
+            cmd_to_print = _expand_for_log(cmd)
+
+        if dry_run:
+            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {cmd_to_print}")
+            return 0
+
+        print(f"  {logger.BOLD}${logger.RESET} {cmd_to_print}")
+
     result = subprocess.run(cmd, shell=True, cwd=cwd)
     return result.returncode
 
@@ -98,7 +103,7 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
 # ── Public commands ──────────────────────────────────────────────────────────
 
 
-def status(project: Project, dry_run: bool = False) -> bool:
+def status(project: Project, dry_run: bool = False, show_no_expand: bool = False) -> bool:
     """Check connectivity to every Docker host in the swarm.
 
     Runs ``docker info`` against each node's DOCKER_HOST.
@@ -114,7 +119,7 @@ def status(project: Project, dry_run: bool = False) -> bool:
             f"{env_prefix} docker info --format '{{{{.Name}}}}'" if env_prefix
             else "docker info --format '{{.Name}}'"
         )
-        rc = _run_shell(cmd, dry_run=dry_run)
+        rc = _run_shell(cmd, dry_run=dry_run, show_no_expand=show_no_expand)
         if rc == 0:
             logger.ok("reachable")
         else:
@@ -125,7 +130,7 @@ def status(project: Project, dry_run: bool = False) -> bool:
     return all_ok
 
 
-def build(project: Project, dry_run: bool = False) -> bool:
+def build(project: Project, dry_run: bool = False, show_no_expand: bool = False) -> bool:
     """Run ``docker compose --profile build build`` on every node.
 
     Returns True if all builds succeeded.
@@ -148,7 +153,7 @@ def build(project: Project, dry_run: bool = False) -> bool:
 
 
 def run(project: Project, dry_run: bool = False, detach: bool = False,
-        log_dir: Optional[str] = None) -> bool:
+        log_dir: Optional[str] = None, show_no_expand: bool = False) -> bool:
     """Start services on every node.
 
     Default behaviour (no flags):
@@ -174,7 +179,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     for node in project.swarm:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "up -d", command_type="run")
-        rc = _run_shell(cmd, dry_run=dry_run)
+        rc = _run_shell(cmd, dry_run=dry_run, show_no_expand=show_no_expand)
         if rc == 0:
             logger.ok("started")
         else:
@@ -265,7 +270,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     return down(project, dry_run=dry_run)
 
 
-def down(project: Project, dry_run: bool = False) -> bool:
+def down(project: Project, dry_run: bool = False, show_no_expand: bool = False) -> bool:
     """Run ``docker compose down`` on every node.
 
     Returns True if all nodes tore down successfully.
@@ -276,7 +281,7 @@ def down(project: Project, dry_run: bool = False) -> bool:
     for node in project.swarm:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "down", command_type="run")
-        rc = _run_shell(cmd, dry_run=dry_run)
+        rc = _run_shell(cmd, dry_run=dry_run, show_no_expand=show_no_expand)
         if rc == 0:
             logger.ok("down")
         else:
@@ -287,7 +292,7 @@ def down(project: Project, dry_run: bool = False) -> bool:
     return all_ok
 
 
-def config(project: Project, dry_run: bool = False) -> bool:
+def config(project: Project, dry_run: bool = False, show_no_expand: bool = False) -> bool:
     """Run ``docker compose config`` on every node to show resolved config.
 
     Returns True if all nodes resolved successfully.
@@ -298,7 +303,7 @@ def config(project: Project, dry_run: bool = False) -> bool:
     for node in project.swarm:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "config", command_type="run")
-        rc = _run_shell(cmd, dry_run=dry_run)
+        rc = _run_shell(cmd, dry_run=dry_run, show_no_expand=show_no_expand)
         if rc != 0:
             all_ok = False
         print()

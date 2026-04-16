@@ -44,11 +44,13 @@ project:
 
       # ── Run settings (also used by `dockyman down` and `dockyman config`) ──
       # Shell expression prepended to `docker compose up/down/config`.
-      run_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
+      run_shell_prefix: >
+        PUID=$(id -u) 
+        PGID=$(id -g)
       # Compose profiles to activate during run/down/config.
       # run_profiles: ["prod"]
       # Extra CLI args appended to `docker compose up/down`.
-      run_args: "--remove-orphans"
+      #run_args: "--remove-orphans"
 
       # ── Setup script ───────────────────────────────────────────────────
       # Shell commands executed directly on this node (local or via SSH)

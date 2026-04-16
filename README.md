@@ -81,6 +81,7 @@ dockyman [-f FILE] [--dry-run] [-V] <command> [options]
 |---|---|
 | `-f FILE`, `--file FILE` | Path to `dockyman.yaml` (default: `dockyman.yaml` in the current directory). |
 | `--dry-run` | Print every command that would be executed without running it. |
+| `--show-no-expand` | Print every command without expanding environment variables or subshells. |
 | `-V`, `--version` | Print the version and exit. |
 
 ---

@@ -39,6 +39,11 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Print commands without executing them.",
     )
+    parser.add_argument(
+        "--show-no-expand",
+        action="store_true",
+        help="Print on screen raw command without variable expand",
+    )
     # Removed --log argument; per-node logs only
 
     sub = parser.add_subparsers(dest="command", required=True)
@@ -98,22 +103,24 @@ def main(argv: list[str] | None = None) -> None:
             )
 
     dry = args.dry_run
+    show_no_expand = args.show_no_expand
+
     ok = True
 
     match args.command:
         # compose commands
         case "status":
-            ok = status(project, dry_run=dry)
+            ok = status(project, dry_run=dry, show_no_expand=show_no_expand)
         case "build":
-            ok = build(project, dry_run=dry)
+            ok = build(project, dry_run=dry, show_no_expand=show_no_expand)
         case "run":
             log_dir = args.log_output if args.log_output else (project.container_log_dir or None)
             ok = run(project, dry_run=dry, detach=args.detach,
-                     log_dir=log_dir)
+                     log_dir=log_dir, show_no_expand=show_no_expand)
         case "down":
-            ok = down(project, dry_run=dry)
+            ok = down(project, dry_run=dry, show_no_expand=show_no_expand)
         case "config":
-            ok = config(project, dry_run=dry)
+            ok = config(project, dry_run=dry, show_no_expand=show_no_expand)
 
         # hardware info
         case "info":
