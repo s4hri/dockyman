@@ -5,8 +5,9 @@ from __future__ import annotations
 import textwrap
 import pytest
 
-from dockyman.config import Node, Project, load_config
+from jinja2 import exceptions as jinja2_exceptions
 
+from dockyman.config import Node, Project, load_config, render_config
 
 # ── Node.get_env_prefix ──────────────────────────────────────────────────────
 
@@ -228,3 +229,61 @@ class TestLoadConfig:
         f = tmp_path / "dockyman.yaml"
         f.write_text(yaml_text)
         assert load_config(str(f)).swarm[0].env_files == [".env", ".env.local"]
+
+    def test_render_config(self, tmp_path):
+        """Test jinja vars rendering."""
+
+        jinja_vars_text = textwrap.dedent("""\
+        {% set project_name = "test_name" %}
+        {% set manager_node_id = "test_manager" %}
+        """)
+        f = tmp_path / "vars.j2"
+        f.write_text(jinja_vars_text)
+
+        yaml_j2_text = textwrap.dedent("""\
+            {% import "vars.j2" as vars %}
+            project:
+              name: {{ vars.project_name }}
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
+              swarm:
+                - node_id: {{ vars.manager_node_id }}
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml.j2"
+        f.write_text(yaml_j2_text)
+
+        project = load_config(str(f))
+        assert project.name == "test_name"
+        assert project.swarm[0].node_id == "test_manager"
+
+    def test_render_config_missing_var(self, tmp_path):
+        """Test jinja rendering failure when a var is not defined."""
+
+        # we do not define {% set manager_node_id = "test_manager" %}
+        # we expect to get an exception 
+        jinja_vars_text = textwrap.dedent("""\
+        {% set project_name = "test_name" %}
+        """)
+        f = tmp_path / "vars.j2"
+        f.write_text(jinja_vars_text)
+
+        yaml_j2_text = textwrap.dedent("""\
+            {% import "vars.j2" as vars %}
+            project:
+              name: {{ vars.project_name }}
+              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_ref: v4.0.0
+              swarm:
+                - node_id: {{ vars.manager_node_id }}
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml.j2"
+        f.write_text(yaml_j2_text)
+
+        with pytest.raises(jinja2_exceptions.UndefinedError) as exc_info:
+            render_config(str(f))
+
+        # verify the error message points only to the missing variable
+        assert not("no attribute 'project_name'" in str(exc_info.value))
+        assert "no attribute 'manager_node_id'" in str(exc_info.value)

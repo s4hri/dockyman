@@ -1,0 +1,14 @@
+{% set ip = "worker_ip" %}
+{% set hostname = "worker_hostname" %}
+
+{# Method A: Using interpolation (Cleanest) #}
+{# {% set ssh_url = "worker_ip ~ "@" ~ worker_hostname %} #}
+
+{# Method B: If you prefer a more Pythonic look #}
+{% set ssh_url = "{}@{}".format(ip, hostname) %}
+
+
+{% set PUID = "$(ssh {} id -u)".format(ssh_url) %}
+{% set PGID = "$(ssh {} id -g)".format(ssh_url) %}
+{% set shell_prefix = "PUID={} PGID={}".format(PUID, PGID) %}
+

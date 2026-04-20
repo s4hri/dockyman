@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from . import __version__
-from .config import load_config
+from .config import load_config, render_config
 from .executor import build, config, down, run, status
 from .hardware import detect_hardware, setup
 from . import logger
@@ -31,8 +31,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "-f",
         "--file",
-        default="dockyman.yaml",
-        help="Path to the dockyman.yaml config file (default: dockyman.yaml)",
+        default="dockyman.yaml.j2",
+        help="Path to the dockyman.yaml.j2 config file (default: dockyman.yaml.j2)",
     )
     parser.add_argument(
         "--dry-run",
@@ -45,6 +45,9 @@ def main(argv: list[str] | None = None) -> None:
 
     # -- status ----------------------------------------------------------------
     sub.add_parser("status", help="Check that all docker hosts are reachable.")
+
+    # -- render ----------------------------------------------------------------
+    sub.add_parser("render", help="Render dockyman configuration file.")
 
     # -- build -----------------------------------------------------------------
     sub.add_parser("build", help="Build images on all nodes.")
@@ -76,14 +79,24 @@ def main(argv: list[str] | None = None) -> None:
     # ── Parse & dispatch ─────────────────────────────────────────────────────
     args = parser.parse_args(argv)
 
+    if args.command == "render":
+        try:
+            render = render_config(args.file)
+            print(render, "\n")
+            sys.exit(0)
+        except Exception as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     # No global log; per-node logs only
 
     # Load project configuration
     try:
         project = load_config(args.file)
-    except (FileNotFoundError, KeyError) as exc:
+    except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
+
 
     # Warn if the YAML-declared version doesn't match the installed one
     # Normalize versions by stripping 'v' prefix for comparison

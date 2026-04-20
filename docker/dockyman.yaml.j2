@@ -1,3 +1,7 @@
+{% import "vars/manager.j2" as manager %}
+{% import "vars/worker.j2" as worker %}
+
+
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
@@ -36,7 +40,7 @@ project:
 
       # ── Build settings ─────────────────────────────────────────────────
       # Shell expression prepended to `docker compose build` (e.g. env vars).
-      build_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
+      build_shell_prefix: {{ manager.shell_prefix }}
       # Compose profiles to activate during build.
       # build_profiles: ["build"]
       # Extra CLI args appended to `docker compose build`.
@@ -44,7 +48,7 @@ project:
 
       # ── Run settings (also used by `dockyman down` and `dockyman config`) ──
       # Shell expression prepended to `docker compose up/down/config`.
-      run_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
+      run_shell_prefix: {{ manager.shell_prefix }}
       # Compose profiles to activate during run/down/config.
       # run_profiles: ["prod"]
       # Extra CLI args appended to `docker compose up/down`.
@@ -55,17 +59,17 @@ project:
       # by `dockyman setup` (interactive) and silently by `dockyman run`.
       # Use this to configure display, audio, environment, etc.
       setup_script: |
-        pactl set-sink-volume @DEFAULT_SINK@ 75%
+        pactl set-sink-volume @DEFAULT_SINK@ {{ manager.volume }}
 
     # ── Remote node (example) ─────────────────────────────────────────────
     # - node_id: worker
     #   docker_context: docker
     #   compose_files: [compose.yaml]
-    #   docker_host: ssh://user@hostname
+    #   docker_host: ssh://{{ worker.ssh_url}}
     #   env_files: [.env]
     #   # Use ssh subcommands to resolve values on the remote host.
-    #   build_shell_prefix: "PUID=$(ssh user@hostname id -u) PGID=$(ssh user@hostname id -g)"
-    #   run_shell_prefix:   "PUID=$(ssh user@hostname id -u) PGID=$(ssh user@hostname id -g)"
+    #   build_shell_prefix: {{ worker.shell_prefix}}
+    #   run_shell_prefix:   {{ worker.shell_prefix}}
     #   setup_script: |
     #     xrandr --output DP-1-2 --mode 1920x1200
     #     pactl set-sink-volume @DEFAULT_SINK@ 80%
