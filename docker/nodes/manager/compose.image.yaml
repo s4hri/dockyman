@@ -1,0 +1,11 @@
+services:
+  x11-audio-image:
+    image: ${MANAGER_IMAGE}:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PUID=${PUID:-1000}
+        - PGID=${PGID:-1000}
+    profiles:
+        - build

@@ -1,0 +1,12 @@
+include:
+  - compose.image.yaml
+services:
+  worker:
+    image: ${WORKER_IMAGE}:latest
+    container_name: ${WORKER_IMAGE}_container
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+    restart: unless-stopped
+    profiles:
+      - production

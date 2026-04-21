@@ -5,19 +5,18 @@
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  dockyman_ref: v4.1.0
+  dockyman_ref: v4.2.0
 
   # ── Logging configuration ──────────────────────────────────────────────
-  # All logging is OFF by default. Enable each type independently:
-
+  
   # Container logs: one file per service per node → <container_log_dir>/<node_id>/<service>.log
   # Leave empty or omit to disable (container logs go to stdout).
   # Can be overridden at runtime with: dockyman run --log-output <dir>
-  # container_log_dir: ./logs/containers
+  container_log_dir: ./logs/containers
 
   # Hardware/config logs: one file per node → <config_log_dir>/<node_id>.log
   # Leave empty or omit to disable (hardware info prints to stdout).
-  # config_log_dir: ./logs/config
+  config_log_dir: ./logs/config
 
   swarm:
 
@@ -25,7 +24,7 @@ project:
     - node_id: manager
 
       # Base directory for Docker files, relative to this yaml file.
-      docker_context: .
+      docker_context: ./nodes/manager
 
       # One or more Compose files to merge, relative to docker_context.
       compose_files:
@@ -42,7 +41,7 @@ project:
       # Shell expression prepended to `docker compose build` (e.g. env vars).
       build_shell_prefix: {{ manager.shell_prefix }}
       # Compose profiles to activate during build.
-      # build_profiles: ["build"]
+      build_profiles: ["build"]
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
 
@@ -50,7 +49,7 @@ project:
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ manager.shell_prefix }}
       # Compose profiles to activate during run/down/config.
-      # run_profiles: ["prod"]
+      run_profiles: ["production"]
       # Extra CLI args appended to `docker compose up/down`.
       run_args: "--remove-orphans"
 
@@ -61,15 +60,16 @@ project:
       setup_script: |
         pactl set-sink-volume @DEFAULT_SINK@ {{ manager.volume }}
 
-    # ── Remote node (example) ─────────────────────────────────────────────
-    # - node_id: worker
-    #   docker_context: docker
-    #   compose_files: [compose.yaml]
-    #   docker_host: ssh://{{ worker.ssh_url}}
-    #   env_files: [.env]
-    #   # Use ssh subcommands to resolve values on the remote host.
-    #   build_shell_prefix: {{ worker.shell_prefix}}
-    #   run_shell_prefix:   {{ worker.shell_prefix}}
-    #   setup_script: |
-    #     xrandr --output DP-1-2 --mode 1920x1200
-    #     pactl set-sink-volume @DEFAULT_SINK@ 80%
+    # ── Remote node ─────────────────────────────────────────────
+    - node_id: worker
+      docker_context: ./nodes/worker
+      compose_files:
+        - compose.yaml
+      docker_host: ssh://{{ worker.ssh_url}}
+      build_profiles: ["build"]
+      env_files: 
+        - .env
+      # Use ssh subcommands to resolve values on the remote host.
+      build_shell_prefix: {{ worker.shell_prefix }}
+      run_shell_prefix:   {{ worker.shell_prefix }}
+      run_profiles: ["production"]
