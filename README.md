@@ -4,8 +4,8 @@
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
-- [CLI Reference](#cli-reference)
+- [Quick start](#quick-start)
+- [CLI reference](#cli-reference)
 - [dockyman.yaml.j2 Reference](#dockyman-configuration-file-reference)
 - [Logging](#logging)
 - [Contributing](#contributing)
@@ -249,7 +249,7 @@ All logging is **OFF by default**:
 
 Contributions are welcome! Please follow these steps:
 
-1. **Fork** the repository and create your branch from `v4.x`:
+1. **Fork** the repository and create your branch from `master`:
    ```bash
    git checkout -b feature/my-feature
    ```
@@ -266,7 +266,7 @@ Contributions are welcome! Please follow these steps:
 
 4. **Add tests** for any new behaviour. Tests live in `tests/` and are run with `pytest`.
 
-5. **Open a Pull Request** against the `v4.x` branch. The CI pipeline will run automatically — PRs can only be merged when all tests pass.
+5. **Open a Pull Request** against the `master` branch. The CI pipeline will run automatically — PRs can only be merged when all tests pass.
 
 ### Code style
 
