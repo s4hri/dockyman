@@ -65,10 +65,17 @@ def main(argv: list[str] | None = None) -> None:
 
     # -- config ----------------------------------------------------------------
     config_parser = sub.add_parser("config", help="Show resolved compose config on all nodes.")
+    _add_node_arg(config_parser)
     config_parser.add_argument(
-        "config_profile_type", 
-        choices=["build", "run"], 
-        help="The profile type to activate for `docker compose config`"
+        "-p", "--profile",
+        dest="profiles", action="append", default=None, metavar="PROFILE",
+        help="Limit to this profile (can be repeated). Default: all profiles defined for each node.",
+    )
+    config_parser.add_argument(
+        "--stage",
+        choices=["build", "run"], default=None,
+        help="Show config for a specific stage: 'build' uses build_shell_prefix + build_profiles, "
+             "'run' uses run_shell_prefix + run_profiles. Default: merge both.",
     )
 
     # -- info ------------------------------------------------------------------
@@ -118,7 +125,10 @@ def main(argv: list[str] | None = None) -> None:
         case "down":
             ok = down(project, dry_run=dry)
         case "config":
-            ok = config(project, dry_run=dry, profile_type=args.config_profile_type)
+            ok = config(project, dry_run=dry,
+                        node_filter=args.node,
+                        profile_filter=args.profiles,
+                        stage=args.stage)
 
         # hardware info
         case "info":

@@ -141,12 +141,23 @@ dockyman down
 
 ### `dockyman config`
 
-Print the resolved Compose configuration for each node (`docker compose config`).
+Print the resolved Compose configuration for each node (`docker compose config`), activating all profiles (build + run) defined for that node.
 
 ```bash
-dockyman config build      # activate only build profiles
-dockyman config run        # activate only run profiles
+dockyman config                          # all nodes, all profiles
+dockyman config --stage build            # build_shell_prefix + build_profiles
+dockyman config --stage run              # run_shell_prefix   + run_profiles
+dockyman config -n manager               # single node
+dockyman config -p build                 # only nodes that have the 'build' profile
+dockyman config -p build -p prod         # multiple profiles
+dockyman config --stage build -n manager # combine all filters
 ```
+
+| Option | Description |
+|---|---|
+| `--stage {build,run}` | Apply the settings for a specific stage: `build` uses `build_shell_prefix` + `build_profiles`; `run` uses `run_shell_prefix` + `run_profiles`. Default: merge both stages. |
+| `-n NODE`, `--node NODE` | Limit to a specific node ID. |
+| `-p PROFILE`, `--profile PROFILE` | Limit to this profile (can be repeated). Only profiles that are also declared on the node for the selected stage are activated. Default: all profiles for the stage. |
 
 ---
 
