@@ -67,7 +67,19 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("down", help="Stop services on all nodes.")
 
     # -- config ----------------------------------------------------------------
-    sub.add_parser("config", help="Show resolved compose config on all nodes.")
+    config_parser = sub.add_parser("config", help="Show resolved compose config on all nodes.")
+    _add_node_arg(config_parser)
+    config_parser.add_argument(
+        "-p", "--profile",
+        dest="profiles", action="append", default=None, metavar="PROFILE",
+        help="Limit to this profile (can be repeated). Default: all profiles defined for each node.",
+    )
+    config_parser.add_argument(
+        "--stage",
+        choices=["build", "run"], default=None,
+        help="Show config for a specific stage: 'build' uses build_shell_prefix + build_profiles, "
+             "'run' uses run_shell_prefix + run_profiles. Default: merge both.",
+    )
 
     # -- info ------------------------------------------------------------------
     info_parser = sub.add_parser("info", help="Detect hardware on all nodes.")
@@ -126,7 +138,10 @@ def main(argv: list[str] | None = None) -> None:
         case "down":
             ok = down(project, dry_run=dry)
         case "config":
-            ok = config(project, dry_run=dry)
+            ok = config(project, dry_run=dry,
+                        node_filter=args.node,
+                        profile_filter=args.profiles,
+                        stage=args.stage)
 
         # hardware info
         case "info":

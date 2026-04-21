@@ -72,6 +72,22 @@ class TestBuildComposeCmd:
         assert "--profile build" in cmd
         assert "--profile extra" in cmd
 
+    def test_docker_config_build_profiles_added(self):
+        node = Node(node_id="n", compose_files=["compose.yaml"],
+                    build_profiles=["build", "build_extra"])
+        project = _make_project(nodes=[node])
+        cmd = _build_compose_cmd(project, node, "config", command_type="config_build")
+        assert "--profile build" in cmd
+        assert "--profile build_extra" in cmd
+
+    def test_docker_config_run_profiles_added(self):
+        node = Node(node_id="n", compose_files=["compose.yaml"],
+                    run_profiles=["run", "run_extra"])
+        project = _make_project(nodes=[node])
+        cmd = _build_compose_cmd(project, node, "config", command_type="config_run")
+        assert "--profile run" in cmd
+        assert "--profile run_extra" in cmd
+
     def test_run_extra_args_appended(self):
         node = Node(node_id="n", compose_files=["compose.yaml"],
                     run_args="--remove-orphans")

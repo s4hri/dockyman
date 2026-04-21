@@ -51,12 +51,18 @@ def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False) -> in
 
 
 def _build_compose_cmd(project: Project, node: Node, action: str, command_type: str = "",
-                       include_extra_args: bool = True) -> str:
+                       include_extra_args: bool = True,
+                       profile_override: list[str] | None = None) -> str:
     """Build the full shell command string for a node.
 
     *command_type* selects the shell prefix, profiles, and extra CLI args:
-    ``"build"`` → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
-    ``"run"``   → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``.
+    ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
+    ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
+    ``"config_run"``   → ``run_shell_prefix``   + ``run_profiles``.
+
+    *profile_override*, when provided, replaces the profile list derived from
+    *command_type*.  Use this to pass a pre-filtered or pre-merged profile list.
 
     Set *include_extra_args* to False to include env vars and profiles
     but omit the extra CLI args (e.g. ``--remove-orphans``).
@@ -70,9 +76,27 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     elif command_type == "run":
         profiles = node.run_profiles
         extra_args = node.run_args.strip()
+    elif command_type == "config":
+        # All profiles defined for the node, deduplicated, preserving order
+        seen: set[str] = set()
+        profiles = []
+        for p in node.build_profiles + node.run_profiles:
+            if p not in seen:
+                seen.add(p)
+                profiles.append(p)
+        extra_args = ""
+    elif command_type == "config_build":
+        profiles = node.build_profiles
+        extra_args = ""
+    elif command_type == "config_run":
+        profiles = node.run_profiles
+        extra_args = ""
     else:
         profiles = []
         extra_args = ""
+
+    if profile_override is not None:
+        profiles = profile_override
 
     cmd_parts = []
     if env_prefix:
@@ -287,17 +311,64 @@ def down(project: Project, dry_run: bool = False) -> bool:
     return all_ok
 
 
-def config(project: Project, dry_run: bool = False) -> bool:
+def config(project: Project, dry_run: bool = False,
+           node_filter: str | None = None,
+           profile_filter: list[str] | None = None,
+           stage: str | None = None) -> bool:
     """Run ``docker compose config`` on every node to show resolved config.
 
-    Returns True if all nodes resolved successfully.
+    Args:
+        node_filter:    When given, only process the node with this ID.
+        profile_filter: When given, only activate profiles from this list
+                        (intersected with each node's stage-appropriate profiles).
+                        When omitted, all relevant profiles for the node are used.
+        stage:          ``"build"`` → use ``build_shell_prefix`` + ``build_profiles``;
+                        ``"run"``   → use ``run_shell_prefix``   + ``run_profiles``;
+                        ``None``    → merge both (default).
+
+    Returns True if all matched nodes resolved successfully.
     """
     logger.header(f"Resolved compose config for project '{project.name}' …")
     all_ok = True
 
-    for node in project.swarm:
+    nodes = project.swarm
+    if node_filter:
+        nodes = [n for n in nodes if n.node_id == node_filter]
+        if not nodes:
+            import sys as _sys
+            print(f"Error: no node with id '{node_filter}'", file=_sys.stderr)
+            return False
+
+    # Map stage to the command_type understood by _build_compose_cmd
+    command_type = f"config_{stage}" if stage else "config"
+
+    for node in nodes:
         logger.node_header(node.node_id)
-        cmd = _build_compose_cmd(project, node, "config", command_type="run")
+
+        # Candidate profiles depend on the stage
+        if stage == "build":
+            candidate = node.build_profiles
+        elif stage == "run":
+            candidate = node.run_profiles
+        else:
+            # All profiles for the node, deduplicated, preserving order
+            seen: set[str] = set()
+            candidate = []
+            for p in node.build_profiles + node.run_profiles:
+                if p not in seen:
+                    seen.add(p)
+                    candidate.append(p)
+
+        # Optionally narrow down by the --profile filter
+        if profile_filter is not None:
+            allowed = set(profile_filter)
+            profiles: list[str] | None = [p for p in candidate if p in allowed]
+        else:
+            profiles = candidate
+
+        cmd = _build_compose_cmd(project, node, "config",
+                                 command_type=command_type,
+                                 profile_override=profiles)
         rc = _run_shell(cmd, dry_run=dry_run)
         if rc != 0:
             all_ok = False
