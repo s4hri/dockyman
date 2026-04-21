@@ -39,7 +39,7 @@ uninstall:
 	$(PIP) uninstall -y dockyman
 
 test: venv
-	$(PIP) install --quiet pytest
+	$(PIP) install --quiet ".[dev]"
 	$(VENV_BIN)/pytest tests/ -v
 
 clean:

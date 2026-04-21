@@ -70,7 +70,7 @@ class TestLoadConfig:
     MINIMAL_YAML = textwrap.dedent("""\
         project:
           name: test_project
-          dockyman_repo: https://github.com/youruser/dockyman
+          dockyman_repo: https://github.com/s4hri/dockyman
           dockyman_ref: v4.0.0
           swarm:
             - node_id: manager
@@ -80,7 +80,7 @@ class TestLoadConfig:
     FULL_YAML = textwrap.dedent("""\
         project:
           name: full_project
-          dockyman_repo: https://github.com/youruser/dockyman
+          dockyman_repo: https://github.com/s4hri/dockyman
           dockyman_ref: v4.0.0
           log_dir: logs
           swarm:
@@ -110,7 +110,7 @@ class TestLoadConfig:
         f.write_text(self.MINIMAL_YAML)
         project = load_config(str(f))
         assert project.name == "test_project"
-        assert project.dockyman_repo == "https://github.com/youruser/dockyman"
+        assert project.dockyman_repo == "https://github.com/s4hri/dockyman"
         assert project.dockyman_ref == "v4.0.0"
         assert len(project.swarm) == 1
         assert project.swarm[0].node_id == "manager"
@@ -169,7 +169,7 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: compat
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
@@ -184,7 +184,7 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: compat
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
@@ -200,7 +200,7 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: multi
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
@@ -217,7 +217,7 @@ class TestLoadConfig:
         yaml_text = textwrap.dedent("""\
             project:
               name: multi
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: manager
@@ -244,7 +244,7 @@ class TestLoadConfig:
             {% import "vars.j2" as vars %}
             project:
               name: {{ vars.project_name }}
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: {{ vars.manager_node_id }}
@@ -272,7 +272,7 @@ class TestLoadConfig:
             {% import "vars.j2" as vars %}
             project:
               name: {{ vars.project_name }}
-              dockyman_repo: https://github.com/youruser/dockyman
+              dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
               swarm:
                 - node_id: {{ vars.manager_node_id }}
