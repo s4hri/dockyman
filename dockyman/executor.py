@@ -17,15 +17,15 @@ from . import logger
 def _expand_for_log(cmd: str) -> str:
     """Return *cmd* with shell subexpressions expanded, for display only.
 
-    Uses ``echo <cmd>`` so that ``$(...)`` tokens are resolved by the shell
-    without executing the actual command.  Falls back to the original string
-    on any error or timeout (e.g. when a remote-node prefix contains an
-    ``ssh ...`` subcommand that is slow or unreachable).
+    Invokes ``sh -c 'echo <cmd>'`` directly as a list (no Python
+    ``shell=True``) to avoid the extra shell wrapper that would otherwise
+    allow metacharacter injection at the Python level.  Falls back to the
+    original string on any error or timeout.
     """
     try:
         result = subprocess.run(
-            f"echo {cmd}",
-            shell=True, capture_output=True, text=True, timeout=5,
+            ["sh", "-c", f"echo {cmd}"],
+            capture_output=True, text=True, timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -41,11 +41,19 @@ def _run_shell(cmd: str, cwd: Optional[str] = None, dry_run: bool = False) -> in
     """
     if dry_run:
         if not logger._quiet:
-            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {_expand_for_log(cmd)}")
+            raw = cmd
+            expanded = _expand_for_log(cmd)
+            print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {raw}")
+            if expanded != raw:
+                print(f"  {logger.YELLOW}[dry-run]{logger.RESET} {logger.DIM}→ {expanded}{logger.RESET}")
         return 0
 
     if not logger._quiet:
-        print(f"  {logger.BOLD}${logger.RESET} {_expand_for_log(cmd)}")
+        raw = cmd
+        expanded = _expand_for_log(cmd)
+        print(f"  {logger.BOLD}${logger.RESET} {raw}")
+        if expanded != raw:
+            print(f"  {logger.BOLD} {logger.RESET} {logger.DIM}→ {expanded}{logger.RESET}")
     result = subprocess.run(cmd, shell=True, cwd=cwd)
     return result.returncode
 
