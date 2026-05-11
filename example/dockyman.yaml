@@ -1,11 +1,25 @@
-{% import "vars/manager.j2" as manager %}
-{% import "vars/worker.j2" as worker %}
+ansible:
+  # Path to the Ansible inventory, relative to this file.
+  inventory: ./inventory/hosts.yaml
+
+  playbooks:
+
+    # Set audio volume on the manager node before containers start.
+    - name: configure_audio
+      file: ./playbooks/configure_audio.yaml
+      nodes: [manager]
+      hook: before_run
+
+    # Example: target only the manager node, no automatic hook (manual only).
+    # - name: configure_audio
+    #   file: ./playbooks/configure_audio.yaml
+    #   nodes: [manager]
 
 
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  dockyman_ref: v4.2.0
+  dockyman_ref: v4.3.0
 
   # ── Logging configuration ──────────────────────────────────────────────
   
@@ -31,7 +45,7 @@ project:
         - compose.yaml
 
       # Docker daemon socket. Use ssh://user@host for remote nodes.
-      docker_host: unix:///var/run/docker.sock
+      docker_host: "{{ manager.docker_host }}"
 
       # One or more env files passed to Compose with --env-file, relative to docker_context.
       env_files:
@@ -53,19 +67,12 @@ project:
       # Extra CLI args appended to `docker compose up/down`.
       run_args: "--remove-orphans"
 
-      # ── Setup script ───────────────────────────────────────────────────
-      # Shell commands executed directly on this node (local or via SSH)
-      # by `dockyman setup` (interactive) and silently by `dockyman run`.
-      # Use this to configure display, audio, environment, etc.
-      setup_script: |
-        pactl set-sink-volume @DEFAULT_SINK@ {{ manager.volume }}
-
     # ── Remote node ─────────────────────────────────────────────
     - node_id: worker
       docker_context: ./nodes/worker
       compose_files:
         - compose.yaml
-      docker_host: ssh://{{ worker.ssh_url}}
+      docker_host: "{{ worker.docker_host }}"
       build_profiles: ["build"]
       env_files: 
         - .env

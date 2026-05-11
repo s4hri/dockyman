@@ -250,7 +250,7 @@ class TestLoadConfig:
                 - node_id: {{ vars.manager_node_id }}
                   compose_files: [compose.yaml]
         """)
-        f = tmp_path / "dockyman.yaml.j2"
+        f = tmp_path / "dockyman.yaml"
         f.write_text(yaml_j2_text)
 
         project = load_config(str(f))
@@ -278,7 +278,7 @@ class TestLoadConfig:
                 - node_id: {{ vars.manager_node_id }}
                   compose_files: [compose.yaml]
         """)
-        f = tmp_path / "dockyman.yaml.j2"
+        f = tmp_path / "dockyman.yaml"
         f.write_text(yaml_j2_text)
 
         with pytest.raises(jinja2_exceptions.UndefinedError) as exc_info:

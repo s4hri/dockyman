@@ -15,3 +15,6 @@ services:
 
     profiles:
       - production
+      
+    extra_hosts:
+      - "worker:${WORKER_HOST}"

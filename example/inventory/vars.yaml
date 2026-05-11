@@ -1,0 +1,25 @@
+# ── Dockyman-only variables ────────────────────────────────────────────────────
+#
+# This file is read ONLY by dockyman — Ansible never sees it.
+#
+# Put here:
+#   - docker_host, shell_prefix, and any other dockyman-specific settings.
+#   - Jinja2 templates are supported; {{ ansible_host }} and {{ ansible_user }}
+#     are resolved from hosts.yaml. Cross-host refs ({{ worker.ansible_host }})
+#     are also supported.
+#
+# Do NOT put playbook variables here — Ansible won't find them.
+# Those belong in hosts.yaml (inline) or host_vars/<hostname>.yaml.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── Per-host vars ──────────────────────────────────────────────────────────
+
+manager:
+  docker_host:  "unix:///var/run/docker.sock"
+  shell_prefix: "PUID=$(id -u) PGID=$(id -g) WORKER_HOST={{ worker.ansible_host }}"
+
+worker:
+  # ansible_user defaults to the OS user running dockyman when omitted.
+  # ansible_user: myremoteuser
+  docker_host:  "ssh://{{ ansible_user }}@{{ ansible_host }}"
+  shell_prefix: "PUID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -u) PGID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -g) MANAGER_HOST={{ manager.ansible_host }}"

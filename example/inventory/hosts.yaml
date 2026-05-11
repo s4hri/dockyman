@@ -1,0 +1,22 @@
+# ── Ansible inventory ─────────────────────────────────────────────────────────
+#
+# This file is read by BOTH Ansible and dockyman.
+#
+# Put here:
+#   - Connection vars Ansible needs: ansible_host, ansible_connection, ansible_user
+#   - Any vars that Ansible playbooks reference (e.g. volume in configure_audio.yaml)
+#
+# Variables only used by dockyman (docker_host, shell_prefix, …) belong in
+# vars.yaml, which is invisible to Ansible.
+# ──────────────────────────────────────────────────────────────────────────────
+
+all:
+  hosts:
+    manager:
+      ansible_host:       127.0.0.1
+      ansible_connection: local
+      volume:             "75%"  # referenced by configure_audio.yaml
+    worker:
+      ansible_host:       127.0.0.1
+      ansible_connection: local # Use "ssh" for remote hosts (requires passwordless SSH setup).
+      # ansible_user: myremoteuser # optional, defaults to OS user running dockyman

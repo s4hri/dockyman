@@ -2,13 +2,33 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import List, Optional
 
 import yaml
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, UndefinedError
+
+
+@dataclass
+class AnsiblePlaybook:
+    """A single Ansible playbook entry."""
+
+    name: str                       # logical name used with --playbook filter
+    file: str                       # path to the .yml playbook, relative to dockyman.yaml
+    nodes: List[str]                # ["all"] or explicit list of node_ids
+    hook: str = ""                  # lifecycle hook: before_build | before_run | after_run | after_down
+
+
+@dataclass
+class AnsibleConfig:
+    """Top-level ansible: section from dockyman.yaml."""
+
+    inventory: str                  # path to the Ansible inventory file
+    playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
 
 @dataclass
@@ -63,6 +83,7 @@ class Project:
     swarm: List[Node]
     container_log_dir: str = ""
     config_log_dir: str = ""
+    ansible: Optional[AnsibleConfig] = None
 
     # Set after loading – absolute path to the dockyman.yaml directory.
     base_dir: str = ""
@@ -77,7 +98,112 @@ def _to_list(value) -> List[str]:
     return [str(value)]
 
 
-def render_config(config_path: str = "dockyman.yaml.j2") -> str:
+def _load_ansible_inventory(config_dir: Path) -> dict[str, SimpleNamespace]:
+    """Return {hostname: SimpleNamespace} from the Ansible inventory if present.
+
+    Reads two sources and merges them (later sources win):
+      1. inventory/hosts.yaml  — per-host ansible_host / ansible_user / etc.
+      2. inventory/vars.yaml   — 'all:' block for shared defaults, then per-host
+                                 blocks keyed by hostname.
+
+    String values are resolved as Jinja2 templates iteratively so vars can
+    reference each other (e.g. docker_host can embed ansible_host).
+
+    Falls back to an empty dict when no inventory/ directory exists.
+    """
+    inv_dir = config_dir / "inventory"
+    if not inv_dir.is_dir():
+        return {}
+
+    # 1. Per-host ansible vars from hosts.yaml (ansible_host, ansible_connection, …)
+    hosts_ansible_vars: dict[str, dict] = {}
+    hosts_file = inv_dir / "hosts.yaml"
+    if hosts_file.exists():
+        hosts_data = yaml.safe_load(hosts_file.read_text()) or {}
+        for group in hosts_data.values():
+            for hostname, hvars in (group.get("hosts") or {}).items():
+                hosts_ansible_vars[hostname] = hvars or {}
+
+    # 2. vars.yaml: 'all' key = shared defaults, other keys = per-host overrides
+    group_all: dict = {}
+    host_vars: dict[str, dict] = {}
+    vars_file = inv_dir / "vars.yaml"
+    if vars_file.exists():
+        vars_data = yaml.safe_load(vars_file.read_text()) or {}
+        group_all = vars_data.pop("all", {}) or {}
+        host_vars = {k: v or {} for k, v in vars_data.items()}
+
+    # 3. Collect all known hosts
+    all_hosts = set(hosts_ansible_vars.keys()) | set(host_vars.keys())
+    if not all_hosts:
+        return {}
+
+    _jinja_strict = Environment(undefined=StrictUndefined)
+    current_user = getpass.getuser()
+
+    def _resolve_pass1(vals: dict, context: dict) -> dict:
+        """Resolve intra-host refs; preserve strings that reference unknown vars
+        (cross-host refs like {{ worker.ansible_host }}) for pass 2."""
+        resolved = dict(vals)
+        for _ in range(10):
+            new = {}
+            changed = False
+            for k, v in resolved.items():
+                if not isinstance(v, str):
+                    new[k] = v
+                    continue
+                try:
+                    rendered = _jinja_strict.from_string(v).render(**context)
+                    new[k] = rendered
+                    if rendered != v:
+                        changed = True
+                except UndefinedError:
+                    new[k] = v  # keep original template for pass 2
+            resolved = new
+            context = {**context, **resolved}
+            if not changed:
+                break
+        return resolved
+
+    def _resolve_pass2(vals: dict, context: dict) -> dict:
+        """Final render with all peer namespaces available; strict."""
+        resolved = dict(vals)
+        for _ in range(10):
+            new = {
+                k: _jinja_strict.from_string(v).render(**context) if isinstance(v, str) else v
+                for k, v in resolved.items()
+            }
+            if new == resolved:
+                break
+            resolved = new
+            context = {**context, **resolved}
+        return resolved
+
+    # Pass 1: resolve intra-host references only; cross-host refs are
+    # preserved as template strings for pass 2.
+    pass1: dict[str, dict] = {}
+    for hostname in sorted(all_hosts):
+        merged = {
+            "current_user": current_user,
+            **group_all,
+            **hosts_ansible_vars.get(hostname, {}),
+            **host_vars.get(hostname, {}),
+        }
+        merged.setdefault("ansible_user", current_user)
+        pass1[hostname] = _resolve_pass1(merged, dict(merged))
+
+    # Pass 2: re-render with all peer namespaces injected so cross-host
+    # references like {{ worker.ansible_host }} resolve correctly.
+    peers = {h: SimpleNamespace(**v) for h, v in pass1.items()}
+    result: dict[str, SimpleNamespace] = {}
+    for hostname, resolved in pass1.items():
+        context = {**resolved, **peers}
+        result[hostname] = SimpleNamespace(**_resolve_pass2(resolved, context))
+
+    return result
+
+
+def render_config(config_path: str = "dockyman.yaml") -> str:
     config_path = os.path.abspath(config_path)
     if not os.path.isfile(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -87,17 +213,20 @@ def render_config(config_path: str = "dockyman.yaml.j2") -> str:
     # 1. Tell Jinja where to look for files
     env = Environment(loader=FileSystemLoader(config_path_obj.parent), undefined=StrictUndefined)
 
-    # 2. Load the main template
+    # 2. Inject Ansible inventory hosts as Jinja2 globals (no-op if inventory/ absent)
+    env.globals.update(_load_ansible_inventory(config_path_obj.parent))
+
+    # 3. Load the main template
     template = env.get_template(config_path_obj.name)
 
-    # 3. Render
+    # 4. Render
     # it can raise an exception
     render = template.render()
 
     return render
 
-def load_config(config_path: str = "dockyman.yaml.j2") -> Project:
-    """Load *dockyman.yaml.j2* and return a :class:`Project`."""
+def load_config(config_path: str = "dockyman.yaml") -> Project:
+    """Load *dockyman.yaml* and return a :class:`Project`."""
 
     render = render_config(config_path)
     raw = yaml.safe_load(render)
@@ -133,6 +262,24 @@ def load_config(config_path: str = "dockyman.yaml.j2") -> Project:
         config_log_dir=proj_raw.get("config_log_dir", ""),
     )
     project.base_dir = str(Path(base_dir).resolve())
+
+    # Parse optional ansible: section
+    ansible_raw = raw.get("ansible")
+    if ansible_raw:
+        playbooks = []
+        for pb in ansible_raw.get("playbooks", []):
+            nodes_val = pb.get("nodes", "all")
+            nodes_list = ["all"] if nodes_val == "all" else _to_list(nodes_val)
+            playbooks.append(AnsiblePlaybook(
+                name=pb["name"],
+                file=pb["file"],
+                nodes=nodes_list,
+                hook=pb.get("hook", ""),
+            ))
+        project.ansible = AnsibleConfig(
+            inventory=ansible_raw["inventory"],
+            playbooks=playbooks,
+        )
     
     # Backward compatibility: if old 'log_dir' is present, use it for both
     if "log_dir" in proj_raw and proj_raw["log_dir"]:

@@ -1,0 +1,6 @@
+- name: Configure audio
+  hosts: manager
+  tasks:
+    - name: Set default sink volume
+      ansible.builtin.command:
+        cmd: pactl set-sink-volume @DEFAULT_SINK@ {{ volume }}
