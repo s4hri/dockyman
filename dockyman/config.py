@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,13 +22,13 @@ class AnsiblePlaybook:
     file: str                       # path to the .yml playbook, relative to dockyman.yaml
     nodes: List[str]                # ["all"] or explicit list of node_ids
     hook: str = ""                  # lifecycle hook: before_build | before_run | after_run | after_down
+    extra_vars: dict = field(default_factory=dict)  # passed as --extra-vars to ansible-playbook
 
 
 @dataclass
 class AnsibleConfig:
     """Top-level ansible: section from dockyman.yaml."""
 
-    inventory: str                  # path to the Ansible inventory file
     playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
 
@@ -50,6 +51,9 @@ class Node:
     # Shell commands executed on this node during ``dockyman setup`` / ``dockyman run``.
     # Runs locally or via SSH for remote nodes.  Use this for xrandr, pactl, etc.
     setup_script: str = ""
+
+    # Ansible playbooks scoped to this node; run with --limit <node_id> automatically.
+    playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
     def get_env_prefix(self, command_type: str = "") -> str:
         """Return the env‑var prefix for the given command type.
@@ -80,13 +84,19 @@ class Project:
     name: str
     dockyman_repo: str
     dockyman_ref: str
-    swarm: List[Node]
+    nodes: List[Node]
+    inventory: str = ""            # path to the Ansible inventory file, relative to dockyman.yaml
     container_log_dir: str = ""
     config_log_dir: str = ""
     ansible: Optional[AnsibleConfig] = None
 
     # Set after loading – absolute path to the dockyman.yaml directory.
     base_dir: str = ""
+
+    @property
+    def swarm(self) -> List[Node]:
+        """Backward-compatible alias for :attr:`nodes`."""
+        return self.nodes
 
 
 def _to_list(value) -> List[str]:
@@ -98,40 +108,90 @@ def _to_list(value) -> List[str]:
     return [str(value)]
 
 
-def _load_ansible_inventory(config_dir: Path) -> dict[str, SimpleNamespace]:
+def _load_vars_file(config_dir: Path) -> Optional[dict]:
+    """Load ``vars.yaml`` from the same directory as ``dockyman.yaml``.
+
+    Returns the parsed dict, or ``None`` when the file does not exist.
+    """
+    vars_file = config_dir / "vars.yaml"
+    if not vars_file.exists():
+        return None
+    data = yaml.safe_load(vars_file.read_text()) or {}
+    return data if isinstance(data, dict) else None
+
+
+def _extract_inventory_path(text: str, config_dir: Path) -> Optional[Path]:
+    """Extract project.inventory from raw dockyman.yaml text.
+
+    Returns the resolved absolute Path to the inventory file, or None if not
+    found.
+    """
+    in_project = False
+    for line in text.splitlines():
+        stripped = line.rstrip()
+        if re.match(r'^project\s*:', stripped):
+            in_project = True
+            continue
+        if in_project:
+            if stripped and not stripped[0].isspace() and not stripped.startswith('#'):
+                break
+            m = re.match(r'^\s+inventory\s*:\s*(.+)', stripped)
+            if m:
+                val = m.group(1).strip().strip('"\'')
+                return (config_dir / val).resolve()
+    return None
+
+
+def _load_ansible_inventory(
+    config_dir: Path,
+    *,
+    hosts_file: Optional[Path] = None,
+    inline_vars: Optional[dict] = None,
+) -> dict[str, SimpleNamespace]:
     """Return {hostname: SimpleNamespace} from the Ansible inventory if present.
 
     Reads two sources and merges them (later sources win):
-      1. inventory/hosts.yaml  — per-host ansible_host / ansible_user / etc.
-      2. inventory/vars.yaml   — 'all:' block for shared defaults, then per-host
-                                 blocks keyed by hostname.
+      1. The inventory file pointed to by ``project.inventory`` (or
+         ``inventory/hosts.yaml`` as a fallback) — per-host ansible_host /
+         ansible_user / etc.
+      2. ``vars:`` section in dockyman.yaml (preferred) or inventory/vars.yaml
+         (fallback) — 'all:' block for shared defaults, then per-host blocks.
 
     String values are resolved as Jinja2 templates iteratively so vars can
     reference each other (e.g. docker_host can embed ansible_host).
 
-    Falls back to an empty dict when no inventory/ directory exists.
+    Falls back to an empty dict when the inventory file does not exist.
     """
-    inv_dir = config_dir / "inventory"
+    if hosts_file is not None:
+        inv_dir = hosts_file.parent
+        actual_hosts_file = hosts_file
+    else:
+        inv_dir = config_dir / "inventory"
+        actual_hosts_file = inv_dir / "hosts.yaml"
+
     if not inv_dir.is_dir():
         return {}
 
-    # 1. Per-host ansible vars from hosts.yaml (ansible_host, ansible_connection, …)
+    # 1. Per-host ansible vars from the inventory file (ansible_host, ansible_connection, …)
     hosts_ansible_vars: dict[str, dict] = {}
-    hosts_file = inv_dir / "hosts.yaml"
-    if hosts_file.exists():
-        hosts_data = yaml.safe_load(hosts_file.read_text()) or {}
+    if actual_hosts_file.exists():
+        hosts_data = yaml.safe_load(actual_hosts_file.read_text()) or {}
         for group in hosts_data.values():
             for hostname, hvars in (group.get("hosts") or {}).items():
                 hosts_ansible_vars[hostname] = hvars or {}
 
-    # 2. vars.yaml: 'all' key = shared defaults, other keys = per-host overrides
+    # 2. host-specific vars: inline vars: section in dockyman.yaml takes
+    #    precedence; falls back to inventory/vars.yaml when absent.
     group_all: dict = {}
     host_vars: dict[str, dict] = {}
-    vars_file = inv_dir / "vars.yaml"
-    if vars_file.exists():
-        vars_data = yaml.safe_load(vars_file.read_text()) or {}
-        group_all = vars_data.pop("all", {}) or {}
-        host_vars = {k: v or {} for k, v in vars_data.items()}
+    if inline_vars is not None:
+        raw_vars = dict(inline_vars)
+    else:
+        vars_file = inv_dir / "vars.yaml"
+        raw_vars = yaml.safe_load(vars_file.read_text()) if vars_file.exists() else {}
+        raw_vars = raw_vars or {}
+    group_all = raw_vars.pop("all", {}) or {}
+    host_vars = {k: v or {} for k, v in raw_vars.items()}
 
     # 3. Collect all known hosts
     all_hosts = set(hosts_ansible_vars.keys()) | set(host_vars.keys())
@@ -210,20 +270,24 @@ def render_config(config_path: str = "dockyman.yaml") -> str:
 
     config_path_obj = Path(config_path)
 
-    # 1. Tell Jinja where to look for files
+    raw_text = config_path_obj.read_text()
+
+    # 1. Tell Jinja where to look for files (needed for {% import %} / {% include %})
     env = Environment(loader=FileSystemLoader(config_path_obj.parent), undefined=StrictUndefined)
 
-    # 2. Inject Ansible inventory hosts as Jinja2 globals (no-op if inventory/ absent)
-    env.globals.update(_load_ansible_inventory(config_path_obj.parent))
+    # 2. Load vars.yaml and inventory, then populate Jinja2 globals.
+    vars_data = _load_vars_file(config_path_obj.parent)
+    hosts_file = _extract_inventory_path(raw_text, config_path_obj.parent)
+    env.globals.update(_load_ansible_inventory(
+        config_path_obj.parent,
+        hosts_file=hosts_file,
+        inline_vars=vars_data,
+    ))
 
-    # 3. Load the main template
-    template = env.get_template(config_path_obj.name)
+    # 3. Render the template.
+    template = env.from_string(raw_text)
 
-    # 4. Render
-    # it can raise an exception
-    render = template.render()
-
-    return render
+    return template.render()
 
 def load_config(config_path: str = "dockyman.yaml") -> Project:
     """Load *dockyman.yaml* and return a :class:`Project`."""
@@ -234,11 +298,29 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
     proj_raw = raw["project"]
     base_dir = os.path.dirname(config_path)
 
-    nodes: list[Node] = []
-    for node_raw in proj_raw.get("swarm", []):
-        nodes.append(
+    node_list: list[Node] = []
+    # Accept nodes: as a mapping {name: attrs} (current) or
+    # a list [{node_id: name, ...}] / swarm: (backward compat).
+    raw_nodes = proj_raw.get("nodes") or proj_raw.get("swarm", [])
+    if isinstance(raw_nodes, dict):
+        nodes_iter = [(nid, nattrs or {}) for nid, nattrs in raw_nodes.items()]
+    else:
+        nodes_iter = [(n["node_id"], n) for n in raw_nodes]
+    for node_id, node_raw in nodes_iter:
+        node_playbooks: list[AnsiblePlaybook] = []
+        for pb_raw in (node_raw.get("playbooks") or []):
+            nodes_val = pb_raw.get("nodes", node_id)
+            pb_nodes = ["all"] if nodes_val == "all" else _to_list(nodes_val)
+            node_playbooks.append(AnsiblePlaybook(
+                name=pb_raw["name"],
+                file=pb_raw["file"],
+                nodes=pb_nodes,
+                hook=pb_raw.get("hook", ""),
+                extra_vars=pb_raw.get("extra_vars") or {},
+            ))
+        node_list.append(
             Node(
-                node_id=node_raw["node_id"],
+                node_id=node_id,
                 compose_files=_to_list(node_raw.get("compose_files") or node_raw.get("compose_file")),
                 docker_context=node_raw.get("docker_context", ""),
                 docker_host=node_raw.get("docker_host"),
@@ -250,6 +332,7 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 run_profiles=node_raw.get("run_profiles", []),
                 run_args=node_raw.get("run_args", ""),
                 setup_script=node_raw.get("setup_script", ""),
+                playbooks=node_playbooks,
             )
         )
 
@@ -257,7 +340,8 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         name=proj_raw["name"],
         dockyman_repo=str(proj_raw["dockyman_repo"]),
         dockyman_ref=str(proj_raw.get("dockyman_ref", "main")),
-        swarm=nodes,
+        nodes=node_list,
+        inventory=proj_raw.get("inventory", ""),
         container_log_dir=proj_raw.get("container_log_dir", ""),
         config_log_dir=proj_raw.get("config_log_dir", ""),
     )
@@ -277,7 +361,6 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 hook=pb.get("hook", ""),
             ))
         project.ansible = AnsibleConfig(
-            inventory=ansible_raw["inventory"],
             playbooks=playbooks,
         )
     

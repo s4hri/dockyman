@@ -81,17 +81,18 @@ When an `ansible:` block is present in `dockyman.yaml`, dockyman loads an Ansibl
 ### Directory layout
 
 ```
-inventory/
-  hosts.yaml    ← read by BOTH Ansible and dockyman
-  vars.yaml     ← read ONLY by dockyman
+hosts.yaml    ← read by BOTH Ansible and dockyman
+vars.yaml     ← dockyman vars only (invisible to Ansible)
 ```
 
-### `inventory/hosts.yaml`
+### `hosts.yaml`
 
 Standard Ansible inventory. Put connection variables and any variables referenced by playbooks here:
 
 ```yaml
 all:
+  vars:
+    ansible_python_interpreter: auto_silent   # suppress interpreter-discovery warning
   hosts:
     manager:
       ansible_host:       192.168.1.1
@@ -102,9 +103,9 @@ all:
       # ansible_user: myuser     # optional, defaults to current OS user
 ```
 
-### `inventory/vars.yaml`
+### `vars.yaml`
 
-Dockyman-specific variables — **invisible to Ansible**. Supports Jinja2 templates; `ansible_host`, `ansible_user`, and cross-host references (e.g. `{{ worker.ansible_host }}`) are all resolved:
+Dockyman-specific variables — **invisible to Ansible**. Place this file in the same directory as `dockyman.yaml`. Supports Jinja2 templates; `ansible_host`, `ansible_user` (from `hosts.yaml`), and cross-host references (e.g. `{{ worker.ansible_host }}`) are all resolved:
 
 ```yaml
 manager:
@@ -116,7 +117,7 @@ worker:
   shell_prefix: "PUID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -u) PGID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -g) MANAGER_HOST={{ manager.ansible_host }}"
 ```
 
-In `dockyman.yaml` you can then write:
+These variables are then available as Jinja2 globals in `dockyman.yaml`:
 
 ```yaml
 docker_host: "{{ manager.docker_host }}"
@@ -276,7 +277,6 @@ All settings live in a single `dockyman.yaml`. Paths are resolved relative to th
 ```yaml
 # Optional Ansible integration block (outside project:)
 ansible:
-  inventory: ./inventory/hosts.yaml
   playbooks:
     - name: <string>           # unique name, used with `dockyman ansible -p`
       file: <path>             # path to the playbook, relative to dockyman.yaml
@@ -287,17 +287,18 @@ project:
   name: <string>
   dockyman_repo: <url>
   dockyman_ref: <string>
+  inventory: <path>            # path to the Ansible inventory (hosts.yaml)
   container_log_dir: <path>
   config_log_dir: <path>
-  swarm:
-    - <node>
+  nodes:
+    <name>:
+      <node settings>
 ```
 
 ### `ansible:` settings
 
 | Setting | Description |
 |---|---|
-| `inventory` | Path to the Ansible inventory file (`hosts.yaml`), relative to `dockyman.yaml`. |
 | `playbooks` | List of playbooks to register. Each has `name`, `file`, `nodes`, and optionally `hook`. |
 
 ### Playbook hooks
@@ -318,6 +319,7 @@ Playbooks without a `hook` only run via `dockyman ansible`.
 | `name` | ✓ | Project name. |
 | `dockyman_repo` | ✓ | GitHub repository URL. |
 | `dockyman_ref` | | Git tag or branch (defaults to `main`). |
+| `inventory` | | Path to the Ansible inventory file (`hosts.yaml`), relative to `dockyman.yaml`. Required when using the `ansible:` block. |
 | `container_log_dir` | | Directory for container logs. Omit to stream to stdout. |
 | `config_log_dir` | | Directory for hardware/config logs. Omit to stream to stdout. |
 

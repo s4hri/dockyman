@@ -1,4 +1,4 @@
-# ── Dockyman-only variables ────────────────────────────────────────────────────
+# ── Dockyman variables ────────────────────────────────────────────────────────
 #
 # This file is read ONLY by dockyman — Ansible never sees it.
 #
@@ -8,15 +8,15 @@
 #     are resolved from hosts.yaml. Cross-host refs ({{ worker.ansible_host }})
 #     are also supported.
 #
-# Do NOT put playbook variables here — Ansible won't find them.
-# Those belong in hosts.yaml (inline) or host_vars/<hostname>.yaml.
+# Playbook variable values can also live here when they are passed to Ansible
+# explicitly via extra_vars: in the playbooks section of dockyman.yaml.
+# Ansible still gets the value — through --extra-vars on the command line.
 # ──────────────────────────────────────────────────────────────────────────────
-
-# ── Per-host vars ──────────────────────────────────────────────────────────
 
 manager:
   docker_host:  "unix:///var/run/docker.sock"
   shell_prefix: "PUID=$(id -u) PGID=$(id -g) WORKER_HOST={{ worker.ansible_host }}"
+  volume:       "75%"  # passed to configure_audio.yaml via extra_vars
 
 worker:
   # ansible_user defaults to the OS user running dockyman when omitted.

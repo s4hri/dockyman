@@ -4,18 +4,19 @@
 #
 # Put here:
 #   - Connection vars Ansible needs: ansible_host, ansible_connection, ansible_user
-#   - Any vars that Ansible playbooks reference (e.g. volume in configure_audio.yaml)
 #
-# Variables only used by dockyman (docker_host, shell_prefix, …) belong in
+# Playbook vars that dockyman passes via extra_vars: belong in vars.yaml.
+# Variables only used by dockyman (docker_host, shell_prefix, …) also belong in
 # vars.yaml, which is invisible to Ansible.
 # ──────────────────────────────────────────────────────────────────────────────
 
 all:
+  vars:
+    ansible_python_interpreter: auto_silent
   hosts:
     manager:
       ansible_host:       127.0.0.1
       ansible_connection: local
-      volume:             "75%"  # referenced by configure_audio.yaml
     worker:
       ansible_host:       127.0.0.1
       ansible_connection: local # Use "ssh" for remote hosts (requires passwordless SSH setup).

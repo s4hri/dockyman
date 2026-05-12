@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
+import sys
 from typing import Optional
 
 from .config import AnsibleConfig, AnsiblePlaybook, Project
@@ -27,6 +29,8 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
     cmd_parts = ["ansible-playbook", "-i", inventory, playbook.file]
     if limit:
         cmd_parts += ["--limit", limit]
+    if playbook.extra_vars:
+        cmd_parts += ["--extra-vars", json.dumps(playbook.extra_vars)]
 
     cmd_str = " ".join(cmd_parts)
 
@@ -39,6 +43,33 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
     return result.returncode
 
 
+def _collect_playbooks(project: Project,
+                       node_filter: Optional[str] = None) -> list[AnsiblePlaybook]:
+    """Collect all playbooks: node-level first, then top-level ansible: section.
+
+    ``node_filter`` limits node-level playbooks to those belonging to the
+    named node; top-level playbooks are still included when the named node is
+    in their ``nodes`` list (or ``nodes`` is ``["all"]``).
+    """
+    result: list[AnsiblePlaybook] = []
+
+    # 1. Node-level playbooks (preferred, canonical form)
+    for node in project.nodes:
+        if node_filter and node.node_id != node_filter:
+            continue
+        result.extend(node.playbooks)
+
+    # 2. Top-level ansible: section (backward compatibility)
+    if project.ansible:
+        for pb in project.ansible.playbooks:
+            if node_filter:
+                if pb.nodes != ["all"] and node_filter not in pb.nodes:
+                    continue
+            result.append(pb)
+
+    return result
+
+
 def run_playbooks(project: Project,
                   playbook_filter: Optional[str] = None,
                   node_filter: Optional[str] = None,
@@ -46,9 +77,12 @@ def run_playbooks(project: Project,
                   dry_run: bool = False) -> bool:
     """Run Ansible playbooks declared in the project.
 
+    Playbooks can be defined per-node (under ``nodes.<name>.playbooks:``) or
+    in the top-level ``ansible:`` section (backward compatibility).
+
     Args:
         playbook_filter: When given, only run the playbook with this name.
-        node_filter:     When given, pass ``--limit <node>`` to ansible-playbook.
+        node_filter:     When given, only run playbooks belonging to that node.
         hook:            When given, only run playbooks whose ``hook`` matches.
                          When None (explicit ``dockyman ansible`` command), run
                          all playbooks regardless of their hook value.
@@ -56,19 +90,17 @@ def run_playbooks(project: Project,
 
     Returns True if all playbooks succeeded (or there were none to run).
     """
-    if project.ansible is None:
-        logger.warn("No 'ansible' section found in dockyman.yaml — nothing to run.")
-        return True
+    playbooks = _collect_playbooks(project, node_filter=node_filter)
 
-    cfg: AnsibleConfig = project.ansible
-    playbooks = cfg.playbooks
+    if not playbooks and project.ansible is None:
+        logger.warn("No playbooks found in project — nothing to run.")
+        return True
 
     # Filter by name if requested
     if playbook_filter:
         playbooks = [p for p in playbooks if p.name == playbook_filter]
         if not playbooks:
-            import sys as _sys
-            print(f"Error: no playbook named '{playbook_filter}'", file=_sys.stderr)
+            print(f"Error: no playbook named '{playbook_filter}'", file=sys.stderr)
             return False
 
     # Filter by lifecycle hook (None = run all)
@@ -84,7 +116,7 @@ def run_playbooks(project: Project,
     all_ok = True
     for pb in playbooks:
         logger.node_header(pb.name)
-        rc = _run_playbook(pb, inventory=cfg.inventory,
+        rc = _run_playbook(pb, inventory=project.inventory,
                            node_filter=node_filter, dry_run=dry_run)
         if rc == 0:
             logger.ok("done")

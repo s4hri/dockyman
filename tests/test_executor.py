@@ -14,7 +14,7 @@ def _make_project(
 ) -> Project:
     if nodes is None:
         nodes = [Node(node_id="manager", compose_files=["compose.yaml"])]
-    p = Project(name="test", dockyman_repo="https://github.com/s4hri/dockyman", dockyman_ref="v4.0.0", swarm=nodes)
+    p = Project(name="test", dockyman_repo="https://github.com/s4hri/dockyman", dockyman_ref="v4.0.0", nodes=nodes)
     p.base_dir = base_dir
     return p
 
@@ -24,7 +24,7 @@ def _make_project(
 class TestBuildComposeCmd:
     def test_minimal_command(self):
         project = _make_project()
-        node = project.swarm[0]
+        node = project.nodes[0]
         cmd = _build_compose_cmd(project, node, "up -d")
         assert "docker compose" in cmd
         assert "-f /project/compose.yaml" in cmd

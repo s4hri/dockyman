@@ -1,25 +1,10 @@
-ansible:
-  # Path to the Ansible inventory, relative to this file.
-  inventory: ./inventory/hosts.yaml
-
-  playbooks:
-
-    # Set audio volume on the manager node before containers start.
-    - name: configure_audio
-      file: ./playbooks/configure_audio.yaml
-      nodes: [manager]
-      hook: before_run
-
-    # Example: target only the manager node, no automatic hook (manual only).
-    # - name: configure_audio
-    #   file: ./playbooks/configure_audio.yaml
-    #   nodes: [manager]
-
-
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
   dockyman_ref: v4.3.0
+
+  # Path to the Ansible inventory, relative to this file.
+  inventory: hosts.yaml
 
   # ── Logging configuration ──────────────────────────────────────────────
   
@@ -32,10 +17,25 @@ project:
   # Leave empty or omit to disable (hardware info prints to stdout).
   config_log_dir: ./logs/config
 
-  swarm:
+  nodes:
 
     # ── Local node ────────────────────────────────────────────────────────
-    - node_id: manager
+    manager:
+
+      # Ansible playbooks to run for this node (with --limit manager).
+      playbooks:
+        # Set audio volume before containers start; pass volume from inventory.
+        - name: configure_audio
+          file: ./playbooks/configure_audio.yaml
+          hook: before_run
+          extra_vars:
+            volume: {{ manager.volume }}
+
+        # Example: manual-only playbook (no hook = only runs via `dockyman ansible`).
+        # - name: configure_audio
+        #   file: ./playbooks/configure_audio.yaml
+        #   extra_vars:
+        #     volume: "{{ manager.volume }}"
 
       # Base directory for Docker files, relative to this yaml file.
       docker_context: ./nodes/manager
@@ -45,7 +45,7 @@ project:
         - compose.yaml
 
       # Docker daemon socket. Use ssh://user@host for remote nodes.
-      docker_host: "{{ manager.docker_host }}"
+      docker_host: {{ manager.docker_host }}
 
       # One or more env files passed to Compose with --env-file, relative to docker_context.
       env_files:
@@ -68,13 +68,13 @@ project:
       run_args: "--remove-orphans"
 
     # ── Remote node ─────────────────────────────────────────────
-    - node_id: worker
+    worker:
       docker_context: ./nodes/worker
       compose_files:
         - compose.yaml
-      docker_host: "{{ worker.docker_host }}"
+      docker_host: {{ worker.docker_host }}
       build_profiles: ["build"]
-      env_files: 
+      env_files:
         - .env
       # Use ssh subcommands to resolve values on the remote host.
       build_shell_prefix: {{ worker.shell_prefix }}
