@@ -23,6 +23,7 @@ class AnsiblePlaybook:
     nodes: List[str]                # ["all"] or explicit list of node_ids
     hook: str = ""                  # lifecycle hook: before_build | before_run | after_run | after_down
     extra_vars: dict = field(default_factory=dict)  # passed as --extra-vars to ansible-playbook
+    project_scope: bool = False     # True = hosts are defined inside the playbook; no --limit is added
 
 
 @dataclass
@@ -89,6 +90,7 @@ class Project:
     container_log_dir: str = ""
     config_log_dir: str = ""
     ansible: Optional[AnsibleConfig] = None
+    project_playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
     # Set after loading – absolute path to the dockyman.yaml directory.
     base_dir: str = ""
@@ -118,6 +120,70 @@ def _load_vars_file(config_dir: Path) -> Optional[dict]:
         return None
     data = yaml.safe_load(vars_file.read_text()) or {}
     return data if isinstance(data, dict) else None
+
+
+_JINJA_RE = re.compile(r'\{\{.*?\}\}', re.DOTALL)
+
+
+def _escape_jinja(text: str) -> tuple:
+    """Replace Jinja2 expressions with safe placeholders for plain YAML parsing.
+
+    Returns (escaped_text, tokens) where tokens holds the original expressions
+    in order so they can be restored with :func:`_unescape_jinja`.
+    """
+    tokens: list = []
+
+    def _sub(m: re.Match) -> str:
+        tokens.append(m.group(0))
+        return f"__JINJA_{len(tokens) - 1}__"
+
+    return _JINJA_RE.sub(_sub, text), tokens
+
+
+def _unescape_jinja(value, tokens: list):
+    """Recursively restore Jinja2 placeholders in a parsed YAML structure."""
+    if isinstance(value, str):
+        return re.sub(r'__JINJA_(\d+)__', lambda m: tokens[int(m.group(1))], value)
+    if isinstance(value, dict):
+        return {k: _unescape_jinja(v, tokens) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_unescape_jinja(v, tokens) for v in value]
+    return value
+
+
+def _extract_global_vars(text: str) -> Optional[dict]:
+    """Extract ``project.vars`` as a flat dict from raw dockyman.yaml text.
+
+    Returns the dict with Jinja2 template strings intact (not yet rendered),
+    or ``None`` when ``project.vars`` is absent or not a mapping.
+    """
+    escaped, tokens = _escape_jinja(text)
+    try:
+        raw = yaml.safe_load(escaped) or {}
+    except yaml.YAMLError:
+        return None
+    vars_val = (raw.get("project") or {}).get("vars")
+    if not isinstance(vars_val, dict):
+        return None
+    return _unescape_jinja(vars_val, tokens) or None
+
+
+def _resolve_global_vars(raw_vars: dict, context: dict) -> dict:
+    """Render any Jinja2 templates in global var values using *context*.
+
+    Values that reference undefined names are left as-is (best-effort).
+    """
+    _env = Environment(undefined=StrictUndefined)
+    resolved = {}
+    for k, v in raw_vars.items():
+        if isinstance(v, str):
+            try:
+                resolved[k] = _env.from_string(v).render(**context)
+            except UndefinedError:
+                resolved[k] = v
+        else:
+            resolved[k] = v
+    return resolved
 
 
 def _extract_inventory_path(text: str, config_dir: Path) -> Optional[Path]:
@@ -173,12 +239,25 @@ def _load_ansible_inventory(
         return {}
 
     # 1. Per-host ansible vars from the inventory file (ansible_host, ansible_connection, …)
+    # Supports both:
+    #   - Standard Ansible format:  all: { hosts: { manager: {...} } }
+    #   - Simplified flat format:   hosts: { manager: {...} }
     hosts_ansible_vars: dict[str, dict] = {}
     if actual_hosts_file.exists():
         hosts_data = yaml.safe_load(actual_hosts_file.read_text()) or {}
-        for group in hosts_data.values():
-            for hostname, hvars in (group.get("hosts") or {}).items():
-                hosts_ansible_vars[hostname] = hvars or {}
+        for _key, group in hosts_data.items():
+            if not isinstance(group, dict):
+                continue
+            sub_hosts = group.get("hosts")
+            if sub_hosts and isinstance(sub_hosts, dict):
+                # Standard format
+                for hostname, hvars in sub_hosts.items():
+                    hosts_ansible_vars[hostname] = hvars or {}
+            else:
+                # Flat format: values are host-entry dicts directly
+                for hostname, hvars in group.items():
+                    if isinstance(hvars, dict):
+                        hosts_ansible_vars[hostname] = hvars or {}
 
     # 2. host-specific vars: inline vars: section in dockyman.yaml takes
     #    precedence; falls back to inventory/vars.yaml when absent.
@@ -275,14 +354,22 @@ def render_config(config_path: str = "dockyman.yaml") -> str:
     # 1. Tell Jinja where to look for files (needed for {% import %} / {% include %})
     env = Environment(loader=FileSystemLoader(config_path_obj.parent), undefined=StrictUndefined)
 
-    # 2. Load vars.yaml and inventory, then populate Jinja2 globals.
-    vars_data = _load_vars_file(config_path_obj.parent)
+    # 2. Load inventory and populate Jinja2 globals.
     hosts_file = _extract_inventory_path(raw_text, config_path_obj.parent)
-    env.globals.update(_load_ansible_inventory(
+    vars_data = _load_vars_file(config_path_obj.parent)
+    host_namespaces = _load_ansible_inventory(
         config_path_obj.parent,
         hosts_file=hosts_file,
         inline_vars=vars_data,
-    ))
+    )
+    # Expose hosts both as {{ worker.X }} and {{ hosts.worker.X }}
+    env.globals.update(host_namespaces)
+    env.globals["hosts"] = SimpleNamespace(**host_namespaces)
+
+    # 2b. Extract and resolve project-level global vars ({{ key }} in any field).
+    raw_global_vars = _extract_global_vars(raw_text)
+    if raw_global_vars:
+        env.globals.update(_resolve_global_vars(raw_global_vars, dict(env.globals)))
 
     # 3. Render the template.
     template = env.from_string(raw_text)
@@ -346,6 +433,19 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         config_log_dir=proj_raw.get("config_log_dir", ""),
     )
     project.base_dir = str(Path(base_dir).resolve())
+
+    # Parse project-level playbooks (hosts defined inside each playbook; no --limit added)
+    project_pbs: list[AnsiblePlaybook] = []
+    for pb_raw in (proj_raw.get("playbooks") or []):
+        project_pbs.append(AnsiblePlaybook(
+            name=pb_raw["name"],
+            file=pb_raw["file"],
+            nodes=[],
+            hook=pb_raw.get("hook", ""),
+            extra_vars=pb_raw.get("extra_vars") or {},
+            project_scope=True,
+        ))
+    project.project_playbooks = project_pbs
 
     # Parse optional ansible: section
     ansible_raw = raw.get("ansible")

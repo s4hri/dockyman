@@ -18,17 +18,17 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
 
     Returns the process exit code (0 = success).
     """
-    # Resolve target: explicit CLI --node overrides the playbook's own nodes list
-    if node_filter:
-        limit = node_filter
+    # Project-scoped playbooks define their own hosts: inside the playbook;
+    # no --limit is added so Ansible targets exactly what the playbook declares.
+    effective_filter = None if playbook.project_scope else node_filter
+    if effective_filter:
+        limit = effective_filter
     elif playbook.nodes and playbook.nodes != ["all"]:
         limit = ",".join(playbook.nodes)
     else:
         limit = None
 
     cmd_parts = ["ansible-playbook", "-i", inventory, playbook.file]
-    if limit:
-        cmd_parts += ["--limit", limit]
     if playbook.extra_vars:
         cmd_parts += ["--extra-vars", json.dumps(playbook.extra_vars)]
 
@@ -59,7 +59,11 @@ def _collect_playbooks(project: Project,
             continue
         result.extend(node.playbooks)
 
-    # 2. Top-level ansible: section (backward compatibility)
+    # 2. Project-level playbooks — always included; hosts are defined inside each
+    #    playbook, so node_filter does not restrict them.
+    result.extend(project.project_playbooks)
+
+    # 3. Top-level ansible: section (backward compatibility)
     if project.ansible:
         for pb in project.ansible.playbooks:
             if node_filter:

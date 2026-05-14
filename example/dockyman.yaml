@@ -4,7 +4,35 @@ project:
   dockyman_ref: v4.3.0
 
   # Path to the Ansible inventory, relative to this file.
-  inventory: hosts.yaml
+  inventory: ansible/inventory.yaml
+
+  # ── Global variables ──────────────────────────────────────────────────────
+  # Flat key/value pairs available as {{ key }} in any node field across this
+  # file.  Use these for values shared by multiple nodes.
+  vars:
+    manager_docker_host:  "unix:///var/run/docker.sock"
+    manager_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
+    worker_docker_host:  "ssh://{{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }}"
+    worker_shell_prefix: "PUID=$(ssh {{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }} id -g)"
+    run_args: "--remove-orphans"
+    audio_volume_level: "75%"
+
+  # ── Global playbooks ──────────────────────────────────────────────────────
+  # Playbooks run at project level. Target hosts are defined inside each
+  # playbook using its own 'hosts:' directive (resolved from inventory);
+  # dockyman never adds --limit for these entries.
+  #
+  # Available hooks (omit 'hook' to run only via `dockyman ansible`):
+  #   before_build  – runs before any `docker compose build`
+  #   before_run    – runs before any `docker compose up`
+  #   after_run     – runs after  `docker compose up`  completes
+  #   after_down    – runs after  `docker compose down` completes
+  playbooks:
+    - name: configure_audio
+      file: ./ansible/playbooks/configure_audio.yaml
+      hook: before_run
+      extra_vars:
+        volume: {{ audio_volume_level }}
 
   # ── Logging configuration ──────────────────────────────────────────────
   
@@ -22,21 +50,6 @@ project:
     # ── Local node ────────────────────────────────────────────────────────
     manager:
 
-      # Ansible playbooks to run for this node (with --limit manager).
-      playbooks:
-        # Set audio volume before containers start; pass volume from inventory.
-        - name: configure_audio
-          file: ./playbooks/configure_audio.yaml
-          hook: before_run
-          extra_vars:
-            volume: {{ manager.volume }}
-
-        # Example: manual-only playbook (no hook = only runs via `dockyman ansible`).
-        # - name: configure_audio
-        #   file: ./playbooks/configure_audio.yaml
-        #   extra_vars:
-        #     volume: "{{ manager.volume }}"
-
       # Base directory for Docker files, relative to this yaml file.
       docker_context: ./nodes/manager
 
@@ -45,7 +58,7 @@ project:
         - compose.yaml
 
       # Docker daemon socket. Use ssh://user@host for remote nodes.
-      docker_host: {{ manager.docker_host }}
+      docker_host: {{ manager_docker_host }}
 
       # One or more env files passed to Compose with --env-file, relative to docker_context.
       env_files:
@@ -53,7 +66,7 @@ project:
 
       # ── Build settings ─────────────────────────────────────────────────
       # Shell expression prepended to `docker compose build` (e.g. env vars).
-      build_shell_prefix: {{ manager.shell_prefix }}
+      build_shell_prefix: {{ manager_shell_prefix }}
       # Compose profiles to activate during build.
       build_profiles: ["build"]
       # Extra CLI args appended to `docker compose build`.
@@ -61,22 +74,22 @@ project:
 
       # ── Run settings (also used by `dockyman down` and `dockyman config`) ──
       # Shell expression prepended to `docker compose up/down/config`.
-      run_shell_prefix: {{ manager.shell_prefix }}
+      run_shell_prefix: {{ manager_shell_prefix }}
       # Compose profiles to activate during run/down/config.
       run_profiles: ["production"]
       # Extra CLI args appended to `docker compose up/down`.
-      run_args: "--remove-orphans"
+      run_args: "{{ run_args }}"
 
     # ── Remote node ─────────────────────────────────────────────
     worker:
       docker_context: ./nodes/worker
       compose_files:
         - compose.yaml
-      docker_host: {{ worker.docker_host }}
+      docker_host: {{ worker_docker_host }}
       build_profiles: ["build"]
       env_files:
         - .env
       # Use ssh subcommands to resolve values on the remote host.
-      build_shell_prefix: {{ worker.shell_prefix }}
-      run_shell_prefix:   {{ worker.shell_prefix }}
+      build_shell_prefix: {{ worker_shell_prefix }}
+      run_shell_prefix:   {{ worker_shell_prefix }}
       run_profiles: ["production"]

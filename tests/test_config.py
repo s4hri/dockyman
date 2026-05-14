@@ -198,6 +198,41 @@ class TestLoadConfig:
         assert len(project.nodes) == 1
         assert project.nodes[0].node_id == "manager"
 
+    def test_project_level_playbooks(self, tmp_path):
+        """project.playbooks: are parsed as project-scoped entries."""
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: pb_test
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              inventory: ./inventory/hosts.yaml
+              playbooks:
+                - name: setup_all
+                  file: ./ansible/setup.yaml
+                  hook: before_run
+                  extra_vars:
+                    foo: bar
+                - name: teardown
+                  file: ./ansible/teardown.yaml
+              nodes:
+                manager:
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        assert len(project.project_playbooks) == 2
+        pb = project.project_playbooks[0]
+        assert pb.name == "setup_all"
+        assert pb.file == "./ansible/setup.yaml"
+        assert pb.hook == "before_run"
+        assert pb.extra_vars == {"foo": "bar"}
+        assert pb.project_scope is True
+        assert pb.nodes == []
+        pb2 = project.project_playbooks[1]
+        assert pb2.hook == ""
+        assert pb2.project_scope is True
+
     def test_inventory_loaded_into_project(self, tmp_path):
         """``project.inventory`` is populated from the YAML."""
         yaml_text = textwrap.dedent("""\
