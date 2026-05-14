@@ -29,6 +29,8 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
         limit = None
 
     cmd_parts = ["ansible-playbook", "-i", inventory, playbook.file]
+    if limit:
+        cmd_parts += ["--limit", limit]
     if playbook.extra_vars:
         cmd_parts += ["--extra-vars", json.dumps(playbook.extra_vars)]
 
@@ -120,7 +122,7 @@ def run_playbooks(project: Project,
     all_ok = True
     for pb in playbooks:
         logger.node_header(pb.name)
-        rc = _run_playbook(pb, inventory=project.inventory,
+        rc = _run_playbook(pb, inventory=project.vars_files[0] if project.vars_files else "",
                            node_filter=node_filter, dry_run=dry_run)
         if rc == 0:
             logger.ok("done")

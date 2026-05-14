@@ -233,14 +233,14 @@ class TestLoadConfig:
         assert pb2.hook == ""
         assert pb2.project_scope is True
 
-    def test_inventory_loaded_into_project(self, tmp_path):
-        """``project.inventory`` is populated from the YAML."""
+    def test_vars_file_loaded_into_project(self, tmp_path):
+        """``project.vars_files`` is populated from the YAML (scalar form)."""
         yaml_text = textwrap.dedent("""\
             project:
               name: inv_test
               dockyman_repo: https://github.com/s4hri/dockyman
               dockyman_ref: v4.0.0
-              inventory: ./inventory/hosts.yaml
+              vars_file: ./inventory/hosts.yaml
               nodes:
                 manager:
                   compose_files: [compose.yaml]
@@ -248,7 +248,71 @@ class TestLoadConfig:
         f = tmp_path / "dockyman.yaml"
         f.write_text(yaml_text)
         project = load_config(str(f))
-        assert project.inventory == "./inventory/hosts.yaml"
+        assert project.vars_files == ["./inventory/hosts.yaml"]
+
+    def test_vars_files_list_loaded_into_project(self, tmp_path):
+        """``project.vars_files`` is populated from the YAML (list form)."""
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: inv_test
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              vars_file:
+                - ./vars/base.yaml
+                - ./vars/hosts.yaml
+              nodes:
+                manager:
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        assert project.vars_files == ["./vars/base.yaml", "./vars/hosts.yaml"]
+
+    def test_generic_vars_file_exposed_as_template_globals(self, tmp_path):
+        """Any YAML file's top-level keys are available as Jinja2 globals."""
+        vars_file = tmp_path / "myvars.yaml"
+        vars_file.write_text(textwrap.dedent("""\
+            db:
+              host: 192.168.1.10
+              port: 5432
+            version: "1.2.3"
+        """))
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: test_project
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              vars_file: myvars.yaml
+              vars:
+                db_host: "{{ db.host }}"
+                app_version: "{{ version }}"
+              nodes:
+                manager:
+                  compose_files: [compose.yaml]
+                  docker_host: "{{ db_host }}"
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        assert project.nodes[0].docker_host == "192.168.1.10"
+
+    def test_inventory_backward_compat(self, tmp_path):
+        """Old ``inventory:`` key still populates ``vars_files``."""
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: inv_test
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              inventory: ./ansible/inventory.yaml
+              nodes:
+                manager:
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        assert project.vars_files == ["./ansible/inventory.yaml"]
 
     def test_backward_compat_single_compose_file(self, tmp_path):
         """Old ``compose_file: name.yaml`` (without s) still loads correctly."""

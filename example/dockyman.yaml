@@ -3,30 +3,47 @@ project:
   dockyman_repo: https://github.com/s4hri/dockyman
   dockyman_ref: v4.3.0
 
-  # Path to the Ansible inventory, relative to this file.
-  inventory: ansible/inventory.yaml
+  # ── Variable files ────────────────────────────────────────────────────────
+  # One or more YAML files whose top-level keys become Jinja2 template globals
+  # available anywhere in this file.  Files are merged in order; later entries
+  # override earlier ones.
+  #
+  # Example — reference a nested value from ansible/inventory.yaml:
+  #   {{ all.hosts.worker.ansible_host }}
+  #
+  # The built-in `env` mapping is always available without a vars_file:
+  #   {{ env.HOME }}, {{ env.USER }}, etc.
+  vars_files:
+    - ansible/inventory.yaml
 
   # ── Global variables ──────────────────────────────────────────────────────
-  # Flat key/value pairs available as {{ key }} in any node field across this
-  # file.  Use these for values shared by multiple nodes.
+  # Jinja2 template strings resolved in order — each var can reference any
+  # var defined above it, as well as globals from vars_files and {env.*}.
+  # Use these to define shared values and avoid repetition across nodes.
   vars:
+    current_user: "{{ env.USER }}"
     manager_docker_host:  "unix:///var/run/docker.sock"
     manager_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
-    worker_docker_host:  "ssh://{{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }}"
-    worker_shell_prefix: "PUID=$(ssh {{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ hosts.worker.ansible_user }}@{{ hosts.worker.ansible_host }} id -g)"
+    # For remote nodes, the Docker host is reached via SSH.
+    worker_docker_host:  "ssh://{{ current_user }}@{{ all.hosts.worker.ansible_host }}"
+    # PUID/PGID are resolved on the remote host via SSH so file ownership is correct.
+    worker_shell_prefix: "PUID=$(ssh {{ current_user }}@{{ all.hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ current_user }}@{{ all.hosts.worker.ansible_host }} id -g)"
     run_args: "--remove-orphans"
     audio_volume_level: "75%"
 
-  # ── Global playbooks ──────────────────────────────────────────────────────
-  # Playbooks run at project level. Target hosts are defined inside each
-  # playbook using its own 'hosts:' directive (resolved from inventory);
-  # dockyman never adds --limit for these entries.
+  # ── Project-level playbooks ───────────────────────────────────────────────
+  # Playbooks listed here are project-scoped: the target hosts are defined
+  # inside each playbook's own 'hosts:' directive (resolved from the Ansible
+  # inventory).  Dockyman does NOT add --limit for these entries.
   #
-  # Available hooks (omit 'hook' to run only via `dockyman ansible`):
-  #   before_build  – runs before any `docker compose build`
-  #   before_run    – runs before any `docker compose up`
-  #   after_run     – runs after  `docker compose up`  completes
-  #   after_down    – runs after  `docker compose down` completes
+  # For node-scoped playbooks (where dockyman adds --limit automatically),
+  # define them under nodes.<name>.playbooks instead.
+  #
+  # hook – when to run automatically (omit to run only via `dockyman ansible`):
+  #   before_build  – before any `docker compose build`
+  #   before_run    – before any `docker compose up`
+  #   after_run     – after  `docker compose up`  completes
+  #   after_down    – after  `docker compose down` completes
   playbooks:
     - name: configure_audio
       file: ./ansible/playbooks/configure_audio.yaml
@@ -34,17 +51,21 @@ project:
       extra_vars:
         volume: {{ audio_volume_level }}
 
-  # ── Logging configuration ──────────────────────────────────────────────
-  
-  # Container logs: one file per service per node → <container_log_dir>/<node_id>/<service>.log
-  # Leave empty or omit to disable (container logs go to stdout).
-  # Can be overridden at runtime with: dockyman run --log-output <dir>
+  # ── Logging ───────────────────────────────────────────────────────────────
+
+  # Container logs: one file per service per node → <dir>/<node_id>/<service>.log
+  # Omit or leave empty to stream container output to stdout.
+  # Override at runtime with: dockyman run --log-output <dir>
   container_log_dir: ./logs/containers
 
-  # Hardware/config logs: one file per node → <config_log_dir>/<node_id>.log
-  # Leave empty or omit to disable (hardware info prints to stdout).
+  # Hardware/config logs: one file per node → <dir>/<node_id>.log
+  # Omit or leave empty to print hardware info to stdout.
   config_log_dir: ./logs/config
 
+  # ── Nodes ─────────────────────────────────────────────────────────────────
+  # Each node maps to a Docker daemon (local socket or remote via SSH) and its
+  # own set of Compose files.  Commands (build, run, down, …) are executed on
+  # every node in definition order.
   nodes:
 
     # ── Local node ────────────────────────────────────────────────────────
@@ -53,43 +74,46 @@ project:
       # Base directory for Docker files, relative to this yaml file.
       docker_context: ./nodes/manager
 
-      # One or more Compose files to merge, relative to docker_context.
+      # One or more Compose files merged in order, relative to docker_context.
       compose_files:
         - compose.yaml
 
-      # Docker daemon socket. Use ssh://user@host for remote nodes.
+      # Docker daemon socket.  Use ssh://user@host for remote daemons.
       docker_host: {{ manager_docker_host }}
 
-      # One or more env files passed to Compose with --env-file, relative to docker_context.
+      # Env files passed to Compose with --env-file, relative to docker_context.
       env_files:
         - .env
 
       # ── Build settings ─────────────────────────────────────────────────
-      # Shell expression prepended to `docker compose build` (e.g. env vars).
+      # Shell expression prepended to `docker compose build`.
       build_shell_prefix: {{ manager_shell_prefix }}
-      # Compose profiles to activate during build.
+      # Compose profiles activated during `dockyman build`.
       build_profiles: ["build"]
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
 
-      # ── Run settings (also used by `dockyman down` and `dockyman config`) ──
+      # ── Run settings ───────────────────────────────────────────────────
+      # These settings are also used by `dockyman down` and `dockyman config`.
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ manager_shell_prefix }}
-      # Compose profiles to activate during run/down/config.
+      # Compose profiles activated during `dockyman run` / `dockyman down`.
       run_profiles: ["production"]
       # Extra CLI args appended to `docker compose up/down`.
       run_args: "{{ run_args }}"
 
-    # ── Remote node ─────────────────────────────────────────────
+    # ── Remote node ───────────────────────────────────────────────────────
+    # This node runs on a separate machine reached via SSH.
+    # Ensure passwordless SSH access is configured before running dockyman.
     worker:
       docker_context: ./nodes/worker
       compose_files:
         - compose.yaml
       docker_host: {{ worker_docker_host }}
-      build_profiles: ["build"]
       env_files:
         - .env
-      # Use ssh subcommands to resolve values on the remote host.
+      build_profiles: ["build"]
+      # PUID/PGID are resolved on the remote host so file ownership is correct.
       build_shell_prefix: {{ worker_shell_prefix }}
       run_shell_prefix:   {{ worker_shell_prefix }}
       run_profiles: ["production"]

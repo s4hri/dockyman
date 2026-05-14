@@ -1,6 +1,6 @@
 # ── Ansible inventory ─────────────────────────────────────────────────────────
 #
-# This file is read by BOTH Ansible and dockyman.
+# This file is read by BOTH Ansible and dockyman (as vars_file).
 #
 # Put here:
 #   - Connection vars Ansible needs: ansible_host, ansible_connection, ansible_user
@@ -9,11 +9,12 @@
 # vars: section of dockyman.yaml, which is invisible to Ansible.
 # ──────────────────────────────────────────────────────────────────────────────
 
-hosts:
-  manager:
-    ansible_host:       127.0.0.1
-    ansible_connection: local
-  worker:
-    ansible_host:       127.0.0.1
-    ansible_connection: local # Use "ssh" for remote hosts (requires passwordless SSH setup).
-    # ansible_user: myremoteuser # optional, defaults to OS user running dockyman
+all:
+  hosts:
+    manager:
+      ansible_host:       127.0.0.1
+      ansible_connection: local
+    worker:
+      ansible_host:       127.0.0.1
+      ansible_connection: local # Use "ssh" for remote hosts (requires passwordless SSH setup).
+      # ansible_user: myremoteuser # optional, defaults to OS user running dockyman

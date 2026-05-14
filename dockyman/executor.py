@@ -201,6 +201,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
         hw_setup(project, dry_run=dry_run)
     if project.config_log_dir:
         hw_detect(project, dry_run=dry_run, _show_header=False)
+        logger.close_log()
 
     # ── 1. Start containers (always detached) ────────────────────────────
     for node in project.nodes:
