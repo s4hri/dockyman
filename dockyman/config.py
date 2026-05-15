@@ -242,7 +242,10 @@ def render_config(config_path: str = "dockyman.yaml") -> str:
         env.globals.update(_resolve_global_vars(raw_global_vars, dict(env.globals)))
 
     # 3. Render the template.
-    template = env.from_string(raw_text)
+    # Strip YAML comment lines first so that {{ expressions }} inside comments
+    # are never evaluated by Jinja2 (they have no effect on the parsed output).
+    renderable_text = re.sub(r'^\s*#.*$', '', raw_text, flags=re.MULTILINE)
+    template = env.from_string(renderable_text)
 
     return template.render()
 
