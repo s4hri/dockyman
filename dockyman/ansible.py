@@ -99,7 +99,8 @@ def run_playbooks(project: Project,
     playbooks = _collect_playbooks(project, node_filter=node_filter)
 
     if not playbooks and project.ansible is None:
-        logger.warn("No playbooks found in project — nothing to run.")
+        if hook is None:
+            logger.warn("No playbooks found in project — nothing to run.")
         return True
 
     # Filter by name if requested
