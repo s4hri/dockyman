@@ -50,8 +50,11 @@ project:
       hook: before_run
       extra_vars:
         volume: {{ audio_volume_level }}
-        current_user: {{ current_user }}
 
+    - name: check_subshell_resolution
+      file: ./ansible/playbooks/check_subshell_resolution.yaml
+      extra_vars:
+        var_subshell_example: "${PWD##*/}"
   # ── Logging ───────────────────────────────────────────────────────────────
 
   # Container logs: one file per service per node → <dir>/<node_id>/<service>.log

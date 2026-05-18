@@ -7,29 +7,63 @@ import subprocess
 import sys
 from typing import Optional
 
-import os 
-
 from .config import AnsibleConfig, AnsiblePlaybook, Project
 from . import logger
+import subprocess
+from typing import Any
 
-def _resolve_env_vars(extra_vars: dict, _depth: int = 0, max_depth: int = 10) -> dict:
-    """Recursively expand environment variables in extra_vars string values."""
+
+def _resolve_string(value: str) -> str:
+    """
+    Resolve:
+      - env vars: $HOME, ${USER}
+      - subshells: $(pwd), $(whoami)
+
+    Warning:
+        Executes shell expressions. Use only with trusted input.
+    """
+
+    result = subprocess.check_output(
+        ["bash", "-c", f"printf '%s' \"{value}\""],
+        text=True,
+    )
+
+    return result
+
+
+def _resolve_env_vars(extra_vars: dict,
+                        _depth: int = 0,
+                        max_depth: int = 10) -> dict:
+    """Recursively resolve shell expressions in strings."""
+
     if _depth > max_depth:
-        raise ValueError(f"extra_vars exceeds maximum nesting depth of {max_depth}")
-    
+        raise ValueError(
+            f"extra_vars exceeds maximum nesting depth of {max_depth}"
+        )
+
     resolved = {}
+
     for key, value in extra_vars.items():
+
         if isinstance(value, str):
-            resolved[key] = os.path.expandvars(value)
+            resolved[key] = _resolve_string(value)
+
         elif isinstance(value, dict):
-            resolved[key] = _resolve_env_vars(value, _depth + 1, max_depth)
+            resolved[key] = _resolve_env_vars(
+                value,
+                _depth + 1,
+                max_depth,
+            )
+
         elif isinstance(value, list):
             resolved[key] = [
-                os.path.expandvars(v) if isinstance(v, str) else v
+                _resolve_string(v) if isinstance(v, str) else v
                 for v in value
             ]
+
         else:
             resolved[key] = value
+
     return resolved
 
 def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
@@ -49,7 +83,7 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
     else:
         limit = None
 
-    cmd_parts = ["ansible-playbook", "-i", inventory, playbook.file]
+    cmd_parts = ["ansible-playbook", "-v", "-i", inventory, playbook.file]
     if limit:
         cmd_parts += ["--limit", limit]
     if playbook.extra_vars:
