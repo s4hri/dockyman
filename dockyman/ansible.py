@@ -10,17 +10,17 @@ from typing import Optional
 from .config import AnsibleConfig, AnsiblePlaybook, Project
 from . import logger
 
-def _resolve_env_vars(extra_vars: dict, _depth: int = 0, _max_depth: int = 10) -> dict:
+def _resolve_env_vars(extra_vars: dict, _depth: int = 0, max_depth: int = 10) -> dict:
     """Recursively expand environment variables in extra_vars string values."""
     if _depth > _max_depth:
-        raise ValueError(f"extra_vars exceeds maximum nesting depth of {_max_depth}")
+        raise ValueError(f"extra_vars exceeds maximum nesting depth of {max_depth}")
     
     resolved = {}
     for key, value in extra_vars.items():
         if isinstance(value, str):
             resolved[key] = os.path.expandvars(value)
         elif isinstance(value, dict):
-            resolved[key] = _resolve_env_vars(value, _depth + 1, _max_depth)
+            resolved[key] = _resolve_env_vars(value, _depth + 1, max_depth)
         elif isinstance(value, list):
             resolved[key] = [
                 os.path.expandvars(v) if isinstance(v, str) else v
