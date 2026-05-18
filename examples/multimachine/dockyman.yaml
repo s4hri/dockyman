@@ -50,6 +50,7 @@ project:
       hook: before_run
       extra_vars:
         volume: {{ audio_volume_level }}
+        current_user: {{ current_user }}
 
   # ── Logging ───────────────────────────────────────────────────────────────
 

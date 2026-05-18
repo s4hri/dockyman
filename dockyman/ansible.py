@@ -7,12 +7,14 @@ import subprocess
 import sys
 from typing import Optional
 
+import os 
+
 from .config import AnsibleConfig, AnsiblePlaybook, Project
 from . import logger
 
 def _resolve_env_vars(extra_vars: dict, _depth: int = 0, max_depth: int = 10) -> dict:
     """Recursively expand environment variables in extra_vars string values."""
-    if _depth > _max_depth:
+    if _depth > max_depth:
         raise ValueError(f"extra_vars exceeds maximum nesting depth of {max_depth}")
     
     resolved = {}
@@ -52,7 +54,7 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
         cmd_parts += ["--limit", limit]
     if playbook.extra_vars:
         resolved = _resolve_env_vars(playbook.extra_vars, max_depth=10)
-        cmd_parts += ["--extra-vars", json.dumps(playbook.resolved)]
+        cmd_parts += ["--extra-vars", json.dumps(resolved)]
 
     cmd_str = " ".join(cmd_parts)
 
