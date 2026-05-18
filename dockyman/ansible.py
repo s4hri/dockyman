@@ -10,6 +10,25 @@ from typing import Optional
 from .config import AnsibleConfig, AnsiblePlaybook, Project
 from . import logger
 
+def _resolve_env_vars(extra_vars: dict, _depth: int = 0, _max_depth: int = 10) -> dict:
+    """Recursively expand environment variables in extra_vars string values."""
+    if _depth > _max_depth:
+        raise ValueError(f"extra_vars exceeds maximum nesting depth of {_max_depth}")
+    
+    resolved = {}
+    for key, value in extra_vars.items():
+        if isinstance(value, str):
+            resolved[key] = os.path.expandvars(value)
+        elif isinstance(value, dict):
+            resolved[key] = _resolve_env_vars(value, _depth + 1, _max_depth)
+        elif isinstance(value, list):
+            resolved[key] = [
+                os.path.expandvars(v) if isinstance(v, str) else v
+                for v in value
+            ]
+        else:
+            resolved[key] = value
+    return resolved
 
 def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
                   node_filter: Optional[str] = None,
@@ -32,7 +51,8 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
     if limit:
         cmd_parts += ["--limit", limit]
     if playbook.extra_vars:
-        cmd_parts += ["--extra-vars", json.dumps(playbook.extra_vars)]
+        resolved = _resolve_env_vars(playbook.extra_vars, max_depth=10)
+        cmd_parts += ["--extra-vars", json.dumps(playbook.resolved)]
 
     cmd_str = " ".join(cmd_parts)
 
