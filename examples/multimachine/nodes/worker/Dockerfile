@@ -23,4 +23,5 @@ USER docky
 
 ENV PATH=$PATH:/home/docky/.local/bin
 
-CMD ["bash", "-c", "echo 'Worker started' && sleep infinity"]
+#CMD ["bash", "-c", "cat /etc/hosts"]
+CMD ["bash", "-c", "sleep infinity"]

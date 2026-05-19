@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import datetime
 import os
-import platform
 import socket
-from pathlib import Path
 
 # ── Colours (console only) ───────────────────────────────────────────────────
 
@@ -48,6 +46,12 @@ def init_log(path: str = "lastrun.log") -> None:
         fh.write("================================\n\n")
 
 
+def close_log() -> None:
+    """Stop writing to the current log file."""
+    global _log_path
+    _log_path = None
+
+
 def _write(msg: str) -> None:
     if _log_path:
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -66,13 +70,6 @@ def warn(msg: str) -> None:
     tag = f"[WARNING] {msg}"
     if not _quiet:
         print(f"{YELLOW}{tag}{RESET}")
-    _write(tag)
-
-
-def error(msg: str) -> None:
-    tag = f"[ERROR] {msg}"
-    if not _quiet:
-        print(f"{RED}{tag}{RESET}")
     _write(tag)
 
 

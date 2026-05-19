@@ -154,16 +154,14 @@ def detect_hardware(project: Project, *, dry_run: bool = False,
     if _show_header:
         logger.header(f"Hardware information for project '{project.name}'")
     all_ok = True
-    for node in project.swarm:
-        node._project = project
-        to_stdout = not project.config_log_dir
-        if project.config_log_dir and _init_log:
+    for node in project.nodes:
+        if project.config_log_dir:
             os.makedirs(project.config_log_dir, exist_ok=True)
             log_path = os.path.join(project.config_log_dir, f"{node.node_id}.log")
             logger.init_log(log_path)
             logger.saved(log_path)
         logger.node_header(node.node_id)
-        if not _detect_node(node, dry_run=dry_run, to_stdout=to_stdout):
+        if not _detect_node(node, dry_run=dry_run, to_stdout=not project.config_log_dir):
             all_ok = False
     return all_ok
 
@@ -181,12 +179,9 @@ def setup(project: Project, *, dry_run: bool = False) -> bool:
     logger.header(f"Hardware setup for project '{project.name}'")
     all_ok = True
 
-    for node in project.swarm:
-        node._project = project
-        logger.node_header(node.node_id)
-        script = node.setup_script.strip()
-        if script:
-            res = run_on_node(node, script, dry_run=dry_run)
+    for node in project.nodes:
+        if node.setup_script:
+            res = run_on_node(node, node.setup_script, dry_run=dry_run)
             if res.ok:
                 logger.ok("setup done")
             else:

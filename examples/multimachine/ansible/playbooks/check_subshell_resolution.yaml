@@ -1,0 +1,7 @@
+- name: Check vars subshells resolution
+  hosts: manager
+  tasks:
+    - name: Display the value of var_subshell_example
+      ansible.builtin.debug:
+        msg: "The value of the variable is: {{ var_subshell_example }}"
+

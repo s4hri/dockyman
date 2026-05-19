@@ -5,8 +5,9 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick start](#quick-start)
+- [Ansible inventory](#ansible-inventory)
 - [CLI reference](#cli-reference)
-- [dockyman.yaml.j2 Reference](#dockyman-configuration-file-reference)
+- [dockyman.yaml Reference](#dockyamanyaml-reference)
 - [Logging](#logging)
 - [Contributing](#contributing)
 - [License](#license)
@@ -17,20 +18,21 @@
 
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.10-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/s4hri/dockyman/ci.yml?branch=master&label=tests&logo=github&style=flat-square)](https://github.com/s4hri/dockyman/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/s4hri/dockyman/ci.yaml?branch=master&label=tests&logo=github&style=flat-square)](https://github.com/s4hri/dockyman/actions/workflows/ci.yaml)
 
 ![Dockyman](assets/logo.png?raw=true "Dockyman Logo")
 
 Orchestrate Docker Compose services across multiple machines from a single configuration file.
 
-Dockyman reads a `dockyman.yaml.j2` that describes a **swarm** of nodes (local or remote via SSH) and lets you build, run, and tear down containers on every node with one command. Before starting containers it can run a `setup_script` on each node to configure the environment (display, audio, env vars, etc.) and silently collect hardware information into a log file.
+Dockyman reads a `dockyman.yaml` that describes a **swarm** of nodes (local or remote via SSH) and lets you build, run, and tear down containers on every node with one command. It integrates with an **Ansible inventory** for host variables and can run **Ansible playbooks** automatically as lifecycle hooks (before/after build, run, or teardown).
 
 ## Features
 
 - **Multi-node orchestration** — manage `docker compose` on any combination of local and SSH-remote nodes from one config file.
+- **Ansible inventory integration** — declare host variables once in `inventory/hosts.yaml`; dockyman and Ansible both read them.
+- **Ansible playbook hooks** — run playbooks automatically `before_build`, `before_run`, `after_run`, or `after_down`.
 - **Multiple Compose files** — merge several Compose files per node with `-f file1 -f file2 …`.
 - **Multiple env files** — pass several `--env-file` paths per node.
-- **Per-node setup script** — run arbitrary shell commands on each node before containers start (xrandr, pactl, env exports, etc.).
 - **Hardware detection** — collect system, CPU, memory, GPU, audio, USB, network, and disk info per node; save to a log file or stream to stdout.
 - **Per-service container logs** — saved as `<container_log_dir>/<node_id>/<service>.log`.
 - **Dry-run mode** — preview every command without executing (`--dry-run`).
@@ -40,6 +42,7 @@ Dockyman reads a `dockyman.yaml.j2` that describes a **swarm** of nodes (local o
 - Python ≥ 3.10
 - Docker with the Compose plugin (`docker compose`)
 - SSH access configured for remote nodes (key-based auth recommended)
+- Ansible (optional — only required if `ansible:` block is present in `dockyman.yaml`)
 
 ## Installation
 
@@ -65,11 +68,65 @@ make test
 ## Quick start
 
 ```bash
-cd docker/                # contains a working example
-dockyman info             # inspect node configuration and hardware
-dockyman build            # build images on all nodes
-dockyman run              # start services, stream logs, press ENTER to stop
+cd example/           # contains a working example
+dockyman status       # check Docker daemon reachability on all nodes
+dockyman build        # build images on all nodes
+dockyman run          # run Ansible hooks, start services, stream logs
 ```
+
+## Ansible inventory
+
+When an `ansible:` block is present in `dockyman.yaml`, dockyman loads an Ansible inventory and makes host variables available as Jinja2 globals in the config file.
+
+### Directory layout
+
+```
+hosts.yaml    ← read by BOTH Ansible and dockyman
+vars.yaml     ← dockyman vars only (invisible to Ansible)
+```
+
+### `hosts.yaml`
+
+Standard Ansible inventory. Put connection variables and any variables referenced by playbooks here:
+
+```yaml
+all:
+  vars:
+    ansible_python_interpreter: auto_silent   # suppress interpreter-discovery warning
+  hosts:
+    manager:
+      ansible_host:       192.168.1.1
+      ansible_connection: local
+      volume:             "75%"   # used by configure_audio.yaml
+    worker:
+      ansible_host: 192.168.1.10
+      # ansible_user: myuser     # optional, defaults to current OS user
+```
+
+### `vars.yaml`
+
+Dockyman-specific variables — **invisible to Ansible**. Place this file in the same directory as `dockyman.yaml`. Supports Jinja2 templates; `ansible_host`, `ansible_user` (from `hosts.yaml`), and cross-host references (e.g. `{{ worker.ansible_host }}`) are all resolved:
+
+```yaml
+manager:
+  docker_host:  "unix:///var/run/docker.sock"
+  shell_prefix: "PUID=$(id -u) PGID=$(id -g) WORKER_HOST={{ worker.ansible_host }}"
+
+worker:
+  docker_host:  "ssh://{{ ansible_user }}@{{ ansible_host }}"
+  shell_prefix: "PUID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -u) PGID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -g) MANAGER_HOST={{ manager.ansible_host }}"
+```
+
+These variables are then available as Jinja2 globals in `dockyman.yaml`:
+
+```yaml
+docker_host: "{{ manager.docker_host }}"
+build_shell_prefix: {{ manager.shell_prefix }}
+```
+
+> **Rule of thumb:** if a playbook needs it → `hosts.yaml`. If only dockyman needs it → `vars.yaml`.
+
+---
 
 ## CLI reference
 
@@ -79,7 +136,7 @@ dockyman [-f FILE] [--dry-run] [-V] <command> [options]
 
 | Global flag | Description |
 |---|---|
-| `-f FILE`, `--file FILE` | Path to `dockyman.yaml.j2` (default: `dockyman.yaml.j2` in the current directory). |
+| `-f FILE`, `--file FILE` | Path to `dockyman.yaml` (default: `dockyman.yaml` in the current directory). |
 | `--dry-run` | Print every command that would be executed without running it. |
 | `-V`, `--version` | Print the version and exit. |
 
@@ -97,7 +154,7 @@ dockyman status
 
 ### `dockyman render`
 
-Render and print the configuration file converted from Jinja to YAML.
+Render and print the Jinja2-templated `dockyman.yaml` as plain YAML.
 
 ```bash
 dockyman render
@@ -107,7 +164,7 @@ dockyman render
 
 ### `dockyman build`
 
-Run `docker compose build` on every node using `build_shell_prefix`, `build_profiles`, and `build_args`.
+Run `docker compose build` on every node using `build_shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
 
 ```bash
 dockyman build
@@ -119,12 +176,13 @@ dockyman build
 
 The main command. It performs the following steps in order:
 
-1. **Run `setup_script`** on each node (silently — output is not shown).
-2. **Log node configuration and hardware info** to `<config_log_dir>/<node_id>.log` (if `config_log_dir` is set). The node configuration (compose files, env files, shell prefixes, etc.) is also printed to the console.
+1. **Run `before_run` playbooks** (if any are configured).
+2. **Log node configuration and hardware info** to `<config_log_dir>/<node_id>.log` (if `config_log_dir` is set).
 3. **Start containers** (`docker compose up -d`) on each node.
-4. **Stream container logs** to stdout, or to `<container_log_dir>/<node_id>/<service>.log` files if logging is configured.
-5. **Wait** for the user to press ENTER.
-6. **Stop containers** (`docker compose down`) on each node.
+4. **Run `after_run` playbooks** (if any are configured).
+5. **Stream container logs** to stdout, or to `<container_log_dir>/<node_id>/<service>.log` files if logging is configured.
+6. **Wait** for the user to press ENTER.
+7. **Stop containers** (`docker compose down`) on each node.
 
 ```bash
 dockyman run                     # interactive: stream logs, press ENTER to stop
@@ -135,13 +193,13 @@ dockyman run --log-output ./logs # override log directory for this run
 | Option | Description |
 |---|---|
 | `-d`, `--detach` | Start containers in the background and exit immediately. |
-| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `container_log_dir` from `dockyman.yaml.j2`. |
+| `--log-output DIR` | Save container logs to `DIR/<node_id>/<service>.log`. Overrides `container_log_dir` from `dockyman.yaml`. |
 
 ---
 
 ### `dockyman down`
 
-Stop and remove containers on all nodes (`docker compose down`).
+Stop and remove containers on all nodes (`docker compose down`). Runs any playbooks with `hook: after_down` afterwards.
 
 ```bash
 dockyman down
@@ -149,9 +207,26 @@ dockyman down
 
 ---
 
+### `dockyman ansible`
+
+Run Ansible playbooks declared in the `ansible:` block of `dockyman.yaml`.
+
+```bash
+dockyman ansible                    # run all playbooks
+dockyman ansible -p configure_audio # run a specific playbook by name
+dockyman ansible -n manager         # limit to a specific node
+```
+
+| Option | Description |
+|---|---|
+| `-p NAME`, `--playbook NAME` | Run only the playbook with this name (default: all). |
+| `-n NODE`, `--node NODE` | Limit to a specific node ID. |
+
+---
+
 ### `dockyman config`
 
-Print the resolved Compose configuration for each node (`docker compose config`), activating all profiles (build + run) defined for that node.
+Print the resolved Compose configuration for each node (`docker compose config`).
 
 ```bash
 dockyman config                          # all nodes, all profiles
@@ -159,24 +234,20 @@ dockyman config --stage build            # build_shell_prefix + build_profiles
 dockyman config --stage run              # run_shell_prefix   + run_profiles
 dockyman config -n manager               # single node
 dockyman config -p build                 # only nodes that have the 'build' profile
-dockyman config -p build -p prod         # multiple profiles
-dockyman config --stage build -n manager # combine all filters
+dockyman config --stage build -n manager # combine filters
 ```
 
 | Option | Description |
 |---|---|
-| `--stage {build,run}` | Apply the settings for a specific stage: `build` uses `build_shell_prefix` + `build_profiles`; `run` uses `run_shell_prefix` + `run_profiles`. Default: merge both stages. |
+| `--stage {build,run}` | Apply settings for a specific stage. Default: merge both. |
 | `-n NODE`, `--node NODE` | Limit to a specific node ID. |
-| `-p PROFILE`, `--profile PROFILE` | Limit to this profile (can be repeated). Only profiles that are also declared on the node for the selected stage are activated. Default: all profiles for the stage. |
+| `-p PROFILE`, `--profile PROFILE` | Limit to this profile (can be repeated). |
 
 ---
 
 ### `dockyman info`
 
-Collect and display hardware information for each node: system/OS, CPU, memory, GPU/display, audio, USB devices, network interfaces, and disks. Also prints the full node configuration (compose files, prefixes, setup script, etc.).
-
-- If `config_log_dir` is set: output is captured silently and saved to `<config_log_dir>/<node_id>.log`. The saved path is printed to the console.
-- If `config_log_dir` is empty: all output is streamed live to stdout.
+Collect and display hardware information for each node: system/OS, CPU, memory, GPU/display, audio, USB devices, network interfaces, and disks.
 
 ```bash
 dockyman info              # all nodes
@@ -191,7 +262,7 @@ dockyman info -n manager   # single node
 
 ### `dockyman setup`
 
-Run `setup_script` interactively on each node (local shell or via SSH for remote nodes). Use this to apply display, audio, or environment settings independently from `dockyman run`.
+Run `setup_script` interactively on each node (local shell or via SSH for remote nodes).
 
 ```bash
 dockyman setup
@@ -199,63 +270,84 @@ dockyman setup
 
 ---
 
-## Dockyman configuration file reference
+## dockyman.yaml Reference
 
-All settings live in a single `dockyman.yaml.j2` configuration file. Paths are resolved relative to the location of this file unless noted otherwise.
+All settings live in a single `dockyman.yaml`. Paths are resolved relative to the location of this file. The file is a Jinja2 template — inventory variables are injected automatically as globals.
 
 ```yaml
+# Optional Ansible integration block (outside project:)
+ansible:
+  playbooks:
+    - name: <string>           # unique name, used with `dockyman ansible -p`
+      file: <path>             # path to the playbook, relative to dockyman.yaml
+      nodes: all               # "all" or a list of node_ids: [manager, worker]
+      hook: before_run         # optional: before_build | before_run | after_run | after_down
+
 project:
-  name: <string>               # Project name (required)
-  dockyman_repo: <url>         # GitHub repo URL (required)
-  dockyman_ref: <string>        # Tag or branch (optional, default: main)
-  container_log_dir: <path>    # Container logs directory (optional, see below)
-  config_log_dir: <path>       # Hardware/config logs directory (optional, see below)
-  swarm:
-    - <node>
-    - <node>
+  name: <string>
+  dockyman_repo: <url>
+  dockyman_ref: <string>
+  inventory: <path>            # path to the Ansible inventory (hosts.yaml)
+  container_log_dir: <path>
+  config_log_dir: <path>
+  nodes:
+    <name>:
+      <node settings>
 ```
+
+### `ansible:` settings
+
+| Setting | Description |
+|---|---|
+| `playbooks` | List of playbooks to register. Each has `name`, `file`, `nodes`, and optionally `hook`. |
+
+### Playbook hooks
+
+| Hook | Runs |
+|---|---|
+| `before_build` | Before `dockyman build` |
+| `before_run` | Before containers start in `dockyman run` |
+| `after_run` | After containers start in `dockyman run` |
+| `after_down` | After `dockyman down` |
+
+Playbooks without a `hook` only run via `dockyman ansible`.
 
 ### Project settings
 
 | Setting | Required | Description |
 |---|---|---|
 | `name` | ✓ | Project name. |
-| `dockyman_repo` | ✓ | GitHub repository URL for this dockyman project. |
-| `dockyman_ref` | | Git tag or branch to track (defaults to `main`). |
-| `container_log_dir` | | Directory for container logs, relative to `dockyman.yaml.j2` or absolute. Omit or leave empty (default) to stream container logs to stdout. |
-| `config_log_dir` | | Directory for hardware/config logs, relative to `dockyman.yaml.j2` or absolute. Omit or leave empty (default) to stream hardware info to stdout. |
-| `log_dir` | | **Deprecated.** Use `container_log_dir` and `config_log_dir` instead. When present, sets both directories for backward compatibility. |
+| `dockyman_repo` | ✓ | GitHub repository URL. |
+| `dockyman_ref` | | Git tag or branch (defaults to `main`). |
+| `inventory` | | Path to the Ansible inventory file (`hosts.yaml`), relative to `dockyman.yaml`. Required when using the `ansible:` block. |
+| `container_log_dir` | | Directory for container logs. Omit to stream to stdout. |
+| `config_log_dir` | | Directory for hardware/config logs. Omit to stream to stdout. |
 
 ### Node settings
-
-Each entry in `swarm` describes one node.
 
 | Setting | Required | Description |
 |---|---|---|
 | `node_id` | ✓ | Unique identifier used in log paths and console output. |
-| `compose_files` | ✓ | List of Compose files to merge, relative to `docker_context`. Passed as `-f file1 -f file2 …`. A single string is also accepted. |
-| `docker_context` | | Base directory for Docker files, relative to `dockyman.yaml.j2`. Defaults to `""` (same directory as the yaml file). |
-| `docker_host` | | Docker daemon socket. Use `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. Injected as `DOCKER_HOST=…` in every command. |
-| `env_files` | | List of env files passed to Compose with `--env-file`, relative to `docker_context`. A single string is also accepted. |
-| `build_shell_prefix` | | Shell expression prepended to `docker compose build` (e.g. `PUID=$(id -u) PGID=$(id -g)`). |
-| `build_profiles` | | List of Compose profiles activated during `build`. |
-| `build_args` | | Extra CLI arguments appended to `docker compose build` (e.g. `--no-cache`). |
+| `compose_files` | ✓ | List of Compose files to merge, relative to `docker_context`. |
+| `docker_context` | | Base directory for Docker files. Defaults to the directory of `dockyman.yaml`. |
+| `docker_host` | | Docker daemon socket. `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. |
+| `env_files` | | List of env files passed to Compose with `--env-file`. |
+| `build_shell_prefix` | | Shell expression prepended to `docker compose build`. |
+| `build_profiles` | | Compose profiles activated during `build`. |
+| `build_args` | | Extra CLI arguments appended to `docker compose build`. |
 | `run_shell_prefix` | | Shell expression prepended to `docker compose up`, `down`, and `config`. |
-| `run_profiles` | | List of Compose profiles activated during `run`, `down`, and `config`. |
-| `run_args` | | Extra CLI arguments appended to `docker compose up` and `down` (e.g. `--remove-orphans`). |
-| `setup_script` | | Multi-line shell script executed directly on the node (locally or via SSH). Run interactively by `dockyman setup`; run silently before containers start by `dockyman run`. |
+| `run_profiles` | | Compose profiles activated during `run`, `down`, and `config`. |
+| `run_args` | | Extra CLI arguments appended to `docker compose up` and `down`. |
+| `setup_script` | | Multi-line shell script executed on the node by `dockyman setup` and silently before containers start by `dockyman run`. |
 
 ## Logging
 
 | File | When written | Contents |
 |---|---|---|
-| `<config_log_dir>/<node_id>.log` | `dockyman info`, `dockyman run` | Node configuration (compose files, env files, shell prefixes, setup script) + full hardware scan (OS, CPU, memory, GPU, audio, USB, network, disks). |
+| `<config_log_dir>/<node_id>.log` | `dockyman info`, `dockyman run` | Node configuration + full hardware scan. |
 | `<container_log_dir>/<node_id>/<service>.log` | `dockyman run` (when `container_log_dir` is set) | Live container log output for that service. |
 
-All logging is **OFF by default**:
-- When `container_log_dir` is empty or omitted: container logs are streamed to stdout.
-- When `config_log_dir` is empty or omitted: `dockyman info` streams hardware output to stdout.
-- You can enable each type of logging independently or disable both.
+Both logging types are **off by default** — output streams to stdout when the corresponding directory is not set.
 
 ## Contributing
 
@@ -268,7 +360,7 @@ Contributions are welcome! Please follow these steps:
 
 2. **Set up** a development environment:
    ```bash
-   make dev   # installs in editable mode and opens an activated shell
+   make dev
    ```
 
 3. **Make your changes** and ensure the test suite passes:
@@ -278,20 +370,14 @@ Contributions are welcome! Please follow these steps:
 
 4. **Add tests** for any new behaviour. Tests live in `tests/` and are run with `pytest`.
 
-5. **Open a Pull Request** against the `master` branch. The CI pipeline will run automatically — PRs can only be merged when all tests pass.
-
-### Code style
-
-- Python 3.10+, type annotations encouraged.
-- Keep public functions documented with docstrings.
-- Follow the existing module structure (`config`, `executor`, `hardware`, `runner`, `logger`, `cli`).
+5. **Open a Pull Request** against `master`. The CI pipeline runs automatically.
 
 ### Reporting issues
 
 Please open a GitHub issue including:
 - dockyman version (`dockyman -V`)
 - OS and Python version
-- Minimal `dockyman.yaml.j2` that reproduces the problem
+- Minimal `dockyman.yaml` that reproduces the problem
 - Full error output
 
 ---

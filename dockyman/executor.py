@@ -139,7 +139,7 @@ def status(project: Project, dry_run: bool = False) -> bool:
     logger.header(f"Checking swarm status for project '{project.name}' …")
     all_ok = True
 
-    for node in project.swarm:
+    for node in project.nodes:
         logger.node_header(node.node_id)
         env_prefix = node.get_env_prefix("run")
         cmd = (
@@ -165,7 +165,7 @@ def build(project: Project, dry_run: bool = False) -> bool:
     logger.header(f"Building services for project '{project.name}' …")
     all_ok = True
 
-    for node in project.swarm:
+    for node in project.nodes:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "build", command_type="build")
         rc = _run_shell(cmd, dry_run=dry_run)
@@ -201,9 +201,10 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
         hw_setup(project, dry_run=dry_run)
     if project.config_log_dir:
         hw_detect(project, dry_run=dry_run, _show_header=False)
+        logger.close_log()
 
     # ── 1. Start containers (always detached) ────────────────────────────
-    for node in project.swarm:
+    for node in project.nodes:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "up -d", command_type="run")
         rc = _run_shell(cmd, dry_run=dry_run)
@@ -227,7 +228,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     log_files: list = []
     log_paths: list[str] = []
 
-    for node in project.swarm:
+    for node in project.nodes:
         if log_dir:
             # Get the list of services for this node
             svc_cmd = _build_compose_cmd(project, node, "config --services", command_type="run",
@@ -271,7 +272,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     # ── 3. Summary + wait for ENTER ──────────────────────────────────────
     print()
     logger.header("All services are running.")
-    for node in project.swarm:
+    for node in project.nodes:
         logger.info(f"  [{node.node_id}] up")
     if log_dir:
         for p in log_paths:
@@ -305,7 +306,7 @@ def down(project: Project, dry_run: bool = False) -> bool:
     logger.header(f"Stopping services for project '{project.name}' …")
     all_ok = True
 
-    for node in project.swarm:
+    for node in project.nodes:
         logger.node_header(node.node_id)
         cmd = _build_compose_cmd(project, node, "down", command_type="run")
         rc = _run_shell(cmd, dry_run=dry_run)
@@ -339,7 +340,7 @@ def config(project: Project, dry_run: bool = False,
     logger.header(f"Resolved compose config for project '{project.name}' …")
     all_ok = True
 
-    nodes = project.swarm
+    nodes = project.nodes
     if node_filter:
         nodes = [n for n in nodes if n.node_id == node_filter]
         if not nodes:

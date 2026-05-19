@@ -9,6 +9,7 @@ from . import __version__
 from .config import load_config, render_config
 from .executor import build, config, down, run, status
 from .hardware import detect_hardware, setup
+from .ansible import run_playbooks
 from . import logger
 
 
@@ -31,8 +32,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "-f",
         "--file",
-        default="dockyman.yaml.j2",
-        help="Path to the dockyman.yaml.j2 config file (default: dockyman.yaml.j2)",
+        default="dockyman.yaml",
+        help="Path to the dockyman.yaml config file (default: dockyman.yaml)",
     )
     parser.add_argument(
         "--dry-run",
@@ -88,6 +89,14 @@ def main(argv: list[str] | None = None) -> None:
     # -- setup -----------------------------------------------------------------
     sub.add_parser("setup", help="Run setup_script on each node (display, audio, environment, etc.).")
 
+    # -- ansible ---------------------------------------------------------------
+    ansible_parser = sub.add_parser("ansible", help="Run Ansible playbooks defined in dockyman.yaml.")
+    ansible_parser.add_argument(
+        "-p", "--playbook", default=None, metavar="NAME",
+        help="Run only the playbook with this name (default: all).",
+    )
+    _add_node_arg(ansible_parser)
+
     # ── Parse & dispatch ─────────────────────────────────────────────────────
     args = parser.parse_args(argv)
 
@@ -130,13 +139,17 @@ def main(argv: list[str] | None = None) -> None:
         case "status":
             ok = status(project, dry_run=dry)
         case "build":
-            ok = build(project, dry_run=dry)
+            ok = run_playbooks(project, hook="before_build", dry_run=dry)
+            ok = build(project, dry_run=dry) and ok
         case "run":
             log_dir = args.log_output if args.log_output else (project.container_log_dir or None)
+            ok = run_playbooks(project, hook="before_run", dry_run=dry)
             ok = run(project, dry_run=dry, detach=args.detach,
-                     log_dir=log_dir)
+                     log_dir=log_dir) and ok
+            ok = run_playbooks(project, hook="after_run", dry_run=dry) and ok
         case "down":
             ok = down(project, dry_run=dry)
+            ok = run_playbooks(project, hook="after_down", dry_run=dry) and ok
         case "config":
             ok = config(project, dry_run=dry,
                         node_filter=args.node,
@@ -150,6 +163,13 @@ def main(argv: list[str] | None = None) -> None:
         # hardware setup
         case "setup":
             ok = setup(project, dry_run=dry)
+
+        # ansible
+        case "ansible":
+            ok = run_playbooks(project,
+                               playbook_filter=args.playbook,
+                               node_filter=args.node,
+                               dry_run=dry)
 
     sys.exit(0 if ok else 1)
 
