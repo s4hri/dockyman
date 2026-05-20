@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
     _add_node_arg(info_parser)
 
     # -- setup -----------------------------------------------------------------
-    sub.add_parser("setup", help="Run setup_script on each node (display, audio, environment, etc.).")
+    sub.add_parser("setup", help="Run Ansible setup playbooks on each node.")
 
     # -- ansible ---------------------------------------------------------------
     ansible_parser = sub.add_parser("ansible", help="Run Ansible playbooks defined in dockyman.yaml.")

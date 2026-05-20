@@ -149,6 +149,8 @@ def run_playbooks(project: Project,
         playbook_filter: When given, only run the playbook with this name.
         node_filter:     When given, only run playbooks belonging to that node.
         hook:            When given, only run playbooks whose ``hook`` matches.
+                         When ``"setup"``, also includes playbooks with no hook
+                         defined (empty string), since the default phase is setup.
                          When None (explicit ``dockyman ansible`` command), run
                          all playbooks regardless of their hook value.
         dry_run:         Print commands without executing them.
@@ -169,9 +171,13 @@ def run_playbooks(project: Project,
             print(f"Error: no playbook named '{playbook_filter}'", file=sys.stderr)
             return False
 
-    # Filter by lifecycle hook (None = run all)
+    # Filter by lifecycle hook (None = run all).
+    # "setup" is the default hook: playbooks with no hook defined run during setup.
     if hook is not None:
-        playbooks = [p for p in playbooks if p.hook == hook]
+        if hook == "setup":
+            playbooks = [p for p in playbooks if p.hook == "setup" or p.hook == ""]
+        else:
+            playbooks = [p for p in playbooks if p.hook == hook]
 
     if not playbooks:
         return True

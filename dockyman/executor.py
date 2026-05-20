@@ -195,10 +195,8 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
     logger.header(f"Running services for project '{project.name}' …")
     all_ok = True
 
-    # ── 0. Hardware: run setup_script (quiet), then log config + hw info ─
-    from .hardware import setup as hw_setup, detect_hardware as hw_detect
-    with logger.quiet_mode():
-        hw_setup(project, dry_run=dry_run)
+    # ── 0. Log config + hardware info ────────────────────────────────────
+    from .hardware import detect_hardware as hw_detect
     if project.config_log_dir:
         hw_detect(project, dry_run=dry_run, _show_header=False)
         logger.close_log()

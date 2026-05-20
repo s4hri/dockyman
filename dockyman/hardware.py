@@ -9,6 +9,7 @@ import os
 
 from .config import Node, Project
 from .runner import run_on_node
+from .ansible import run_playbooks
 from . import logger
 
 
@@ -85,10 +86,6 @@ def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) 
             _info(f"run_profiles   : {', '.join(node.run_profiles)}")
         if node.run_args:
             _info(f"run_args       : {node.run_args}")
-        if node.setup_script:
-            _info("setup_script   :")
-            for line in node.setup_script.strip().splitlines():
-                _info(f"    {line}")
 
     # ── System / OS ──────────────────────────────────────────────────────
     _section("System Information")
@@ -166,28 +163,16 @@ def detect_hardware(project: Project, *, dry_run: bool = False,
     return all_ok
 
 
-# ── Setup (run setup_script on each node) ───────────────────────────────────
+# ── Setup ───────────────────────────────────────────────────────────────────
 
 
 def setup(project: Project, *, dry_run: bool = False) -> bool:
-    """Run ``setup_script`` on every node in the swarm.
+    """Run Ansible playbooks for the setup hook on every node.
 
-    The script is executed locally or via SSH for remote nodes.  Use it for
-    anything that must be configured on the host before containers start:
-    display (xrandr), audio (pactl/amixer), environment exports, etc.
+    Playbooks whose ``hook`` is ``"setup"`` (or whose hook is unset, since
+    setup is the default phase) are executed in declaration order.
     """
     logger.header(f"Hardware setup for project '{project.name}'")
-    all_ok = True
 
-    for node in project.nodes:
-        if node.setup_script:
-            res = run_on_node(node, node.setup_script, dry_run=dry_run)
-            if res.ok:
-                logger.ok("setup done")
-            else:
-                logger.fail("setup script failed")
-                all_ok = False
-        else:
-            logger.info("no setup_script defined – skipping")
-
-    return all_ok
+    ok = run_playbooks(project, hook="setup", dry_run=dry_run)
+    return ok
