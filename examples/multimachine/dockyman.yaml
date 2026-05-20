@@ -42,7 +42,8 @@ project:
   # For node-scoped playbooks (where dockyman adds --limit automatically),
   # define them under nodes.<name>.playbooks instead.
   #
-  # hook – when to run automatically (omit to run only via `dockyman ansible`):
+  # hook – when to run automatically (omit or set to 'setup' to run during `dockyman setup`):
+  #   setup         – during `dockyman setup` (default when hook is omitted)
   #   before_build  – before any `docker compose build`
   #   before_run    – before any `docker compose up`
   #   after_run     – after  `docker compose up`  completes
@@ -50,14 +51,15 @@ project:
   playbooks:
     - name: configure_audio
       file: ./ansible/playbooks/configure_audio.yaml
-      hook: before_run
+      hook: setup
       extra_vars:
         volume: {{ audio_volume_level }}
 
     - name: check_subshell_resolution
       file: ./ansible/playbooks/check_subshell_resolution.yaml
+      hook: setup
       extra_vars:
-        var_subshell_example: "${PWD##*/}"
+        var_subshell_example: ${PWD##*/}
   # ── Logging ───────────────────────────────────────────────────────────────
 
   # Container logs: one file per service per node → <dir>/<node_id>/<service>.log

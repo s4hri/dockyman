@@ -95,7 +95,6 @@ class TestLoadConfig:
               run_shell_prefix: "PUID=1000"
               run_profiles: [prod]
               run_args: "--remove-orphans"
-              setup_script: "xrandr --auto"
             remote:
               compose_files: [compose.yaml]
               docker_host: ssh://user@remotehost
@@ -142,7 +141,6 @@ class TestLoadConfig:
         assert local.run_shell_prefix == "PUID=1000"
         assert local.run_profiles == ["prod"]
         assert local.run_args == "--remove-orphans"
-        assert local.setup_script.strip() == "xrandr --auto"
 
         remote = project.nodes[1]
         assert remote.node_id == "remote"
@@ -162,7 +160,6 @@ class TestLoadConfig:
         assert node.run_shell_prefix == ""
         assert node.run_profiles == []
         assert node.run_args == ""
-        assert node.setup_script == ""
 
     def test_backward_compat_swarm_key(self, tmp_path):
         """Old ``swarm:`` list form still loads correctly as ``nodes``."""

@@ -22,7 +22,7 @@ class AnsiblePlaybook:
     name: str                       # logical name used with --playbook filter
     file: str                       # path to the .yml playbook, relative to dockyman.yaml
     nodes: List[str]                # ["all"] or explicit list of node_ids
-    hook: str = ""                  # lifecycle hook: before_build | before_run | after_run | after_down
+    hook: str = ""                  # lifecycle hook: setup (default) | before_build | before_run | after_run | after_down
     extra_vars: dict = field(default_factory=dict)  # passed as --extra-vars to ansible-playbook
     project_scope: bool = False     # True = hosts are defined inside the playbook; no --limit is added
 
@@ -49,10 +49,6 @@ class Node:
     run_shell_prefix: str = ""
     run_profiles: List[str] = field(default_factory=list)
     run_args: str = ""
-
-    # Shell commands executed on this node during ``dockyman setup`` / ``dockyman run``.
-    # Runs locally or via SSH for remote nodes.  Use this for xrandr, pactl, etc.
-    setup_script: str = ""
 
     # Ansible playbooks scoped to this node; run with --limit <node_id> automatically.
     playbooks: List[AnsiblePlaybook] = field(default_factory=list)
@@ -293,7 +289,6 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 run_shell_prefix=node_raw.get("run_shell_prefix", ""),
                 run_profiles=node_raw.get("run_profiles", []),
                 run_args=node_raw.get("run_args", ""),
-                setup_script=node_raw.get("setup_script", ""),
                 playbooks=node_playbooks,
             )
         )

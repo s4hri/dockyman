@@ -264,7 +264,7 @@ dockyman info -n manager   # single node
 
 ### `dockyman setup`
 
-Run `setup_script` interactively on each node (local shell or via SSH for remote nodes).
+Run Ansible playbooks with `hook: setup` (or no hook set) for all nodes.
 
 ```bash
 dockyman setup
@@ -307,12 +307,13 @@ project:
 
 | Hook | Runs |
 |---|---|
+| `setup` | During `dockyman setup` (default when no hook is set) |
 | `before_build` | Before `dockyman build` |
 | `before_run` | Before containers start in `dockyman run` |
 | `after_run` | After containers start in `dockyman run` |
 | `after_down` | After `dockyman down` |
 
-Playbooks without a `hook` only run via `dockyman ansible`.
+Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 
 ### Project settings
 
@@ -340,7 +341,6 @@ Playbooks without a `hook` only run via `dockyman ansible`.
 | `run_shell_prefix` | | Shell expression prepended to `docker compose up`, `down`, and `config`. |
 | `run_profiles` | | Compose profiles activated during `run`, `down`, and `config`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up` and `down`. |
-| `setup_script` | | Multi-line shell script executed on the node by `dockyman setup` and silently before containers start by `dockyman run`. |
 
 ## Logging
 
