@@ -21,11 +21,12 @@ project:
   # them.  A node can override any of these by defining the same key locally.
   build_profiles: ["build"]
   run_profiles: ["production"]
-  # pull_profiles and push_profiles are not set here, so they fall back to
-  # run_profiles (["production"]) automatically.  Set to [] to pull/push all
-  # services with no profile filter, or list specific profiles to override.
+  # pull_profiles, push_profiles, and down_profiles are not set here, so they
+  # fall back to run_profiles automatically.  Set to [] to
+  # target all services with no profile filter, or list specific profiles.
   # pull_profiles: []
   # push_profiles: []
+  # down_profiles: []
 
   # ── Logging ───────────────────────────────────────────────────────────────
 
@@ -72,5 +73,7 @@ project:
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ shell_prefix }}
       # run_profiles inherits global ["production"] — override here if needed.
-      # Extra CLI args appended to `docker compose up/down`.
+      # Extra CLI args appended to `docker compose up`.
       run_args: "{{ run_args }}"
+      # Extra CLI args appended to `docker compose down` (omit to use no extra args).
+      # down_args: "--remove-orphans"

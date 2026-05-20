@@ -68,6 +68,7 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
     ``"pull"``         → ``pull_shell_prefix`` (or ``run_shell_prefix``) + ``pull_profiles`` (or ``run_profiles``),
     ``"push"``         → ``push_shell_prefix`` (or ``run_shell_prefix``) + ``push_profiles`` (or ``run_profiles``),
+    ``"down"``         → ``down_shell_prefix`` (or ``run_shell_prefix``) + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
     ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
     ``"config_run"``   → ``run_shell_prefix``   + ``run_profiles``.
 
@@ -94,6 +95,10 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
         # Fall back to run_profiles when no push-specific profiles are set.
         profiles = node.push_profiles if node.push_profiles is not None else node.run_profiles
         extra_args = ""
+    elif command_type == "down":
+        # Fall back to run_profiles when no down-specific profiles are set.
+        profiles = node.down_profiles if node.down_profiles is not None else node.run_profiles
+        extra_args = node.down_args.strip()
     elif command_type == "config":
         # All profiles defined for the node, deduplicated, preserving order
         seen: set[str] = set()
@@ -356,6 +361,8 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
 def down(project: Project, dry_run: bool = False) -> bool:
     """Run ``docker compose down`` on every node.
 
+    Uses ``down_shell_prefix`` and ``down_profiles`` when defined; falls back
+    to ``run_shell_prefix`` and ``run_profiles`` when they are not set.
     Returns True if all nodes tore down successfully.
     """
     logger.header(f"Stopping services for project '{project.name}' …")
@@ -363,7 +370,7 @@ def down(project: Project, dry_run: bool = False) -> bool:
 
     for node in project.nodes:
         logger.node_header(node.node_id)
-        cmd = _build_compose_cmd(project, node, "down", command_type="run")
+        cmd = _build_compose_cmd(project, node, "down", command_type="down")
         rc = _run_shell(cmd, dry_run=dry_run)
         if rc == 0:
             logger.ok("down")
