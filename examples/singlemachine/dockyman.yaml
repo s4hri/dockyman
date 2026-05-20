@@ -1,7 +1,10 @@
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  dockyman_ref: v4.3.0
+  # dockyman_ref: v4.3.0  # Pin to a specific git tag or branch. Omit to use the
+  #                        # installed dockyman version automatically. Set this
+  #                        # when you need to lock a project to a version that
+  #                        # differs from the one currently installed.
 
   # ── Global variables ──────────────────────────────────────────────────────
   # Jinja2 template strings resolved in order — each var can reference any
