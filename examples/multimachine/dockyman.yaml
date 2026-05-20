@@ -40,7 +40,7 @@ project:
   build_profiles: ["build"]
   run_profiles: ["production"]
   # pull_profiles and push_profiles are not set here, so they fall back to
-  # run_profiles (["production"]) automatically.  Set to [] to pull/push all
+  # run_profiles automatically.  Set to [] to pull/push all
   # services with no profile filter, or list specific profiles to override.
   # pull_profiles: []
   # push_profiles: []
@@ -117,8 +117,10 @@ project:
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ manager_shell_prefix }}
       # run_profiles inherits global ["production"] — override here if needed.
-      # Extra CLI args appended to `docker compose up/down`.
+      # Extra CLI args appended to `docker compose up`.
       run_args: "{{ run_args }}"
+      # Extra CLI args appended to `docker compose down` (omit to use no extra args).
+      # down_args: "--remove-orphans"
 
       # ── Pull settings ──────────────────────────────────────────────────
       # When omitted, pull uses run_shell_prefix and run_profiles as fallback.
@@ -131,6 +133,12 @@ project:
       # Set push_profiles: [] to push all services with no profile filter.
       # push_shell_prefix: {{ manager_shell_prefix }}
       # push_profiles: []
+
+      # ── Down settings ──────────────────────────────────────────────────
+      # When omitted, down uses run_shell_prefix and run_profiles as fallback.
+      # Set down_profiles: [] to stop all services with no profile filter.
+      # down_shell_prefix: {{ manager_shell_prefix }}
+      # down_profiles: []
 
     # ── Remote node ───────────────────────────────────────────────────────
     # This node runs on a separate machine reached via SSH.
@@ -148,8 +156,11 @@ project:
       run_shell_prefix:   {{ worker_shell_prefix }}
       # build_profiles and run_profiles inherit global defaults.
       # pull and push fall back to run_shell_prefix / run_profiles when not set.
-      # Set pull_profiles: [] or push_profiles: [] to target all services.
+      # down also falls back to run_shell_prefix / run_profiles when not set.
+      # Set pull_profiles: [] or push_profiles: [] or down_profiles: [] to target all services.
       # pull_shell_prefix: {{ worker_shell_prefix }}
       # pull_profiles: []
       # push_shell_prefix: {{ worker_shell_prefix }}
       # push_profiles: []
+      # down_shell_prefix: {{ worker_shell_prefix }}
+      # down_profiles: []

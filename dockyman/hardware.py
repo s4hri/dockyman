@@ -172,7 +172,5 @@ def setup(project: Project, *, dry_run: bool = False) -> bool:
     Playbooks whose ``hook`` is ``"setup"`` (or whose hook is unset, since
     setup is the default phase) are executed in declaration order.
     """
-    logger.header(f"Hardware setup for project '{project.name}'")
-
     ok = run_playbooks(project, hook="setup", dry_run=dry_run)
     return ok

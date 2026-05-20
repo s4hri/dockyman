@@ -53,6 +53,9 @@ class Node:
     pull_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
     push_shell_prefix: str = ""
     push_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
+    down_shell_prefix: str = ""
+    down_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
+    down_args: str = ""
 
     # Ansible playbooks scoped to this node; run with --limit <node_id> automatically.
     playbooks: List[AnsiblePlaybook] = field(default_factory=list)
@@ -81,6 +84,11 @@ class Node:
             prefix = self.push_shell_prefix.strip() or self.run_shell_prefix.strip()
             if prefix:
                 parts.append(prefix)
+        elif command_type == "down":
+            # Fall back to run_shell_prefix when no down-specific prefix is set.
+            prefix = self.down_shell_prefix.strip() or self.run_shell_prefix.strip()
+            if prefix:
+                parts.append(prefix)
         return " ".join(parts)
 
     @property
@@ -106,6 +114,7 @@ class Project:
     run_profiles: List[str] = field(default_factory=list)
     pull_profiles: Optional[List[str]] = None
     push_profiles: Optional[List[str]] = None
+    down_profiles: Optional[List[str]] = None
     ansible: Optional[AnsibleConfig] = None
     project_playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
@@ -290,6 +299,7 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
     proj_run_profiles   = _to_list(proj_raw["run_profiles"])   if "run_profiles"   in proj_raw else []
     proj_pull_profiles  = _to_list(proj_raw["pull_profiles"])  if "pull_profiles"  in proj_raw else None
     proj_push_profiles  = _to_list(proj_raw["push_profiles"])  if "push_profiles"  in proj_raw else None
+    proj_down_profiles  = _to_list(proj_raw["down_profiles"])  if "down_profiles"  in proj_raw else None
 
     for node_id, node_raw in nodes_iter:
         node_playbooks: list[AnsiblePlaybook] = []
@@ -320,6 +330,9 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 pull_profiles=_to_list(node_raw["pull_profiles"]) if "pull_profiles" in node_raw else proj_pull_profiles,
                 push_shell_prefix=node_raw.get("push_shell_prefix", ""),
                 push_profiles=_to_list(node_raw["push_profiles"]) if "push_profiles" in node_raw else proj_push_profiles,
+                down_shell_prefix=node_raw.get("down_shell_prefix", ""),
+                down_profiles=_to_list(node_raw["down_profiles"]) if "down_profiles" in node_raw else proj_down_profiles,
+                down_args=node_raw.get("down_args", ""),
                 playbooks=node_playbooks,
             )
         )
@@ -336,6 +349,7 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         run_profiles=proj_run_profiles,
         pull_profiles=proj_pull_profiles,
         push_profiles=proj_push_profiles,
+        down_profiles=proj_down_profiles,
     )
     project.base_dir = str(Path(base_dir).resolve())
 

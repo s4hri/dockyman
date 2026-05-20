@@ -329,6 +329,7 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `run_profiles` | | Default Compose profiles for `run`/`down`/`config` on all nodes. Overridden per node. |
 | `pull_profiles` | | Default Compose profiles for `pull` on all nodes. When omitted, `run_profiles` is used. Overridden per node. Set to `[]` to pull all services with no profile filter. |
 | `push_profiles` | | Default Compose profiles for `push` on all nodes. When omitted, `run_profiles` is used. Overridden per node. Set to `[]` to push all services with no profile filter. |
+| `down_profiles` | | Default Compose profiles for `down` on all nodes. When omitted, `run_profiles` is used. Overridden per node. Set to `[]` to stop all services with no profile filter. |
 
 ### Node settings
 
@@ -342,13 +343,16 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `build_shell_prefix` | | Shell expression prepended to `docker compose build`. |
 | `build_profiles` | | Compose profiles activated during `build`. |
 | `build_args` | | Extra CLI arguments appended to `docker compose build`. |
-| `run_shell_prefix` | | Shell expression prepended to `docker compose up`, `down`, and `config`. |
-| `run_profiles` | | Compose profiles activated during `run`, `down`, and `config`. |
-| `run_args` | | Extra CLI arguments appended to `docker compose up` and `down`. |
+| `run_shell_prefix` | | Shell expression prepended to `docker compose up` and `config`. Also used as fallback for `down`, `pull`, and `push` when their specific prefix is not set. |
+| `run_profiles` | | Compose profiles activated during `run` and `config`. Also used as fallback for `down`, `pull`, and `push` when their specific profiles are not set. |
+| `run_args` | | Extra CLI arguments appended to `docker compose up`. |
+| `down_args` | | Extra CLI arguments appended to `docker compose down`. |
 | `pull_shell_prefix` | | Shell expression prepended to `docker compose pull`. When omitted, `run_shell_prefix` is used. |
 | `pull_profiles` | | Compose profiles activated during `pull`. When omitted, `run_profiles` is used. Set to `[]` to pull all services with no profile filter. |
 | `push_shell_prefix` | | Shell expression prepended to `docker compose push`. When omitted, `run_shell_prefix` is used. |
 | `push_profiles` | | Compose profiles activated during `push`. When omitted, `run_profiles` is used. Set to `[]` to push all services with no profile filter. |
+| `down_shell_prefix` | | Shell expression prepended to `docker compose down`. When omitted, `run_shell_prefix` is used. |
+| `down_profiles` | | Compose profiles activated during `down`. When omitted, `run_profiles` is used. Set to `[]` to stop all services with no profile filter. |
 
 ## Logging
 

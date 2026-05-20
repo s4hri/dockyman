@@ -172,6 +172,7 @@ class TestLoadConfig:
               run_profiles: [production]
               pull_profiles: [production]
               push_profiles: [push]
+              down_profiles: [production]
               nodes:
                 nodeA:
                   compose_files: [compose.yaml]
@@ -186,6 +187,7 @@ class TestLoadConfig:
             assert node.run_profiles == ["production"]
             assert node.pull_profiles == ["production"]
             assert node.push_profiles == ["push"]
+            assert node.down_profiles == ["production"]
 
     def test_node_profiles_override_global(self, tmp_path):
         """Explicit node-level profiles override the project defaults."""
