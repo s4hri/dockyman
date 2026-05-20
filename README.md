@@ -10,6 +10,8 @@
 - [dockyman.yaml Reference](#dockyamanyaml-reference)
 - [Logging](#logging)
 - [Contributing](#contributing)
+  - [Creating a release](#creating-a-release)
+  - [Reporting issues](#reporting-issues)
 - [License](#license)
 
 ---
@@ -371,6 +373,33 @@ Contributions are welcome! Please follow these steps:
 4. **Add tests** for any new behaviour. Tests live in `tests/` and are run with `pytest`.
 
 5. **Open a Pull Request** against `master`. The CI pipeline runs automatically.
+
+### Creating a release
+
+The package version is derived automatically from git tags via `setuptools-scm`. To cut a new release:
+
+1. **Ensure `master` is clean and all tests pass:**
+   ```bash
+   make test
+   ```
+
+2. **Create and push an annotated tag:**
+   ```bash
+   git tag -a v4.4.0 -m "Release v4.4.0"
+   git push origin v4.4.0
+   ```
+
+   The tag must follow the `vMAJOR.MINOR.PATCH` format. Once pushed, the CI pipeline
+   will pick up the new tag and the installed package will report that version via
+   `dockyman -V`.
+
+3. **Reinstall locally** if you want to verify the version in your dev environment:
+   ```bash
+   pip install -e .
+   dockyman -V
+   ```
+
+---
 
 ### Reporting issues
 

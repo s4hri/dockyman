@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from .config import AnsibleConfig, AnsiblePlaybook, Project
 from . import logger
-import subprocess
-from typing import Any
 
 
 def _resolve_string(value: str) -> str:
@@ -97,7 +96,11 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
         return 0
 
     print(f"  {logger.BOLD}${logger.RESET} {cmd_str}")
-    result = subprocess.run(cmd_parts)
+    ansible_bin = shutil.which("ansible-playbook")
+    if ansible_bin is None:
+        print(f"{logger.RED}Error:{logger.RESET} 'ansible-playbook' not found in PATH. Install it with: pip install 'dockyman[ansible]'")
+        return 1
+    result = subprocess.run([ansible_bin] + cmd_parts[1:])
     return result.returncode
 
 

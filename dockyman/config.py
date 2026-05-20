@@ -10,6 +10,8 @@ from types import SimpleNamespace
 from typing import List, Optional
 
 import yaml
+
+from . import __version__
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, UndefinedError
 
 
@@ -299,7 +301,7 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
     project = Project(
         name=proj_raw["name"],
         dockyman_repo=str(proj_raw["dockyman_repo"]),
-        dockyman_ref=str(proj_raw.get("dockyman_ref", "main")),
+        dockyman_ref=str(proj_raw.get("dockyman_ref", __version__)),
         nodes=node_list,
         vars_files=_to_list(proj_raw.get("vars_files") or proj_raw.get("vars_file") or proj_raw.get("inventory") or []),
         container_log_dir=proj_raw.get("container_log_dir", ""),
