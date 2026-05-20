@@ -7,7 +7,7 @@ import sys
 
 from . import __version__
 from .config import load_config, render_config
-from .executor import build, config, down, run, status
+from .executor import build, config, down, pull, push, run, status
 from .hardware import detect_hardware, setup
 from .ansible import run_playbooks
 from . import logger
@@ -49,6 +49,12 @@ def main(argv: list[str] | None = None) -> None:
 
     # -- render ----------------------------------------------------------------
     sub.add_parser("render", help="Render dockyman configuration file.")
+
+    # -- pull ------------------------------------------------------------------
+    sub.add_parser("pull", help="Pull images on all nodes.")
+
+    # -- push ------------------------------------------------------------------
+    sub.add_parser("push", help="Push images on all nodes.")
 
     # -- build -----------------------------------------------------------------
     sub.add_parser("build", help="Build images on all nodes.")
@@ -138,6 +144,10 @@ def main(argv: list[str] | None = None) -> None:
         # compose commands
         case "status":
             ok = status(project, dry_run=dry)
+        case "pull":
+            ok = pull(project, dry_run=dry)
+        case "push":
+            ok = push(project, dry_run=dry)
         case "build":
             ok = run_playbooks(project, hook="before_build", dry_run=dry)
             ok = build(project, dry_run=dry) and ok

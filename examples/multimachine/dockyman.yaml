@@ -34,6 +34,17 @@ project:
     run_args: "--remove-orphans"
     audio_volume_level: "75%"
 
+  # ── Global profile defaults ───────────────────────────────────────────────
+  # Profiles defined here apply to every node that does not explicitly override
+  # them.  A node can override any of these by defining the same key locally.
+  build_profiles: ["build"]
+  run_profiles: ["production"]
+  # pull_profiles and push_profiles are not set here, so they fall back to
+  # run_profiles (["production"]) automatically.  Set to [] to pull/push all
+  # services with no profile filter, or list specific profiles to override.
+  # pull_profiles: []
+  # push_profiles: []
+
   # ── Project-level playbooks ───────────────────────────────────────────────
   # Playbooks listed here are project-scoped: the target hosts are defined
   # inside each playbook's own 'hosts:' directive (resolved from the Ansible
@@ -97,19 +108,29 @@ project:
       # ── Build settings ─────────────────────────────────────────────────
       # Shell expression prepended to `docker compose build`.
       build_shell_prefix: {{ manager_shell_prefix }}
-      # Compose profiles activated during `dockyman build`.
-      build_profiles: ["build"]
+      # build_profiles inherits global ["build"] — override here if needed.
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
 
-      # ── Run settings ───────────────────────────────────────────────────
+      # ── Run settings ───────────────────────────────────────────────
       # These settings are also used by `dockyman down` and `dockyman config`.
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ manager_shell_prefix }}
-      # Compose profiles activated during `dockyman run` / `dockyman down`.
-      run_profiles: ["production"]
+      # run_profiles inherits global ["production"] — override here if needed.
       # Extra CLI args appended to `docker compose up/down`.
       run_args: "{{ run_args }}"
+
+      # ── Pull settings ──────────────────────────────────────────────────
+      # When omitted, pull uses run_shell_prefix and run_profiles as fallback.
+      # Set pull_profiles: [] to pull all services with no profile filter.
+      # pull_shell_prefix: {{ manager_shell_prefix }}
+      # pull_profiles: []
+
+      # ── Push settings ──────────────────────────────────────────────────
+      # When omitted, push uses run_shell_prefix and run_profiles as fallback.
+      # Set push_profiles: [] to push all services with no profile filter.
+      # push_shell_prefix: {{ manager_shell_prefix }}
+      # push_profiles: []
 
     # ── Remote node ───────────────────────────────────────────────────────
     # This node runs on a separate machine reached via SSH.
@@ -125,4 +146,10 @@ project:
       # PUID/PGID are resolved on the remote host so file ownership is correct.
       build_shell_prefix: {{ worker_shell_prefix }}
       run_shell_prefix:   {{ worker_shell_prefix }}
-      run_profiles: ["production"]
+      # build_profiles and run_profiles inherit global defaults.
+      # pull and push fall back to run_shell_prefix / run_profiles when not set.
+      # Set pull_profiles: [] or push_profiles: [] to target all services.
+      # pull_shell_prefix: {{ worker_shell_prefix }}
+      # pull_profiles: []
+      # push_shell_prefix: {{ worker_shell_prefix }}
+      # push_profiles: []

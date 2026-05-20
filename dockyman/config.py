@@ -49,6 +49,10 @@ class Node:
     run_shell_prefix: str = ""
     run_profiles: List[str] = field(default_factory=list)
     run_args: str = ""
+    pull_shell_prefix: str = ""
+    pull_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
+    push_shell_prefix: str = ""
+    push_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
 
     # Ansible playbooks scoped to this node; run with --limit <node_id> automatically.
     playbooks: List[AnsiblePlaybook] = field(default_factory=list)
@@ -67,6 +71,16 @@ class Node:
             parts.append(self.build_shell_prefix.strip())
         elif command_type in ["run", "config_run"] and self.run_shell_prefix.strip():
             parts.append(self.run_shell_prefix.strip())
+        elif command_type == "pull":
+            # Fall back to run_shell_prefix when no pull-specific prefix is set.
+            prefix = self.pull_shell_prefix.strip() or self.run_shell_prefix.strip()
+            if prefix:
+                parts.append(prefix)
+        elif command_type == "push":
+            # Fall back to run_shell_prefix when no push-specific prefix is set.
+            prefix = self.push_shell_prefix.strip() or self.run_shell_prefix.strip()
+            if prefix:
+                parts.append(prefix)
         return " ".join(parts)
 
     @property
@@ -86,6 +100,12 @@ class Project:
     vars_files: List[str] = field(default_factory=list)  # paths to YAML files whose keys are available as template variables
     container_log_dir: str = ""
     config_log_dir: str = ""
+    # Project-level profile defaults – inherited by every node that does not
+    # explicitly define the corresponding field.
+    build_profiles: List[str] = field(default_factory=list)
+    run_profiles: List[str] = field(default_factory=list)
+    pull_profiles: Optional[List[str]] = None
+    push_profiles: Optional[List[str]] = None
     ansible: Optional[AnsibleConfig] = None
     project_playbooks: List[AnsiblePlaybook] = field(default_factory=list)
 
@@ -264,6 +284,13 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         nodes_iter = [(nid, nattrs or {}) for nid, nattrs in raw_nodes.items()]
     else:
         nodes_iter = [(n["node_id"], n) for n in raw_nodes]
+
+    # Project-level profile defaults (inherited by nodes that don't override).
+    proj_build_profiles = _to_list(proj_raw["build_profiles"]) if "build_profiles" in proj_raw else []
+    proj_run_profiles   = _to_list(proj_raw["run_profiles"])   if "run_profiles"   in proj_raw else []
+    proj_pull_profiles  = _to_list(proj_raw["pull_profiles"])  if "pull_profiles"  in proj_raw else None
+    proj_push_profiles  = _to_list(proj_raw["push_profiles"])  if "push_profiles"  in proj_raw else None
+
     for node_id, node_raw in nodes_iter:
         node_playbooks: list[AnsiblePlaybook] = []
         for pb_raw in (node_raw.get("playbooks") or []):
@@ -284,11 +311,15 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 docker_host=node_raw.get("docker_host"),
                 env_files=_to_list(node_raw.get("env_files") or node_raw.get("env_file")),
                 build_shell_prefix=node_raw.get("build_shell_prefix", ""),
-                build_profiles=node_raw.get("build_profiles", []),
+                build_profiles=_to_list(node_raw["build_profiles"]) if "build_profiles" in node_raw else proj_build_profiles,
                 build_args=node_raw.get("build_args", ""),
                 run_shell_prefix=node_raw.get("run_shell_prefix", ""),
-                run_profiles=node_raw.get("run_profiles", []),
+                run_profiles=_to_list(node_raw["run_profiles"]) if "run_profiles" in node_raw else proj_run_profiles,
                 run_args=node_raw.get("run_args", ""),
+                pull_shell_prefix=node_raw.get("pull_shell_prefix", ""),
+                pull_profiles=_to_list(node_raw["pull_profiles"]) if "pull_profiles" in node_raw else proj_pull_profiles,
+                push_shell_prefix=node_raw.get("push_shell_prefix", ""),
+                push_profiles=_to_list(node_raw["push_profiles"]) if "push_profiles" in node_raw else proj_push_profiles,
                 playbooks=node_playbooks,
             )
         )
@@ -301,6 +332,10 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
         vars_files=_to_list(proj_raw.get("vars_files") or proj_raw.get("vars_file") or proj_raw.get("inventory") or []),
         container_log_dir=proj_raw.get("container_log_dir", ""),
         config_log_dir=proj_raw.get("config_log_dir", ""),
+        build_profiles=proj_build_profiles,
+        run_profiles=proj_run_profiles,
+        pull_profiles=proj_pull_profiles,
+        push_profiles=proj_push_profiles,
     )
     project.base_dir = str(Path(base_dir).resolve())
 

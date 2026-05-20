@@ -66,6 +66,8 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     *command_type* selects the shell prefix, profiles, and extra CLI args:
     ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
     ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
+    ``"pull"``         → ``pull_shell_prefix`` (or ``run_shell_prefix``) + ``pull_profiles`` (or ``run_profiles``),
+    ``"push"``         → ``push_shell_prefix`` (or ``run_shell_prefix``) + ``push_profiles`` (or ``run_profiles``),
     ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
     ``"config_run"``   → ``run_shell_prefix``   + ``run_profiles``.
 
@@ -84,6 +86,14 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     elif command_type == "run":
         profiles = node.run_profiles
         extra_args = node.run_args.strip()
+    elif command_type == "pull":
+        # Fall back to run_profiles when no pull-specific profiles are set.
+        profiles = node.pull_profiles if node.pull_profiles is not None else node.run_profiles
+        extra_args = ""
+    elif command_type == "push":
+        # Fall back to run_profiles when no push-specific profiles are set.
+        profiles = node.push_profiles if node.push_profiles is not None else node.run_profiles
+        extra_args = ""
     elif command_type == "config":
         # All profiles defined for the node, deduplicated, preserving order
         seen: set[str] = set()
@@ -151,6 +161,53 @@ def status(project: Project, dry_run: bool = False) -> bool:
             logger.ok("reachable")
         else:
             logger.fail("unreachable")
+            all_ok = False
+        print()
+
+    return all_ok
+
+
+def pull(project: Project, dry_run: bool = False) -> bool:
+    """Run ``docker compose pull`` on every node.
+
+    Uses ``pull_shell_prefix`` and ``pull_profiles`` when defined; falls back
+    to ``run_shell_prefix`` and ``run_profiles`` when they are not set.
+    Returns True if all pulls succeeded.
+    """
+    logger.header(f"Pulling images for project '{project.name}' …")
+    all_ok = True
+
+    for node in project.nodes:
+        logger.node_header(node.node_id)
+        cmd = _build_compose_cmd(project, node, "pull", command_type="pull")
+        rc = _run_shell(cmd, dry_run=dry_run)
+        if rc == 0:
+            logger.ok("pull succeeded")
+        else:
+            logger.fail("pull failed")
+            all_ok = False
+        print()
+
+    return all_ok
+
+
+def push(project: Project, dry_run: bool = False) -> bool:
+    """Run ``docker compose push`` on every node.
+
+    Uses ``push_shell_prefix`` and ``push_profiles`` when defined.
+    Returns True if all pushes succeeded.
+    """
+    logger.header(f"Pushing images for project '{project.name}' …")
+    all_ok = True
+
+    for node in project.nodes:
+        logger.node_header(node.node_id)
+        cmd = _build_compose_cmd(project, node, "push", command_type="push")
+        rc = _run_shell(cmd, dry_run=dry_run)
+        if rc == 0:
+            logger.ok("push succeeded")
+        else:
+            logger.fail("push failed")
             all_ok = False
         print()
 

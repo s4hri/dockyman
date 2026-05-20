@@ -16,6 +16,17 @@ project:
     shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
     run_args: "--remove-orphans"
 
+  # ── Global profile defaults ────────────────────────────────────────────────
+  # Profiles defined here apply to every node that does not explicitly override
+  # them.  A node can override any of these by defining the same key locally.
+  build_profiles: ["build"]
+  run_profiles: ["production"]
+  # pull_profiles and push_profiles are not set here, so they fall back to
+  # run_profiles (["production"]) automatically.  Set to [] to pull/push all
+  # services with no profile filter, or list specific profiles to override.
+  # pull_profiles: []
+  # push_profiles: []
+
   # ── Logging ───────────────────────────────────────────────────────────────
 
   # Container logs: one file per service per node → <dir>/<node_id>/<service>.log
@@ -53,15 +64,13 @@ project:
       # ── Build settings ─────────────────────────────────────────────────
       # Shell expression prepended to `docker compose build`.
       build_shell_prefix: {{ shell_prefix }}
-      # Compose profiles activated during `dockyman build`.
-      build_profiles: ["build"]
+      # build_profiles inherits global ["build"] — override here if needed.
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
 
       # ── Run settings ───────────────────────────────────────────────────
       # Shell expression prepended to `docker compose up/down/config`.
       run_shell_prefix: {{ shell_prefix }}
-      # Compose profiles activated during `dockyman run` / `dockyman down`.
-      run_profiles: ["production"]
+      # run_profiles inherits global ["production"] — override here if needed.
       # Extra CLI args appended to `docker compose up/down`.
       run_args: "{{ run_args }}"
