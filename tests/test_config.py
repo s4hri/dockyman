@@ -161,6 +161,59 @@ class TestLoadConfig:
         assert node.run_profiles == []
         assert node.run_args == ""
 
+    def test_global_profiles_inherited_by_nodes(self, tmp_path):
+        """Nodes without explicit profiles inherit project-level defaults."""
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: global_prof
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              build_profiles: [build]
+              run_profiles: [production]
+              pull_profiles: [production]
+              push_profiles: [push]
+              nodes:
+                nodeA:
+                  compose_files: [compose.yaml]
+                nodeB:
+                  compose_files: [compose.yaml]
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        for node in project.nodes:
+            assert node.build_profiles == ["build"]
+            assert node.run_profiles == ["production"]
+            assert node.pull_profiles == ["production"]
+            assert node.push_profiles == ["push"]
+
+    def test_node_profiles_override_global(self, tmp_path):
+        """Explicit node-level profiles override the project defaults."""
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: override_prof
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              build_profiles: [build]
+              run_profiles: [production]
+              nodes:
+                nodeA:
+                  compose_files: [compose.yaml]
+                nodeB:
+                  compose_files: [compose.yaml]
+                  build_profiles: [custom-build]
+                  run_profiles: []
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        # nodeA inherits global defaults
+        assert project.nodes[0].build_profiles == ["build"]
+        assert project.nodes[0].run_profiles == ["production"]
+        # nodeB overrides both
+        assert project.nodes[1].build_profiles == ["custom-build"]
+        assert project.nodes[1].run_profiles == []
+
     def test_backward_compat_swarm_key(self, tmp_path):
         """Old ``swarm:`` list form still loads correctly as ``nodes``."""
         yaml_text = textwrap.dedent("""\

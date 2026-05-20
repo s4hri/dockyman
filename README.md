@@ -325,6 +325,10 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `inventory` | | Path to the Ansible inventory file (`hosts.yaml`), relative to `dockyman.yaml`. Required when using the `ansible:` block. |
 | `container_log_dir` | | Directory for container logs. Omit to stream to stdout. |
 | `config_log_dir` | | Directory for hardware/config logs. Omit to stream to stdout. |
+| `build_profiles` | | Default Compose profiles for `build` on all nodes. Overridden per node. |
+| `run_profiles` | | Default Compose profiles for `run`/`down`/`config` on all nodes. Overridden per node. |
+| `pull_profiles` | | Default Compose profiles for `pull` on all nodes. When omitted, `run_profiles` is used. Overridden per node. Set to `[]` to pull all services with no profile filter. |
+| `push_profiles` | | Default Compose profiles for `push` on all nodes. When omitted, `run_profiles` is used. Overridden per node. Set to `[]` to push all services with no profile filter. |
 
 ### Node settings
 
@@ -341,6 +345,10 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `run_shell_prefix` | | Shell expression prepended to `docker compose up`, `down`, and `config`. |
 | `run_profiles` | | Compose profiles activated during `run`, `down`, and `config`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up` and `down`. |
+| `pull_shell_prefix` | | Shell expression prepended to `docker compose pull`. When omitted, `run_shell_prefix` is used. |
+| `pull_profiles` | | Compose profiles activated during `pull`. When omitted, `run_profiles` is used. Set to `[]` to pull all services with no profile filter. |
+| `push_shell_prefix` | | Shell expression prepended to `docker compose push`. When omitted, `run_shell_prefix` is used. |
+| `push_profiles` | | Compose profiles activated during `push`. When omitted, `run_profiles` is used. Set to `[]` to push all services with no profile filter. |
 
 ## Logging
 
