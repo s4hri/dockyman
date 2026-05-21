@@ -6,67 +6,40 @@ import json
 import shutil
 import subprocess
 import sys
-from typing import Any, Optional
 
-from .config import AnsibleConfig, AnsiblePlaybook, Project
+from .config import AnsiblePlaybook, Project
 from . import logger
 
 
 def _resolve_string(value: str) -> str:
-    """
-    Resolve:
-      - env vars: $HOME, ${USER}
-      - subshells: $(pwd), $(whoami)
+    """Resolve env vars and subshells in *value* via bash.
 
-    Warning:
-        Executes shell expressions. Use only with trusted input.
+    Warning: executes shell expressions — use only with trusted input.
     """
-
-    result = subprocess.check_output(
+    return subprocess.check_output(
         ["bash", "-c", f"printf '%s' \"{value}\""],
         text=True,
     )
 
-    return result
 
-
-def _resolve_env_vars(extra_vars: dict,
-                        _depth: int = 0,
-                        max_depth: int = 10) -> dict:
+def _resolve_env_vars(extra_vars: dict, _depth: int = 0, max_depth: int = 10) -> dict:
     """Recursively resolve shell expressions in strings."""
-
     if _depth > max_depth:
-        raise ValueError(
-            f"extra_vars exceeds maximum nesting depth of {max_depth}"
-        )
-
+        raise ValueError(f"extra_vars exceeds maximum nesting depth of {max_depth}")
     resolved = {}
-
     for key, value in extra_vars.items():
-
         if isinstance(value, str):
             resolved[key] = _resolve_string(value)
-
         elif isinstance(value, dict):
-            resolved[key] = _resolve_env_vars(
-                value,
-                _depth + 1,
-                max_depth,
-            )
-
+            resolved[key] = _resolve_env_vars(value, _depth + 1, max_depth)
         elif isinstance(value, list):
-            resolved[key] = [
-                _resolve_string(v) if isinstance(v, str) else v
-                for v in value
-            ]
-
+            resolved[key] = [_resolve_string(v) if isinstance(v, str) else v for v in value]
         else:
             resolved[key] = value
-
     return resolved
 
 def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
-                  node_filter: Optional[str] = None,
+                  node_filter: str | None = None,
                   dry_run: bool = False) -> int:
     """Execute a single ansible-playbook command.
 
@@ -105,7 +78,7 @@ def _run_playbook(playbook: AnsiblePlaybook, inventory: str,
 
 
 def _collect_playbooks(project: Project,
-                       node_filter: Optional[str] = None) -> list[AnsiblePlaybook]:
+                       node_filter: str | None = None) -> list[AnsiblePlaybook]:
     """Collect all playbooks: node-level first, then top-level ansible: section.
 
     ``node_filter`` limits node-level playbooks to those belonging to the
@@ -136,9 +109,9 @@ def _collect_playbooks(project: Project,
 
 
 def run_playbooks(project: Project,
-                  playbook_filter: Optional[str] = None,
-                  node_filter: Optional[str] = None,
-                  hook: Optional[str] = None,
+                  playbook_filter: str | None = None,
+                  node_filter: str | None = None,
+                  hook: str | None = None,
                   dry_run: bool = False) -> bool:
     """Run Ansible playbooks declared in the project.
 

@@ -36,13 +36,6 @@ def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) 
             print(f"\n{logger.BOLD}  ─── {title} ───{logger.RESET}")
         logger.section(title)
 
-    def _raw(text: str) -> None:
-        if to_stdout:
-            for line in text.splitlines():
-                print(f"  {line}")
-        else:
-            logger.log_raw(text)
-
     def _info(text: str) -> None:
         """Print to console AND log, regardless of to_stdout."""
         if not logger._quiet:
@@ -74,14 +67,12 @@ def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) 
         _info(f"docker_host    : {node.docker_host or '(local)'}")
         for ef in env_files:
             _info(f"env_file       : {ef}")
-        if node.build_shell_prefix:
-            _info(f"build_shell_prefix : {node.build_shell_prefix}")
+        if node.shell_prefix:
+            _info(f"shell_prefix       : {node.shell_prefix}")
         if node.build_profiles:
             _info(f"build_profiles     : {', '.join(node.build_profiles)}")
         if node.build_args:
             _info(f"build_args         : {node.build_args}")
-        if node.run_shell_prefix:
-            _info(f"run_shell_prefix   : {node.run_shell_prefix}")
         if node.run_profiles:
             _info(f"run_profiles   : {', '.join(node.run_profiles)}")
         if node.run_args:

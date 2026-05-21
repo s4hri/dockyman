@@ -123,7 +123,7 @@ These variables are then available as Jinja2 globals in `dockyman.yaml`:
 
 ```yaml
 docker_host: "{{ manager.docker_host }}"
-build_shell_prefix: {{ manager.shell_prefix }}
+shell_prefix: {{ manager.shell_prefix }}
 ```
 
 > **Rule of thumb:** if a playbook needs it → `hosts.yaml`. If only dockyman needs it → `vars.yaml`.
@@ -166,7 +166,7 @@ dockyman render
 
 ### `dockyman build`
 
-Run `docker compose build` on every node using `build_shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
+Run `docker compose build` on every node using `shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
 
 ```bash
 dockyman build
@@ -232,8 +232,8 @@ Print the resolved Compose configuration for each node (`docker compose config`)
 
 ```bash
 dockyman config                          # all nodes, all profiles
-dockyman config --stage build            # build_shell_prefix + build_profiles
-dockyman config --stage run              # run_shell_prefix   + run_profiles
+dockyman config --stage build            # shell_prefix + build_profiles
+dockyman config --stage run              # shell_prefix + run_profiles
 dockyman config -n manager               # single node
 dockyman config -p build                 # only nodes that have the 'build' profile
 dockyman config --stage build -n manager # combine filters
@@ -340,19 +340,12 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `docker_context` | | Base directory for Docker files. Defaults to the directory of `dockyman.yaml`. |
 | `docker_host` | | Docker daemon socket. `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. |
 | `env_files` | | List of env files passed to Compose with `--env-file`. |
-| `build_shell_prefix` | | Shell expression prepended to `docker compose build`. |
+| `shell_prefix` | | Shell expression prepended to all `docker compose` commands (build, run, pull, push, down). |
 | `build_profiles` | | Compose profiles activated during `build`. |
 | `build_args` | | Extra CLI arguments appended to `docker compose build`. |
-| `run_shell_prefix` | | Shell expression prepended to `docker compose up` and `config`. Also used as fallback for `down`, `pull`, and `push` when their specific prefix is not set. |
-| `run_profiles` | | Compose profiles activated during `run` and `config`. Also used as fallback for `down`, `pull`, and `push` when their specific profiles are not set. |
+| `run_profiles` | | Compose profiles activated during `run` and `config`. Also used as fallback for `down`, `pull`, and `push`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up`. |
 | `down_args` | | Extra CLI arguments appended to `docker compose down`. |
-| `pull_shell_prefix` | | Shell expression prepended to `docker compose pull`. When omitted, `run_shell_prefix` is used. |
-| `pull_profiles` | | Compose profiles activated during `pull`. When omitted, `run_profiles` is used. Set to `[]` to pull all services with no profile filter. |
-| `push_shell_prefix` | | Shell expression prepended to `docker compose push`. When omitted, `run_shell_prefix` is used. |
-| `push_profiles` | | Compose profiles activated during `push`. When omitted, `run_profiles` is used. Set to `[]` to push all services with no profile filter. |
-| `down_shell_prefix` | | Shell expression prepended to `docker compose down`. When omitted, `run_shell_prefix` is used. |
-| `down_profiles` | | Compose profiles activated during `down`. When omitted, `run_profiles` is used. Set to `[]` to stop all services with no profile filter. |
 
 ## Logging
 
