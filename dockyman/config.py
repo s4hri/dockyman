@@ -199,6 +199,33 @@ def _resolve_global_vars(raw_vars: dict, context: dict) -> dict:
     return resolved
 
 
+def _load_dotenv_vars(path: Path) -> dict:
+    """Load a .env file and return its KEY=VALUE pairs as a flat dict.
+
+    Recognises comments (``# …``), blank lines, optional ``export`` prefixes,
+    and both single- and double-quoted values.  The result is a flat mapping of
+    variable names to their string values, available as Jinja2 template globals
+    (e.g. ``{{ MY_VAR }}``).
+    """
+    result: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        if key:
+            result[key] = value
+    return result
+
+
 def _load_generic_yaml_vars(path: Path) -> dict:
     """Load any YAML file and return its top-level keys as a dict.
 
@@ -261,7 +288,10 @@ def render_config(config_path: str = "dockyman.yaml") -> str:
     env.globals["env"] = os.environ
     for vf_path in vars_file_paths:
         if vf_path.exists():
-            env.globals.update(_load_generic_yaml_vars(vf_path))
+            if vf_path.name.startswith(".env") or vf_path.suffix == ".env":
+                env.globals.update(_load_dotenv_vars(vf_path))
+            else:
+                env.globals.update(_load_generic_yaml_vars(vf_path))
 
     # 2b. Extract and resolve project-level global vars ({{ key }} in any field).
     raw_global_vars = _extract_global_vars(raw_text)

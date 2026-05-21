@@ -7,30 +7,33 @@ project:
   #                        # differs from the one currently installed.
 
   # ── Variable files ────────────────────────────────────────────────────────
-  # One or more YAML files whose top-level keys become Jinja2 template globals
-  # available anywhere in this file.  Files are merged in order; later entries
-  # override earlier ones.
+  # One or more YAML or .env files whose top-level keys become Jinja2 template
+  # globals available anywhere in this file.  Files are merged in order; later
+  # entries override earlier ones.
   #
-  # Example — reference a nested value from ansible/inventory.yaml:
-  #   {{ all.hosts.worker.ansible_host }}
+  # Supported formats:
+  #   .yaml / .yml  – top-level keys merged as template globals (nested dicts
+  #                   accessible with dot notation: {{ all.hosts.worker.ansible_host }})
+  #   .env          – KEY=VALUE pairs merged as flat globals: {{ MY_VAR }}
   #
   # The built-in `env` mapping is always available without a vars_file:
   #   {{ env.HOME }}, {{ env.USER }}, etc.
   vars_files:
     - ansible/inventory.yaml
+    - .env
 
   # ── Global variables ──────────────────────────────────────────────────────
   # Jinja2 template strings resolved in order — each var can reference any
   # var defined above it, as well as globals from vars_files and {env.*}.
   # Use these to define shared values and avoid repetition across nodes.
   vars:
-    current_user: "{{ env.USER }}"
     manager_docker_host:  "unix:///var/run/docker.sock"
     manager_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
-    # For remote nodes, the Docker host is reached via SSH.
-    worker_docker_host:  "ssh://{{ current_user }}@{{ all.hosts.worker.ansible_host }}"
-    # PUID/PGID are resolved on the remote host via SSH so file ownership is correct.
-    worker_shell_prefix: "PUID=$(ssh {{ current_user }}@{{ all.hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ current_user }}@{{ all.hosts.worker.ansible_host }} id -g)"
+
+    worker_user: "{{ env.USER }}" # "all.hosts.worker.ansible_user" is not available here because vars_files are merged after vars, so we use env.USER as a fallback.
+    worker_docker_host:  "ssh://{{ worker_user }}@{{ all.hosts.worker.ansible_host }}"
+    worker_shell_prefix: "PUID=$(ssh {{ worker_user }}@{{ all.hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ worker_user }}@{{ all.hosts.worker.ansible_host }} id -g)"
+
     run_args: "--remove-orphans"
     audio_volume_level: "75%"
 
@@ -154,6 +157,8 @@ project:
       # PUID/PGID are resolved on the remote host so file ownership is correct.
       build_shell_prefix: {{ worker_shell_prefix }}
       run_shell_prefix:   {{ worker_shell_prefix }}
+
+      run_args: "{{ run_args }}"
       # build_profiles and run_profiles inherit global defaults.
       # pull and push fall back to run_shell_prefix / run_profiles when not set.
       # down also falls back to run_shell_prefix / run_profiles when not set.
