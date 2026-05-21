@@ -18,3 +18,4 @@ all:
       ansible_host:       127.0.0.1
       ansible_connection: local # Use "ssh" for remote hosts (requires passwordless SSH setup).
       # ansible_user: myremoteuser # optional, defaults to OS user running dockyman
+

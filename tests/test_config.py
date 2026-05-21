@@ -349,6 +349,36 @@ class TestLoadConfig:
         project = load_config(str(f))
         assert project.nodes[0].docker_host == "192.168.1.10"
 
+    def test_dotenv_vars_file_exposed_as_template_globals(self, tmp_path):
+        """A .env file in vars_files exposes KEY=VALUE pairs as Jinja2 globals."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(textwrap.dedent("""\
+            # project registry
+            REGISTRY=ghcr.io/myorg
+            export TAG=1.2.3
+            QUOTED_VAL="hello world"
+        """))
+        yaml_text = textwrap.dedent("""\
+            project:
+              name: test_project
+              dockyman_repo: https://github.com/s4hri/dockyman
+              dockyman_ref: v4.0.0
+              vars_files:
+                - .env
+              vars:
+                image: "{{ REGISTRY }}/myapp:{{ TAG }}"
+              nodes:
+                manager:
+                  compose_files: [compose.yaml]
+                  docker_host: "{{ QUOTED_VAL }}"
+                  run_args: "{{ image }}"
+        """)
+        f = tmp_path / "dockyman.yaml"
+        f.write_text(yaml_text)
+        project = load_config(str(f))
+        assert project.nodes[0].docker_host == "hello world"
+        assert project.nodes[0].run_args == "ghcr.io/myorg/myapp:1.2.3"
+
     def test_inventory_backward_compat(self, tmp_path):
         """Old ``inventory:`` key still populates ``vars_files``."""
         yaml_text = textwrap.dedent("""\
