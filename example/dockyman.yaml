@@ -109,16 +109,14 @@ project:
         - .env
 
       # ── Build settings ─────────────────────────────────────────────────
-      # Shell expression prepended to `docker compose build`.
-      build_shell_prefix: {{ manager_shell_prefix }}
       # build_profiles inherits global ["build"] — override here if needed.
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
 
       # ── Run settings ───────────────────────────────────────────────
       # These settings are also used by `dockyman down` and `dockyman config`.
-      # Shell expression prepended to `docker compose up/down/config`.
-      run_shell_prefix: {{ manager_shell_prefix }}
+      # Shell expression prepended to all docker compose commands (build, run, pull, push, down).
+      shell_prefix: {{ manager_shell_prefix }}
       # run_profiles inherits global ["production"] — override here if needed.
       # Extra CLI args appended to `docker compose up`.
       run_args: "{{ run_args }}"
@@ -126,21 +124,15 @@ project:
       # down_args: "--remove-orphans"
 
       # ── Pull settings ──────────────────────────────────────────────────
-      # When omitted, pull uses run_shell_prefix and run_profiles as fallback.
       # Set pull_profiles: [] to pull all services with no profile filter.
-      # pull_shell_prefix: {{ manager_shell_prefix }}
       # pull_profiles: []
 
       # ── Push settings ──────────────────────────────────────────────────
-      # When omitted, push uses run_shell_prefix and run_profiles as fallback.
       # Set push_profiles: [] to push all services with no profile filter.
-      # push_shell_prefix: {{ manager_shell_prefix }}
       # push_profiles: []
 
       # ── Down settings ──────────────────────────────────────────────────
-      # When omitted, down uses run_shell_prefix and run_profiles as fallback.
       # Set down_profiles: [] to stop all services with no profile filter.
-      # down_shell_prefix: {{ manager_shell_prefix }}
       # down_profiles: []
 
     # ── Remote node ───────────────────────────────────────────────────────
@@ -155,17 +147,12 @@ project:
         - .env
       build_profiles: ["build"]
       # PUID/PGID are resolved on the remote host so file ownership is correct.
-      build_shell_prefix: {{ worker_shell_prefix }}
-      run_shell_prefix:   {{ worker_shell_prefix }}
+      shell_prefix: {{ worker_shell_prefix }}
 
       run_args: "{{ run_args }}"
       # build_profiles and run_profiles inherit global defaults.
-      # pull and push fall back to run_shell_prefix / run_profiles when not set.
-      # down also falls back to run_shell_prefix / run_profiles when not set.
+      # pull, push and down all use shell_prefix automatically.
       # Set pull_profiles: [] or push_profiles: [] or down_profiles: [] to target all services.
-      # pull_shell_prefix: {{ worker_shell_prefix }}
       # pull_profiles: []
-      # push_shell_prefix: {{ worker_shell_prefix }}
       # push_profiles: []
-      # down_shell_prefix: {{ worker_shell_prefix }}
       # down_profiles: []

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import subprocess
 import signal
-from typing import Optional
 
 from .config import Node, Project
 from . import logger
@@ -63,14 +62,15 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
                        profile_override: list[str] | None = None) -> str:
     """Build the full shell command string for a node.
 
-    *command_type* selects the shell prefix, profiles, and extra CLI args:
-    ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
-    ``"run"``          → ``run_shell_prefix``   + ``run_profiles``   + ``run_args``,
-    ``"pull"``         → ``pull_shell_prefix`` (or ``run_shell_prefix``) + ``pull_profiles`` (or ``run_profiles``),
-    ``"push"``         → ``push_shell_prefix`` (or ``run_shell_prefix``) + ``push_profiles`` (or ``run_profiles``),
-    ``"down"``         → ``down_shell_prefix`` (or ``run_shell_prefix``) + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
-    ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
-    ``"config_run"``   → ``run_shell_prefix``   + ``run_profiles``.
+    *command_type* selects the profiles and extra CLI args (``shell_prefix``
+    is always prepended for all command types):
+    ``"build"``        → ``shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``          → ``shell_prefix`` + ``run_profiles``   + ``run_args``,
+    ``"pull"``         → ``shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
+    ``"push"``         → ``shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
+    ``"down"``         → ``shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
+    ``"config_build"`` → ``shell_prefix`` + ``build_profiles``,
+    ``"config_run"``   → ``shell_prefix`` + ``run_profiles``.
 
     *profile_override*, when provided, replaces the profile list derived from
     *command_type*.  Use this to pass a pre-filtered or pre-merged profile list.
@@ -175,8 +175,7 @@ def status(project: Project, dry_run: bool = False) -> bool:
 def pull(project: Project, dry_run: bool = False) -> bool:
     """Run ``docker compose pull`` on every node.
 
-    Uses ``pull_shell_prefix`` and ``pull_profiles`` when defined; falls back
-    to ``run_shell_prefix`` and ``run_profiles`` when they are not set.
+    Uses ``pull_profiles`` when set; falls back to ``run_profiles`` otherwise.
     Returns True if all pulls succeeded.
     """
     logger.header(f"Pulling images for project '{project.name}' …")
@@ -199,8 +198,7 @@ def pull(project: Project, dry_run: bool = False) -> bool:
 def push(project: Project, dry_run: bool = False) -> bool:
     """Run ``docker compose push`` on every node.
 
-    Uses ``push_shell_prefix`` and ``push_profiles`` when defined.
-    Returns True if all pushes succeeded.
+    Uses ``push_profiles`` when set. Returns True if all pushes succeeded.
     """
     logger.header(f"Pushing images for project '{project.name}' …")
     all_ok = True
@@ -242,7 +240,7 @@ def build(project: Project, dry_run: bool = False) -> bool:
 
 
 def run(project: Project, dry_run: bool = False, detach: bool = False,
-        log_dir: Optional[str] = None) -> bool:
+        log_dir: str | None = None) -> bool:
     """Start services on every node.
 
     Default behaviour (no flags):
@@ -361,8 +359,7 @@ def run(project: Project, dry_run: bool = False, detach: bool = False,
 def down(project: Project, dry_run: bool = False) -> bool:
     """Run ``docker compose down`` on every node.
 
-    Uses ``down_shell_prefix`` and ``down_profiles`` when defined; falls back
-    to ``run_shell_prefix`` and ``run_profiles`` when they are not set.
+    Uses ``down_profiles`` when set; falls back to ``run_profiles`` otherwise.
     Returns True if all nodes tore down successfully.
     """
     logger.header(f"Stopping services for project '{project.name}' …")
@@ -393,8 +390,8 @@ def config(project: Project, dry_run: bool = False,
         profile_filter: When given, only activate profiles from this list
                         (intersected with each node's stage-appropriate profiles).
                         When omitted, all relevant profiles for the node are used.
-        stage:          ``"build"`` → use ``build_shell_prefix`` + ``build_profiles``;
-                        ``"run"``   → use ``run_shell_prefix``   + ``run_profiles``;
+        stage:          ``"build"`` \u2192 ``build_profiles``;
+                        ``"run"``   \u2192 ``run_profiles``;
                         ``None``    → merge both (default).
 
     Returns True if all matched nodes resolved successfully.

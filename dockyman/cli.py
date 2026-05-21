@@ -84,8 +84,8 @@ def main(argv: list[str] | None = None) -> None:
     config_parser.add_argument(
         "--stage",
         choices=["build", "run"], default=None,
-        help="Show config for a specific stage: 'build' uses build_shell_prefix + build_profiles, "
-             "'run' uses run_shell_prefix + run_profiles. Default: merge both.",
+        help="Show config for a specific stage: 'build' uses shell_prefix + build_profiles, "
+             "'run' uses shell_prefix + run_profiles. Default: merge both.",
     )
 
     # -- info ------------------------------------------------------------------

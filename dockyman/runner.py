@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
 
 from .config import Node
 from . import logger
@@ -23,7 +22,7 @@ class RunResult:
         return self.returncode == 0
 
 
-def _ssh_target(node: Node) -> Optional[str]:
+def _ssh_target(node: Node) -> str | None:
     """Extract ``user@host`` from an ``ssh://user@host`` DOCKER_HOST.
 
     Returns *None* for local nodes.
@@ -77,11 +76,3 @@ def run_on_node(
     else:
         result = subprocess.run(full_cmd, shell=True)
         return RunResult(result.returncode, "", "")
-
-
-def command_exists_on_node(
-    node: Node, command: str, *, dry_run: bool = False,
-) -> bool:
-    """Check whether *command* is available on *node*."""
-    res = run_on_node(node, f"command -v {command}", capture=True, dry_run=dry_run)
-    return res.ok

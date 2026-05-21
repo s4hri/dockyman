@@ -24,27 +24,25 @@ class TestGetEnvPrefix:
         assert n.get_env_prefix("build") == "DOCKER_HOST=unix:///var/run/docker.sock"
         assert n.get_env_prefix("run") == "DOCKER_HOST=unix:///var/run/docker.sock"
 
-    def test_build_shell_prefix_only_for_build(self):
-        n = self._node(build_shell_prefix="FOO=1")
+    def test_shell_prefix_applied_to_all_commands(self):
+        n = self._node(shell_prefix="FOO=1")
         assert n.get_env_prefix("build") == "FOO=1"
-        assert n.get_env_prefix("run") == ""
-        assert n.get_env_prefix() == ""
-
-    def test_run_shell_prefix_only_for_run(self):
-        n = self._node(run_shell_prefix="BAR=2")
-        assert n.get_env_prefix("run") == "BAR=2"
-        assert n.get_env_prefix("build") == ""
+        assert n.get_env_prefix("run") == "FOO=1"
+        assert n.get_env_prefix("pull") == "FOO=1"
+        assert n.get_env_prefix("push") == "FOO=1"
+        assert n.get_env_prefix("down") == "FOO=1"
+        assert n.get_env_prefix() == "FOO=1"
 
     def test_docker_host_and_shell_prefix_combined(self):
         n = self._node(
             docker_host="ssh://user@host",
-            run_shell_prefix="PUID=1000 PGID=1000",
+            shell_prefix="PUID=1000 PGID=1000",
         )
         result = n.get_env_prefix("run")
         assert result == "DOCKER_HOST=ssh://user@host PUID=1000 PGID=1000"
 
     def test_whitespace_only_prefix_ignored(self):
-        n = self._node(build_shell_prefix="   ")
+        n = self._node(shell_prefix="   ")
         assert n.get_env_prefix("build") == ""
 
 
@@ -89,10 +87,9 @@ class TestLoadConfig:
               docker_context: docker
               docker_host: unix:///var/run/docker.sock
               env_files: [.env]
-              build_shell_prefix: "PUID=1000"
+              shell_prefix: "PUID=1000"
               build_profiles: [build]
               build_args: "--no-cache"
-              run_shell_prefix: "PUID=1000"
               run_profiles: [prod]
               run_args: "--remove-orphans"
             remote:
@@ -135,10 +132,9 @@ class TestLoadConfig:
         assert local.docker_context == "docker"
         assert local.docker_host == "unix:///var/run/docker.sock"
         assert local.env_files == [".env"]
-        assert local.build_shell_prefix == "PUID=1000"
+        assert local.shell_prefix == "PUID=1000"
         assert local.build_profiles == ["build"]
         assert local.build_args == "--no-cache"
-        assert local.run_shell_prefix == "PUID=1000"
         assert local.run_profiles == ["prod"]
         assert local.run_args == "--remove-orphans"
 
@@ -154,10 +150,9 @@ class TestLoadConfig:
         assert node.docker_context == ""
         assert node.docker_host is None
         assert node.env_files == []
-        assert node.build_shell_prefix == ""
+        assert node.shell_prefix == ""
         assert node.build_profiles == []
         assert node.build_args == ""
-        assert node.run_shell_prefix == ""
         assert node.run_profiles == []
         assert node.run_args == ""
 
