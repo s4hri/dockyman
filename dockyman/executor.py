@@ -62,15 +62,15 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
                        profile_override: list[str] | None = None) -> str:
     """Build the full shell command string for a node.
 
-    *command_type* selects the profiles and extra CLI args (``shell_prefix``
+    *command_type* selects the profiles and extra CLI args (``<command_type>_shell_prefix``
     is always prepended for all command types):
-    ``"build"``        → ``shell_prefix`` + ``build_profiles`` + ``build_args``,
-    ``"run"``          → ``shell_prefix`` + ``run_profiles``   + ``run_args``,
-    ``"pull"``         → ``shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
-    ``"push"``         → ``shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
-    ``"down"``         → ``shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
-    ``"config_build"`` → ``shell_prefix`` + ``build_profiles``,
-    ``"config_run"``   → ``shell_prefix`` + ``run_profiles``.
+    ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``          → ``run_shell_prefix`` + ``run_profiles``   + ``run_args``,
+    ``"pull"``         → ``pull_shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
+    ``"push"``         → ``push_shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
+    ``"down"``         → ``down_shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
+    ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
+    ``"config_run"``   → ``run_shell_prefix`` + ``run_profiles``.
 
     *profile_override*, when provided, replaces the profile list derived from
     *command_type*.  Use this to pass a pre-filtered or pre-merged profile list.

@@ -112,18 +112,18 @@ Dockyman-specific variables — **invisible to Ansible**. Place this file in the
 ```yaml
 manager:
   docker_host:  "unix:///var/run/docker.sock"
-  shell_prefix: "PUID=$(id -u) PGID=$(id -g) WORKER_HOST={{ worker.ansible_host }}"
+  build_shell_prefix: "PUID=$(id -u) PGID=$(id -g) WORKER_HOST={{ worker.ansible_host }}"
 
 worker:
   docker_host:  "ssh://{{ ansible_user }}@{{ ansible_host }}"
-  shell_prefix: "PUID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -u) PGID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -g) MANAGER_HOST={{ manager.ansible_host }}"
+  build_shell_prefix: "PUID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -u) PGID=$(ssh {{ ansible_user }}@{{ ansible_host }} id -g) MANAGER_HOST={{ manager.ansible_host }}"
 ```
 
 These variables are then available as Jinja2 globals in `dockyman.yaml`:
 
 ```yaml
 docker_host: "{{ manager.docker_host }}"
-shell_prefix: {{ manager.shell_prefix }}
+build_shell_prefix: {{ manager.shell_prefix }}
 ```
 
 > **Rule of thumb:** if a playbook needs it → `hosts.yaml`. If only dockyman needs it → `vars.yaml`.
@@ -166,7 +166,7 @@ dockyman render
 
 ### `dockyman build`
 
-Run `docker compose build` on every node using `shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
+Run `docker compose build` on every node using `build_shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
 
 ```bash
 dockyman build
@@ -232,8 +232,8 @@ Print the resolved Compose configuration for each node (`docker compose config`)
 
 ```bash
 dockyman config                          # all nodes, all profiles
-dockyman config --stage build            # shell_prefix + build_profiles
-dockyman config --stage run              # shell_prefix + run_profiles
+dockyman config --stage build            # build_shell_prefix + build_profiles
+dockyman config --stage run              # run_shell_prefix + run_profiles
 dockyman config -n manager               # single node
 dockyman config -p build                 # only nodes that have the 'build' profile
 dockyman config --stage build -n manager # combine filters
@@ -340,12 +340,17 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `docker_context` | | Base directory for Docker files. Defaults to the directory of `dockyman.yaml`. |
 | `docker_host` | | Docker daemon socket. `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. |
 | `env_files` | | List of env files passed to Compose with `--env-file`. |
-| `shell_prefix` | | Shell expression prepended to all `docker compose` commands (build, run, pull, push, down). |
+| `build_shell_prefix` | | Shell expression prepended to all `docker compose build` commands. |
 | `build_profiles` | | Compose profiles activated during `build`. |
 | `build_args` | | Extra CLI arguments appended to `docker compose build`. |
+| `run_shell_prefix` | | Shell expression prepended to all `docker compose up` commands. |
 | `run_profiles` | | Compose profiles activated during `run` and `config`. Also used as fallback for `down`, `pull`, and `push`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up`. |
 | `down_args` | | Extra CLI arguments appended to `docker compose down`. |
+| `down_shell_prefix` | | Shell expression prepended to all `docker compose down` commands. |
+| `push_shell_prefix` | | Shell expression prepended to all `docker compose push` commands. |
+| `pull_shell_prefix` | | Shell expression prepended to all `docker compose pull` commands. |
+
 
 ## Logging
 

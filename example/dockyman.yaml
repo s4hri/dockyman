@@ -1,7 +1,7 @@
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  # dockyman_ref: v4.3.0  # Pin to a specific git tag or branch. Omit to use the
+  # dockyman_ref: v4.3.5  # Pin to a specific git tag or branch. Omit to use the
   #                        # installed dockyman version automatically. Set this
   #                        # when you need to lock a project to a version that
   #                        # differs from the one currently installed.
@@ -112,11 +112,14 @@ project:
       # build_profiles inherits global ["build"] — override here if needed.
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
+      # Shell expression prepended to `docker compose build` to set environment variables
+      build_shell_prefix: {{ manager_shell_prefix }}
 
       # ── Run settings ───────────────────────────────────────────────
       # These settings are also used by `dockyman down` and `dockyman config`.
-      # Shell expression prepended to all docker compose commands (build, run, pull, push, down).
-      shell_prefix: {{ manager_shell_prefix }}
+      # Shell expression prepended to all docker compose commands to set environment variables.
+      run_shell_prefix: {{ manager_shell_prefix }}
+
       # run_profiles inherits global ["production"] — override here if needed.
       # Extra CLI args appended to `docker compose up`.
       run_args: "{{ run_args }}"
@@ -147,8 +150,9 @@ project:
         - .env
       build_profiles: ["build"]
       # PUID/PGID are resolved on the remote host so file ownership is correct.
-      shell_prefix: {{ worker_shell_prefix }}
+      build_shell_prefix: {{ worker_shell_prefix }}
 
+      run_shell_prefix: {{ worker_shell_prefix }}
       run_args: "{{ run_args }}"
       # build_profiles and run_profiles inherit global defaults.
       # pull, push and down all use shell_prefix automatically.
