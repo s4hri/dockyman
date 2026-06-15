@@ -43,7 +43,12 @@ class Node:
     docker_context: str = ""
     docker_host: Optional[str] = None
     env_files: List[str] = field(default_factory=list)
-    shell_prefix: str = ""
+    build_shell_prefix: str = ""
+    run_shell_prefix: str = ""
+    pull_shell_prefix: Optional[str] = None  # None = fall back to run_shell
+    push_shell_prefix: Optional[str] = None  # None = fall back to run_shell
+    down_shell_prefix: Optional[str] = None  # None = fall back to run_shell
+
     build_profiles: List[str] = field(default_factory=list)
     build_args: str = ""
     run_profiles: List[str] = field(default_factory=list)
@@ -60,13 +65,42 @@ class Node:
         """Return the env‑var prefix for the given command type.
 
         Always includes ``DOCKER_HOST`` when set.  Then appends
-        ``shell_prefix`` for all command types.
+        ``<command_type>_shell_prefix`` for all command types.
         """
         parts: list[str] = []
         if self.docker_host:
             parts.append(f"DOCKER_HOST={self.docker_host}")
-        if self.shell_prefix.strip():
-            parts.append(self.shell_prefix.strip())
+        if command_type == "build":
+            if self.build_shell_prefix:
+                build_prefix = self.build_shell_prefix.strip()
+            else:
+                build_prefix = ""
+            return " ".join(parts + [build_prefix]) if build_prefix else " ".join(parts)
+        if command_type == "run":
+            if self.run_shell_prefix:
+                run_prefix = self.run_shell_prefix.strip()
+            else:
+                run_prefix = ""
+            return " ".join(parts + [run_prefix]) if run_prefix else " ".join(parts)
+        if command_type == "pull":
+            if self.pull_shell_prefix:
+                pull_prefix = self.pull_shell_prefix.strip()
+            else:
+                pull_prefix = ""
+            return " ".join(parts + [pull_prefix]) if pull_prefix else " ".join(parts)
+        if command_type == "push":
+            if self.push_shell_prefix:
+                push_prefix = self.push_shell_prefix.strip()
+            else:
+                push_prefix = ""
+            return " ".join(parts + [push_prefix]) if push_prefix else " ".join(parts)
+        if command_type == "down":
+            if self.down_shell_prefix:
+                down_prefix = self.down_shell_prefix.strip()
+            else:
+                down_prefix = ""
+            return " ".join(parts + [down_prefix]) if down_prefix else " ".join(parts)
+
         return " ".join(parts)
 
     @property
@@ -328,7 +362,11 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 docker_context=node_raw.get("docker_context", ""),
                 docker_host=node_raw.get("docker_host"),
                 env_files=_to_list(node_raw.get("env_files") or node_raw.get("env_file")),
-                shell_prefix=node_raw.get("shell_prefix", ""),
+                build_shell_prefix=node_raw.get("build_shell_prefix", ""),
+                run_shell_prefix=node_raw.get("run_shell_prefix", ""),
+                pull_shell_prefix=node_raw.get("pull_shell_prefix", ""),
+                push_shell_prefix=node_raw.get("push_shell_prefix", ""),
+                down_shell_prefix=node_raw.get("down_shell_prefix", ""),
                 build_profiles=_to_list(node_raw["build_profiles"]) if "build_profiles" in node_raw else proj_build_profiles,
                 build_args=node_raw.get("build_args", ""),
                 run_profiles=_to_list(node_raw["run_profiles"]) if "run_profiles" in node_raw else proj_run_profiles,

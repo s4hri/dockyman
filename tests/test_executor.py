@@ -45,14 +45,14 @@ class TestBuildComposeCmd:
 
     def test_build_shell_prefix_prepended(self):
         node = Node(node_id="n", compose_files=["compose.yaml"],
-                    shell_prefix="FOO=1")
+                    build_shell_prefix="FOO=1")
         project = _make_project(nodes=[node])
         cmd = _build_compose_cmd(project, node, "build", command_type="build")
         assert cmd.startswith("FOO=1 ")
 
     def test_run_shell_prefix_prepended(self):
         node = Node(node_id="n", compose_files=["compose.yaml"],
-                    shell_prefix="BAR=2")
+                    run_shell_prefix="BAR=2")
         project = _make_project(nodes=[node])
         cmd = _build_compose_cmd(project, node, "up -d", command_type="run")
         assert cmd.startswith("BAR=2 ")
