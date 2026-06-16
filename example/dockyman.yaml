@@ -74,6 +74,7 @@ project:
       hook: setup
       extra_vars:
         var_subshell_example: ${PWD##*/}
+  
   # ── Logging ───────────────────────────────────────────────────────────────
 
   # Container logs: one file per service per node → <dir>/<node_id>/<service>.log
@@ -108,17 +109,26 @@ project:
       env_files:
         - .env
 
+      # Shell expression prepended to all docker compose commands to set environment variables.
+      common_shell_prefix: {{ manager_shell_prefix }}
+
+      # Remove dangling volumes before building. Use with caution, as this will remove all dangling volumes, which may include volumes not related to this project.
+      # If true, `dockyman build` will remove all volumes before building.
+      # remove_volumes_before_build: true
+
+
       # ── Build settings ─────────────────────────────────────────────────
       # build_profiles inherits global ["build"] — override here if needed.
       # Extra CLI args appended to `docker compose build`.
       # build_args: "--no-cache"
-      # Shell expression prepended to `docker compose build` to set environment variables
-      build_shell_prefix: {{ manager_shell_prefix }}
+      # Specific shell prefix for build commands; if omitted, common_shell_prefix is used - if present, this prefix is appended to the common_shell_prefix.
+      # build_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"  
 
       # ── Run settings ───────────────────────────────────────────────
       # These settings are also used by `dockyman down` and `dockyman config`.
       # Shell expression prepended to all docker compose commands to set environment variables.
-      run_shell_prefix: {{ manager_shell_prefix }}
+      # If run_shell_prefix is omitted, common_shell_prefix is used - if present, this prefix is appended to the common_shell_prefix.
+      # run_shell_prefix: "PUID=$(id -u) PGID=$(id -g)"
 
       # run_profiles inherits global ["production"] — override here if needed.
       # Extra CLI args appended to `docker compose up`.
@@ -149,14 +159,9 @@ project:
       env_files:
         - .env
       build_profiles: ["build"]
-      # PUID/PGID are resolved on the remote host so file ownership is correct.
-      build_shell_prefix: {{ worker_shell_prefix }}
 
-      run_shell_prefix: {{ worker_shell_prefix }}
+      common_shell_prefix: {{ worker_shell_prefix }}
+
+      remove_volumes_before_build: true
+
       run_args: "{{ run_args }}"
-      # build_profiles and run_profiles inherit global defaults.
-      # pull, push and down all use shell_prefix automatically.
-      # Set pull_profiles: [] or push_profiles: [] or down_profiles: [] to target all services.
-      # pull_profiles: []
-      # push_profiles: []
-      # down_profiles: []

@@ -67,6 +67,8 @@ def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) 
         _info(f"docker_host    : {node.docker_host or '(local)'}")
         for ef in env_files:
             _info(f"env_file       : {ef}")
+        if node.common_shell_prefix:
+            _info(f"common_shell_prefix : {node.common_shell_prefix}")
         if node.build_shell_prefix:
             _info(f"build_shell_prefix : {node.build_shell_prefix}")
         if node.run_shell_prefix:
