@@ -64,13 +64,13 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
 
     *command_type* selects the profiles and extra CLI args (``<command_type>_shell_prefix``
     is always prepended for all command types):
-    ``"build"``        → ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
-    ``"run"``          → ``run_shell_prefix`` + ``run_profiles``   + ``run_args``,
-    ``"pull"``         → ``pull_shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
-    ``"push"``         → ``push_shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
-    ``"down"``         → ``down_shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
-    ``"config_build"`` → ``build_shell_prefix`` + ``build_profiles``,
-    ``"config_run"``   → ``run_shell_prefix`` + ``run_profiles``.
+    ``"build"``        → ``common_shell_prefix`` + ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
+    ``"run"``          → ``common_shell_prefix`` + ``run_shell_prefix`` + ``run_profiles``   + ``run_args``,
+    ``"pull"``         → ``common_shell_prefix`` + ``pull_shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
+    ``"push"``         → ``common_shell_prefix`` + ``push_shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
+    ``"down"``         → ``common_shell_prefix`` + ``down_shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
+    ``"config_build"`` → ``common_shell_prefix`` + ``build_shell_prefix`` + ``build_profiles``,
+    ``"config_run"``   → ``common_shell_prefix`` + ``run_shell_prefix`` + ``run_profiles``.
 
     *profile_override*, when provided, replaces the profile list derived from
     *command_type*.  Use this to pass a pre-filtered or pre-merged profile list.
@@ -227,6 +227,19 @@ def build(project: Project, dry_run: bool = False) -> bool:
 
     for node in project.nodes:
         logger.node_header(node.node_id)
+        # Check if remove_volumes_before_build is set at the node level, otherwise fall back to the project-level setting.
+        if node.remove_volumes_before_build:
+            logger.warn("Removing all volumes before build (remove_volumes_before_build=True)")
+            rm_cmd = _build_compose_cmd(project, node, "down -v", command_type="down",
+                                        include_extra_args=False)
+            rm_rc = _run_shell(rm_cmd, dry_run=dry_run)
+            if rm_rc == 0:
+                logger.ok("volumes removed")
+            else:
+                logger.fail("failed to remove volumes")
+                all_ok = False
+                print()
+                continue
         cmd = _build_compose_cmd(project, node, "build", command_type="build")
         rc = _run_shell(cmd, dry_run=dry_run)
         if rc == 0:

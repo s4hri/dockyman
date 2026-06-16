@@ -19,20 +19,20 @@ class TestGetEnvPrefix:
         assert self._node().get_env_prefix() == ""
 
     def test_docker_host_always_included(self):
-        n = self._node(docker_host="unix:///var/run/docker.sock")
-        assert n.get_env_prefix() == "DOCKER_HOST=unix:///var/run/docker.sock"
-        assert n.get_env_prefix("build") == "DOCKER_HOST=unix:///var/run/docker.sock"
-        assert n.get_env_prefix("run") == "DOCKER_HOST=unix:///var/run/docker.sock"
+        n = self._node(docker_host="unix:///var/run/docker.sock", common_shell_prefix="FOO=1", build_shell_prefix="BAR=1", run_shell_prefix="BAZ=1")
+        assert n.get_env_prefix() == "DOCKER_HOST=unix:///var/run/docker.sock FOO=1"
+        assert n.get_env_prefix("build") == "DOCKER_HOST=unix:///var/run/docker.sock FOO=1 BAR=1"
+        assert n.get_env_prefix("run") == "DOCKER_HOST=unix:///var/run/docker.sock FOO=1 BAZ=1"
 
     def test_shell_prefix_applied_to_all_commands(self):
-        n = self._node(build_shell_prefix="FOO=1", run_shell_prefix="FOO=1", pull_shell_prefix="FOO=1",
-                       push_shell_prefix="FOO=1", down_shell_prefix="FOO=1")
-        assert n.get_env_prefix("build") == "FOO=1"
-        assert n.get_env_prefix("run") == "FOO=1"
-        assert n.get_env_prefix("pull") == "FOO=1"
-        assert n.get_env_prefix("push") == "FOO=1"
-        assert n.get_env_prefix("down") == "FOO=1"
-        assert n.get_env_prefix() == ""
+        n = self._node(common_shell_prefix="FOO=1", build_shell_prefix="BAR=1", run_shell_prefix="BAZ=1", pull_shell_prefix="QUX=1",
+                       push_shell_prefix="QUUX=1", down_shell_prefix="CORGE=1")
+        assert n.get_env_prefix("build") == "FOO=1 BAR=1"
+        assert n.get_env_prefix("run") == "FOO=1 BAZ=1"
+        assert n.get_env_prefix("pull") == "FOO=1 QUX=1"
+        assert n.get_env_prefix("push") == "FOO=1 QUUX=1"
+        assert n.get_env_prefix("down") == "FOO=1 CORGE=1"
+        assert n.get_env_prefix() == "FOO=1"
 
     def test_docker_host_and_shell_prefix_combined(self):
         n = self._node(

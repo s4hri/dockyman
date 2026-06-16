@@ -12,6 +12,10 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /run/user/${PUID:-1000}/pulse:/run/user/${PUID:-1000}/pulse
+      - volume_data:/data
 
     profiles:
       - production
+
+volumes:
+  volume_data:

@@ -43,6 +43,8 @@ class Node:
     docker_context: str = ""
     docker_host: Optional[str] = None
     env_files: List[str] = field(default_factory=list)
+    remove_volumes_before_build: bool = False
+    common_shell_prefix: str = ""  # applied to all command types;
     build_shell_prefix: str = ""
     run_shell_prefix: str = ""
     pull_shell_prefix: Optional[str] = None  # None = fall back to run_shell
@@ -70,35 +72,32 @@ class Node:
         parts: list[str] = []
         if self.docker_host:
             parts.append(f"DOCKER_HOST={self.docker_host}")
+        if self.common_shell_prefix:
+            parts.append(self.common_shell_prefix.strip())
         if command_type == "build":
+            build_prefix = ""
             if self.build_shell_prefix:
                 build_prefix = self.build_shell_prefix.strip()
-            else:
-                build_prefix = ""
             return " ".join(parts + [build_prefix]) if build_prefix else " ".join(parts)
         if command_type == "run":
+            run_prefix = ""
             if self.run_shell_prefix:
                 run_prefix = self.run_shell_prefix.strip()
-            else:
-                run_prefix = ""
             return " ".join(parts + [run_prefix]) if run_prefix else " ".join(parts)
         if command_type == "pull":
+            pull_prefix = ""
             if self.pull_shell_prefix:
                 pull_prefix = self.pull_shell_prefix.strip()
-            else:
-                pull_prefix = ""
             return " ".join(parts + [pull_prefix]) if pull_prefix else " ".join(parts)
         if command_type == "push":
+            push_prefix = ""
             if self.push_shell_prefix:
                 push_prefix = self.push_shell_prefix.strip()
-            else:
-                push_prefix = ""
             return " ".join(parts + [push_prefix]) if push_prefix else " ".join(parts)
         if command_type == "down":
+            down_prefix = ""
             if self.down_shell_prefix:
                 down_prefix = self.down_shell_prefix.strip()
-            else:
-                down_prefix = ""
             return " ".join(parts + [down_prefix]) if down_prefix else " ".join(parts)
 
         return " ".join(parts)
@@ -362,6 +361,8 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 docker_context=node_raw.get("docker_context", ""),
                 docker_host=node_raw.get("docker_host"),
                 env_files=_to_list(node_raw.get("env_files") or node_raw.get("env_file")),
+                remove_volumes_before_build=node_raw.get("remove_volumes_before_build", False),
+                common_shell_prefix=node_raw.get("common_shell_prefix", ""),
                 build_shell_prefix=node_raw.get("build_shell_prefix", ""),
                 run_shell_prefix=node_raw.get("run_shell_prefix", ""),
                 pull_shell_prefix=node_raw.get("pull_shell_prefix", ""),
@@ -432,7 +433,7 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
             project.container_log_dir = old_log_dir
         if not project.config_log_dir:
             project.config_log_dir = old_log_dir
-    
+        
     # Resolve log directories relative to the config file location
     if project.container_log_dir:
         project.container_log_dir = str((Path(project.base_dir) / project.container_log_dir).resolve())
