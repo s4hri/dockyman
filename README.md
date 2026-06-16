@@ -166,7 +166,7 @@ dockyman render
 
 ### `dockyman build`
 
-Run `docker compose build` on every node using `build_shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
+Run `docker compose build` on every node using `common_shell_prefix`, `build_shell_prefix`, `build_profiles`, and `build_args`. Runs any playbooks with `hook: before_build` first.
 
 ```bash
 dockyman build
@@ -340,6 +340,8 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `docker_context` | | Base directory for Docker files. Defaults to the directory of `dockyman.yaml`. |
 | `docker_host` | | Docker daemon socket. `unix:///var/run/docker.sock` for local, `ssh://user@host` for remote. |
 | `env_files` | | List of env files passed to Compose with `--env-file`. |
+| `remove_volumes_before_build` | | Remove all the volumes related to docker compose files defined for that node. |
+| `common_shell_prefix` | | Shell expression prepended to all `docker compose <command>` commands.
 | `build_shell_prefix` | | Shell expression prepended to all `docker compose build` commands. |
 | `build_profiles` | | Compose profiles activated during `build`. |
 | `build_args` | | Extra CLI arguments appended to `docker compose build`. |
