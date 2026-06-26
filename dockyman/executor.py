@@ -66,8 +66,8 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     is always prepended for all command types):
     ``"build"``        → ``common_shell_prefix`` + ``build_shell_prefix`` + ``build_profiles`` + ``build_args``,
     ``"run"``          → ``common_shell_prefix`` + ``run_shell_prefix`` + ``run_profiles``   + ``run_args``,
-    ``"pull"``         → ``common_shell_prefix`` + ``pull_shell_prefix`` + ``pull_profiles`` (or ``run_profiles``),
-    ``"push"``         → ``common_shell_prefix`` + ``push_shell_prefix`` + ``push_profiles`` (or ``run_profiles``),
+    ``"pull"``         → ``common_shell_prefix`` + ``pull_shell_prefix`` + ``pull_profiles`` (or ``run_profiles``) + ``pull_args``,
+    ``"push"``         → ``common_shell_prefix`` + ``push_shell_prefix`` + ``push_profiles`` (or ``run_profiles``) + ``push_args``,
     ``"down"``         → ``common_shell_prefix`` + ``down_shell_prefix`` + ``down_profiles`` (or ``run_profiles``) + ``down_args``,
     ``"config_build"`` → ``common_shell_prefix`` + ``build_shell_prefix`` + ``build_profiles``,
     ``"config_run"``   → ``common_shell_prefix`` + ``run_shell_prefix`` + ``run_profiles``.
@@ -90,11 +90,11 @@ def _build_compose_cmd(project: Project, node: Node, action: str, command_type: 
     elif command_type == "pull":
         # Fall back to run_profiles when no pull-specific profiles are set.
         profiles = node.pull_profiles if node.pull_profiles is not None else node.run_profiles
-        extra_args = ""
+        extra_args = node.pull_args.strip()
     elif command_type == "push":
         # Fall back to run_profiles when no push-specific profiles are set.
         profiles = node.push_profiles if node.push_profiles is not None else node.run_profiles
-        extra_args = ""
+        extra_args = node.push_args.strip()
     elif command_type == "down":
         # Fall back to run_profiles when no down-specific profiles are set.
         profiles = node.down_profiles if node.down_profiles is not None else node.run_profiles

@@ -56,7 +56,9 @@ class Node:
     run_profiles: List[str] = field(default_factory=list)
     run_args: str = ""
     pull_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
+    pull_args: str = ""
     push_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
+    push_args: str = ""
     down_profiles: Optional[List[str]] = None  # None = fall back to run_profiles at call time
     down_args: str = ""
 
@@ -373,7 +375,9 @@ def load_config(config_path: str = "dockyman.yaml") -> Project:
                 run_profiles=_to_list(node_raw["run_profiles"]) if "run_profiles" in node_raw else proj_run_profiles,
                 run_args=node_raw.get("run_args", ""),
                 pull_profiles=_to_list(node_raw["pull_profiles"]) if "pull_profiles" in node_raw else proj_pull_profiles,
+                pull_args=node_raw.get("pull_args", ""),
                 push_profiles=_to_list(node_raw["push_profiles"]) if "push_profiles" in node_raw else proj_push_profiles,
+                push_args=node_raw.get("push_args", ""),
                 down_profiles=_to_list(node_raw["down_profiles"]) if "down_profiles" in node_raw else proj_down_profiles,
                 down_args=node_raw.get("down_args", ""),
                 playbooks=node_playbooks,

@@ -1,7 +1,7 @@
 project:
   name: my_project
   dockyman_repo: https://github.com/s4hri/dockyman
-  # dockyman_ref: v4.3.5  # Pin to a specific git tag or branch. Omit to use the
+  # dockyman_ref: v4.3.6  # Pin to a specific git tag or branch. Omit to use the
   #                        # installed dockyman version automatically. Set this
   #                        # when you need to lock a project to a version that
   #                        # differs from the one currently installed.
@@ -35,6 +35,7 @@ project:
     worker_shell_prefix: "PUID=$(ssh {{ worker_user }}@{{ all.hosts.worker.ansible_host }} id -u) PGID=$(ssh {{ worker_user }}@{{ all.hosts.worker.ansible_host }} id -g)"
 
     run_args: "--remove-orphans"
+
     audio_volume_level: "75%"
 
   # ── Global profile defaults ───────────────────────────────────────────────
@@ -139,10 +140,14 @@ project:
       # ── Pull settings ──────────────────────────────────────────────────
       # Set pull_profiles: [] to pull all services with no profile filter.
       # pull_profiles: []
+      # Extra CLI args appended to `docker compose pull` (omit to use no extra args).
+      # pull_args: "--remove-orphans"
 
       # ── Push settings ──────────────────────────────────────────────────
       # Set push_profiles: [] to push all services with no profile filter.
       # push_profiles: []
+      # Extra CLI args appended to `docker compose push` (omit to use no extra args).
+      # push_args: "--remove-orphans"
 
       # ── Down settings ──────────────────────────────────────────────────
       # Set down_profiles: [] to stop all services with no profile filter.

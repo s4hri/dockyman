@@ -349,6 +349,8 @@ Playbooks without a `hook` run during `dockyman setup` (same as `hook: setup`).
 | `run_profiles` | | Compose profiles activated during `run` and `config`. Also used as fallback for `down`, `pull`, and `push`. |
 | `run_args` | | Extra CLI arguments appended to `docker compose up`. |
 | `down_args` | | Extra CLI arguments appended to `docker compose down`. |
+| `pull_args` | | Extra CLI arguments appended to `docker compose pull`. |
+| `push_args` | | Extra CLI arguments appended to `docker compose push`. |
 | `down_shell_prefix` | | Shell expression prepended to all `docker compose down` commands. |
 | `push_shell_prefix` | | Shell expression prepended to all `docker compose push` commands. |
 | `pull_shell_prefix` | | Shell expression prepended to all `docker compose pull` commands. |
