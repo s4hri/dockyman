@@ -87,6 +87,14 @@ def _detect_node(node: Node, *, dry_run: bool = False, to_stdout: bool = False) 
             _info(f"run_profiles   : {', '.join(node.run_profiles)}")
         if node.run_args:
             _info(f"run_args       : {node.run_args}")
+        if node.pull_profiles:
+            _info(f"pull_profiles  : {', '.join(node.pull_profiles)}")
+        if node.pull_args:
+            _info(f"pull_args      : {node.pull_args}")
+        if node.push_profiles:
+            _info(f"push_profiles  : {', '.join(node.push_profiles)}")
+        if node.push_args:
+            _info(f"push_args      : {node.push_args}")
 
     # ── System / OS ──────────────────────────────────────────────────────
     _section("System Information")
